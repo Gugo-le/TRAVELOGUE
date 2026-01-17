@@ -1,0 +1,374 @@
+:root {
+  --bg: #fafafa;
+  --text: #111;
+  --accent: #e67e22;
+  --ticket-bg: #ffffff;
+  --font-ticket: 'Courier New', Courier, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-ticket);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* --- INTRO --- */
+#intro-window {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #f4f4f4;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  transition: all 1.2s cubic-bezier(0.8, 0, 0.2, 1);
+  padding: 20px;
+}
+
+.window-frame {
+  width: 200px;
+  height: 280px;
+  background: #fff;
+  border-radius: 100px;
+  padding: 10px;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.05), 0 15px 40px rgba(0,0,0,0.08);
+  position: relative;
+  overflow: hidden;
+  border: 6px solid #eee;
+  margin-bottom: 40px;
+}
+
+.window-glass {
+  width: 100%;
+  height: 100%;
+  border-radius: 90px;
+  overflow: hidden;
+  background: linear-gradient(to bottom, #74ebd5 0%, #acb6e5 100%);
+}
+
+.clouds {
+  position: absolute;
+  width: 400%;
+  height: 100%;
+  background: url('https://www.transparenttextures.com/patterns/white-prism.png');
+  opacity: 0.4;
+  animation: cloudFlow 60s linear infinite;
+}
+
+@keyframes cloudFlow {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.main-slogan {
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+  color: #999;
+  margin-bottom: 40px;
+  font-weight: 300;
+  text-transform: uppercase;
+}
+
+.custom-form {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  margin-bottom: 50px;
+  align-items: center;
+}
+
+.input-group {
+  position: relative;
+  width: 240px;
+}
+
+.input-group label {
+  position: absolute;
+  top: -18px;
+  left: 0;
+  font-size: 0.55rem;
+  color: #bbb;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.input-group input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #ddd;
+  padding: 8px 0;
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+  outline: none;
+  text-align: center;
+  color: #333;
+  font-family: var(--font-ticket);
+}
+
+.click-prompt {
+  font-size: 0.65rem;
+  letter-spacing: 5px;
+  color: #555;
+  padding: 15px 40px;
+  border-radius: 2px;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  background: #fff;
+  transition: 0.4s;
+}
+
+.click-prompt:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* --- FLIP BOARD --- */
+#subtitle-container {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+#subtitle-container.hidden {
+  opacity: 0;
+  transform: translate(-50%, 20px);
+  pointer-events: none;
+}
+
+.flip-board {
+  display: flex;
+  gap: 3px;
+}
+
+.flip-char {
+  width: 24px;
+  height: 36px;
+  background: #222;
+  color: #eee;
+  font-family: var(--font-ticket);
+  font-size: 1.2rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  border-bottom: 2px solid #000;
+}
+
+/* --- PASSPORT --- */
+#passport-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 90px;
+  height: 128px;
+  background-image: url('KOR_ePassport.jpg');
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px;
+  cursor: pointer;
+  z-index: 2000;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+  transition: 0.4s ease;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+#passport-btn:hover {
+  transform: translateY(-10px) rotate(-3deg) scale(1.05);
+}
+
+#passport-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  z-index: 4000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: 0.5s;
+}
+
+.passport-page {
+  width: 85%;
+  max-width: 800px;
+  height: 500px;
+  background: #fdf5e6;
+  border-radius: 5px;
+  border: 12px solid #1a3666;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 20px;
+  padding: 40px;
+  overflow-y: auto;
+  position: relative;
+  background-image: radial-gradient(rgba(26, 54, 102, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* --- BOARDING PASS --- */
+#boarding-pass-ui {
+  position: fixed;
+  bottom: -400px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.9);
+  width: 650px;
+  height: 230px;
+  z-index: 1500;
+  display: flex;
+  transition: 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  cursor: pointer;
+  filter: drop-shadow(0 30px 60px rgba(0,0,0,0.15));
+}
+
+#boarding-pass-ui.active {
+  bottom: 60px;
+  transform: translateX(-50%) scale(1);
+}
+
+.ticket-main {
+  flex: 3;
+  padding: 25px 35px;
+  background: var(--ticket-bg);
+  border-radius: 8px 0 0 8px;
+  border-right: 2px dashed #eee;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+
+.ticket-stub {
+  flex: 1.2;
+  padding: 25px 20px;
+  background: #fdfdfd;
+  border-radius: 0 8px 8px 0;
+  border-left: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.ticket-header {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #f5f5f5;
+  padding-bottom: 10px;
+}
+
+.brand-box .brand { font-size: 0.85rem; font-weight: 900; color: #111; letter-spacing: 1px; }
+.brand-box .sub { font-size: 0.5rem; color: var(--accent); letter-spacing: 2px; }
+
+.route { display: flex; align-items: center; gap: 30px; margin: 15px 0; }
+.city-code { font-size: 3.2rem; font-weight: 800; color: #111; letter-spacing: -2px; line-height: 1; }
+.plane-path { flex: 1; height: 1px; background: #eee; position: relative; }
+.plane-path::after { content: "✈"; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); color: #ddd; font-size: 1rem; }
+
+.meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; border-top: 1px solid #f5f5f5; padding-top: 15px; }
+.meta-item .label { font-size: 0.45rem; color: #bbb; text-transform: uppercase; margin-bottom: 4px; }
+.meta-item .val { font-size: 0.75rem; font-weight: 800; color: #333; }
+
+.barcode { width: 100%; height: 60px; background: repeating-linear-gradient(90deg, #333 0px, #333 1px, transparent 1px, transparent 3px, #333 3px, #333 5px, transparent 5px, transparent 6px); opacity: 0.8; }
+
+/* --- MAP & HERO --- */
+#map-wrapper { position: absolute; inset: 0; background: var(--bg); }
+.hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  padding-top: 60px;
+  text-align: center;
+  z-index: 10;
+  pointer-events: none;
+  transition: 0.8s;
+}
+.hero-overlay h1 { margin: 0; font-weight: 100; letter-spacing: 16px; font-size: 2.2rem; color: var(--text); }
+.hero-overlay p { margin-top: 12px; font-size: 0.9rem; letter-spacing: 5px; color: #f7b3b3; text-transform: uppercase; }
+
+#back-btn {
+  position: absolute;
+  top: 40px;
+  left: 40px;
+  padding: 10px 20px;
+  border: 1px solid #eee;
+  background: white;
+  font-size: 0.6rem;
+  letter-spacing: 2px;
+  cursor: pointer;
+  z-index: 100;
+  display: none;
+  font-family: var(--font-ticket);
+}
+
+/* STAMP EFFECT */
+.dynamic-stamp {
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  border: 4px double var(--accent);
+  border-radius: 50%;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 2000;
+  opacity: 0;
+}
+
+.stamped { animation: stampHit 0.35s forwards; }
+
+@keyframes stampHit {
+  0% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1) rotate(-15deg); opacity: 0.6; }
+}
+
+#boarding-pass-ui.tearing .ticket-main { transform: translateX(-40px) rotate(-4deg); opacity: 0; transition: 0.7s; }
+#boarding-pass-ui.tearing .ticket-stub { transform: translate(150px, 600px) rotate(40deg); opacity: 0; transition: 1s; }
+
+/* --- ALBUM --- */
+#album-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.98);
+  z-index: 3000;
+  display: none;
+  opacity: 0;
+  transition: 0.8s;
+}
+
+.fragment {
+  position: absolute;
+  width: 300px;
+  height: 400px;
+  background: #fff;
+  padding: 12px;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 5px 25px rgba(0,0,0,0.03);
+  cursor: grab;
+  text-align: center;
+}
+
+.fragment img { width: 100%; height: 85%; object-fit: cover; }
+.fragment .caption { font-family: var(--font-ticket); font-size: 0.6rem; color: #999; margin-top: 15px; }

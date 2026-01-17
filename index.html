@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRAVELOGUE - OPTIMIZED EDITION</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.3/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.9/topojson.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/datamaps/0.5.9/datamaps.world.min.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="intro-window">
+    <div class="window-frame"><div class="window-glass"><div class="clouds"></div></div></div>
+    <div class="intro-text-zone">
+        <p class="main-slogan">Focus on the horizon, remember the vibe</p>
+        <div class="custom-form">
+            <div class="input-group">
+                <label>Passenger</label>
+                <input type="text" id="input-name" placeholder="YOUR NAME" oninput="syncCustom()">
+            </div>
+            <div class="input-group">
+                <label>From</label>
+                <input type="text" id="input-from" placeholder="ICN" oninput="syncCustom()">
+            </div>
+        </div>
+        <div class="click-prompt" onclick="startJourney()">START JOURNEY</div>
+    </div>
+</div>
+
+<div id="subtitle-container">
+    <div class="flip-board" id="flip-board"></div>
+    <p style="font-size:0.88rem; letter-spacing:2px; color:#f7b3b3; margin-top:10px;">Travel, one page at a time.</p>
+</div>
+
+<div id="passport-btn" onclick="togglePassport()"></div>
+
+<div id="passport-overlay" onclick="togglePassport()">
+    <div class="passport-page" id="passport-page" onclick="event.stopPropagation()"></div>
+</div>
+
+<div id="boarding-pass-ui" onclick="handleTicketClick(event)">
+    <div class="ticket-main">
+        <div class="ticket-header">
+            <div class="brand-box"><div class="brand">SKYLINE JOURNEY</div><div class="sub">ROK INTERNATIONAL</div></div>
+            <div style="text-align:right;">
+                <div class="label" style="font-size:0.4rem; color:#bbb;">FLIGHT</div>
+                <div class="val" style="font-size:0.75rem; font-weight:bold;">TRV-2026</div>
+            </div>
+        </div>
+        <div class="route">
+            <div class="city-code" id="ticket-from-code">ICN</div>
+            <div class="plane-path"></div>
+            <div class="city-code" id="ticket-dest-code">---</div>
+        </div>
+        <div class="meta-grid">
+            <div class="meta-item"><div class="label">Passenger</div><div class="val" id="ticket-name">---</div></div>
+            <div class="meta-item"><div class="label">Date</div><div class="val">18 JAN 26</div></div>
+            <div class="meta-item"><div class="label">Seat</div><div class="val">12A</div></div>
+            <div class="meta-item"><div class="label">Class</div><div class="val">ECONOMY</div></div>
+        </div>
+    </div>
+    <div class="ticket-stub">
+        <div style="text-align:left;">
+            <div class="label" style="color:#bbb;">BOARDING PASS</div>
+            <div class="val" style="font-size:1.3rem; font-weight:800; margin-top:5px; color:var(--accent);">12A</div>
+        </div>
+        <div class="barcode"></div>
+        <div style="font-size:0.45rem; color:#999; letter-spacing:1px; text-align:center;">#TRAVELOGUE_026</div>
+    </div>
+</div>
+
+<button id="back-btn" onclick="resetMap()">← WORLD</button>
+<div class="hero-overlay" id="hero">
+    <h1>TRAVELOGUE</h1>
+    <p>WHERE TO NEXT?</p>
+</div>
+<div id="map-wrapper"></div>
+
+<div id="album-overlay">
+    <button style="position:absolute; top:40px; right:40px; background:none; border:none; letter-spacing:4px; font-size:0.6rem; cursor:pointer; font-family:var(--font-ticket);" onclick="closeAlbum()">CLOSE</button>
+    <div id="fragment-zone"></div>
+    <div style="position:absolute; bottom:40px; left:50%; transform:translateX(-50%); display:flex; gap:20px;">
+        <label for="file-input" style="background:white; border:1px solid #eee; padding:10px 20px; font-size:0.6rem; cursor:pointer; font-family:var(--font-ticket);">UPLOAD PHOTO</label>
+        <input type="file" id="file-input" accept="image/*" multiple onchange="handleFileSelect(event)" style="display:none;">
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
