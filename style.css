@@ -132,6 +132,13 @@ html, body {
   color: var(--accent);
 }
 
+.intro-text-zone {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 /* --- FLIP BOARD --- */
 #subtitle-container {
   position: absolute;
