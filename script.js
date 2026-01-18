@@ -366,7 +366,7 @@ function startAutoRotate(projection, svg, path) {
     }
     const dt = Math.min(32, now - lastTime);
     lastTime = now;
-    globeRotation[0] += dt * 0.006;
+    globeRotation[0] += dt * 0.012;
     projection.rotate(globeRotation);
     svg.selectAll("path").attr("d", path);
   }
