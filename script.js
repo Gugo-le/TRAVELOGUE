@@ -581,7 +581,7 @@ function initGlobe() {
   const width = mapWrapper.clientWidth;
   const height = mapWrapper.clientHeight;
 
-  const baseScale = Math.min(window.innerWidth, window.innerHeight) * 0.42;
+  const baseScale = Math.min(window.innerWidth, window.innerHeight) * 0.48;
   const projection = d3.geo.orthographic()
     .scale(baseScale)
     .translate([
