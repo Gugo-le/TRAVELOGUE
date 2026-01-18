@@ -1,18 +1,51 @@
-let travelData = JSON.parse(localStorage.getItem('travelogue_data')) || {}; 
-let userConfig = JSON.parse(localStorage.getItem('travelogue_config')) || { name: '', from: '' };
-let visitedCountries = JSON.parse(localStorage.getItem('visited_countries')) || [];
+function loadJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+let travelData = loadJSON('travelogue_data', {}); 
+let userConfig = loadJSON('travelogue_config', { name: '', from: '' });
+let visitedCountries = loadJSON('visited_countries', []);
 let selectedCountry = null;
 let isAnimating = false;
 let isMobileView = window.innerWidth <= 768;
 let globeMode = isMobileView; // true = 지구본(3D), false = 평면지도(2D)
 let globeRotation = [100, -30];
 let globeMap = null;
-let inertiaTimer = null;
+let inertiaFrame = null;
 let velocity = [0, 0];
 let isDragging = false;
 let dragStart = [0, 0];
+let countdownTimer = null;
+let passportPage = 0;
+let passportSwipeStart = null;
 
 const themeColors = ['#e67e22', '#2980b9', '#27ae60', '#8e44ad', '#c0392b'];
+
+function playAudio(id, options = {}) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  const { restart = true } = options;
+  if (restart) el.currentTime = 0;
+  const p = el.play();
+  if (p && typeof p.catch === 'function') p.catch(() => {});
+  return el;
+}
+
+function pauseAudio(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.pause();
+}
+
+function getAccentColor() {
+  const color = getComputedStyle(document.documentElement).getPropertyValue('--accent');
+  return color ? color.trim() : '#ffcccc';
+}
 
 // --- 0. 디바이스 체크 및 맵 초기화 ---
 function checkDeviceAndInitMap() {
@@ -43,6 +76,7 @@ function syncCustom() {
 function startJourney() {
   if (isAnimating) return;
   isAnimating = true;
+  playAudio('airplane-bp');
 
   // 1단계: 인트로 창문 치우기
   document.getElementById('intro-window').style.transform = 'translateY(-100%)';
@@ -58,6 +92,7 @@ function startJourney() {
       loading.classList.remove('active');
       document.getElementById('main-content').classList.add('active');
       updateFlipBoard("WELCOME ABOARD");
+      playAudio('airplane-loop', { restart: false });
       
       // 맵 초기화 (디바이스에 따라 다르게)
       checkDeviceAndInitMap();
@@ -99,6 +134,7 @@ function togglePassport() {
     overlay.style.opacity = '0';
     setTimeout(() => overlay.style.display = 'none', 500);
   } else {
+    passportPage = 0;
     renderPassport();
     overlay.style.display = 'flex';
     setTimeout(() => overlay.style.opacity = '1', 10);
@@ -107,9 +143,24 @@ function togglePassport() {
 
 function renderPassport() {
   const page = document.getElementById('passport-page');
+  const stampsPerPage = isMobileView ? 6 : 8;
+  const totalPages = Math.max(1, Math.ceil(visitedCountries.length / stampsPerPage));
+  passportPage = Math.min(passportPage, totalPages - 1);
   page.innerHTML = visitedCountries.length ? "" : "<div style='grid-column:1/-1; text-align:center; color:#1a3666; opacity:0.3; padding-top:150px; font-family:var(--font-ticket); letter-spacing:5px;'>NO RECORDS FOUND</div>";
+
+  const prevBtn = document.getElementById('passport-prev');
+  const nextBtn = document.getElementById('passport-next');
+  if (prevBtn && nextBtn) {
+    const shouldShow = !isMobileView && totalPages > 1;
+    prevBtn.style.display = shouldShow ? 'flex' : 'none';
+    nextBtn.style.display = shouldShow ? 'flex' : 'none';
+    prevBtn.disabled = passportPage === 0;
+    nextBtn.disabled = passportPage >= totalPages - 1;
+  }
   
-  visitedCountries.forEach(code => {
+  const start = passportPage * stampsPerPage;
+  const pageItems = visitedCountries.slice(start, start + stampsPerPage);
+  pageItems.forEach(code => {
     const stamp = document.createElement('div');
     const color = themeColors[Math.floor(Math.random()*themeColors.length)];
     const randomRot = Math.random() * 20 - 10;
@@ -124,12 +175,29 @@ function renderPassport() {
     `;
     page.appendChild(stamp);
   });
+
+  if (visitedCountries.length > stampsPerPage) {
+    const indicator = document.createElement('div');
+    indicator.className = 'passport-pagination';
+    indicator.textContent = `PAGE ${passportPage + 1} / ${totalPages}`;
+    page.appendChild(indicator);
+  }
+}
+
+function changePassportPage(delta) {
+  const stampsPerPage = isMobileView ? 6 : 8;
+  const totalPages = Math.max(1, Math.ceil(visitedCountries.length / stampsPerPage));
+  if (totalPages <= 1) return;
+  passportPage = Math.max(0, Math.min(totalPages - 1, passportPage + delta));
+  renderPassport();
 }
 
 // --- 5. 보딩 패스 인터랙션 (도장 찍고 찢기) ---
 function handleTicketClick(e) {
   if (isAnimating) return;
+  if (!selectedCountry) return;
   isAnimating = true;
+  setTimelineStep("takeoff");
 
   const ticket = document.getElementById('boarding-pass-ui');
   
@@ -174,6 +242,68 @@ function handleTicketClick(e) {
       }, 1000);
     }, 800);
   }, 500);
+}
+
+function formatCountdown(totalSeconds) {
+  const minutes = Math.max(0, Math.floor(totalSeconds / 60));
+  const seconds = Math.max(0, totalSeconds % 60);
+  return `T-${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function startCountdown(totalSeconds) {
+  stopCountdown();
+  let remaining = totalSeconds;
+  const el = document.getElementById('countdown');
+  if (el) el.textContent = formatCountdown(remaining);
+  countdownTimer = setInterval(() => {
+    remaining -= 1;
+    if (remaining <= 0) {
+      remaining = 0;
+      stopCountdown();
+    }
+    if (el) el.textContent = formatCountdown(remaining);
+  }, 1000);
+}
+
+function stopCountdown() {
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+}
+
+function setTimelineStep(step) {
+  const timeline = document.getElementById('timeline');
+  if (!timeline) return;
+  timeline.querySelectorAll('.step').forEach(el => {
+    el.classList.toggle('active', el.dataset.step === step);
+  });
+}
+
+function showEventHud(destCode) {
+  const hud = document.getElementById('event-hud');
+  if (!hud) return;
+  const fromCode = document.getElementById('ticket-from-code');
+  const hudFrom = document.getElementById('hud-from');
+  const hudTo = document.getElementById('hud-to');
+  if (hudFrom && fromCode) hudFrom.textContent = fromCode.textContent || '---';
+  if (hudTo) hudTo.textContent = (destCode || selectedCountry || '---').toUpperCase();
+
+  const stamp = document.getElementById('status-stamp');
+  if (stamp) {
+    const labels = ['BOARDING', 'FINAL CALL', 'ON TIME'];
+    stamp.textContent = labels[Math.floor(Math.random() * labels.length)];
+  }
+
+  setTimelineStep('boarding');
+  startCountdown(23 * 60);
+  hud.classList.add('show');
+}
+
+function hideEventHud() {
+  const hud = document.getElementById('event-hud');
+  if (hud) hud.classList.remove('show');
+  stopCountdown();
 }
 
 // --- 6. 지도 엔진 (D3 & Datamaps) ---
@@ -245,6 +375,9 @@ function initPCMap() {
           document.getElementById("hero").style.opacity = "0";
           const passportBtn = document.getElementById('passport-btn');
           if (passportBtn) passportBtn.style.display = 'none';
+          const flightStatus = document.getElementById('flight-status');
+          if (flightStatus) flightStatus.classList.add('show');
+          showEventHud(d.id);
           isAnimating = false;
         });
         map.svg.selectAll(".datamaps-subunit").transition().duration(800).style("opacity", x => x.id === d.id ? 1 : 0.4);
@@ -267,8 +400,19 @@ function resetMap() {
   
   if (globeMode) {
     // 모바일 구 지도 리셋
-    updateFlipBoard("");
-    document.getElementById('globe-subtitle').classList.remove('show');
+    updateFlipBoard("SELECT DEST");
+    const globeSubtitle = document.getElementById('globe-subtitle');
+    if (globeSubtitle) globeSubtitle.classList.remove('show');
+    document.getElementById('boarding-pass-ui').classList.remove('active');
+    const flightStatus = document.getElementById('flight-status');
+    if (flightStatus) flightStatus.classList.remove('show');
+    hideEventHud();
+    const subtitleContainer = document.getElementById('subtitle-container');
+    subtitleContainer.classList.remove('hidden');
+    subtitleContainer.style.display = 'flex';
+    subtitleContainer.style.opacity = '1';
+    document.getElementById("hero").style.opacity = "1";
+    document.getElementById("back-btn").style.display = "none";
     if (globeMap && globeMap.svg) {
       globeMap.svg.selectAll(".datamaps-subunit").transition().duration(800)
         .style("opacity", 1)
@@ -278,7 +422,13 @@ function resetMap() {
     // PC 평면 지도 리셋
     updateFlipBoard("SELECT DEST");
     document.getElementById('boarding-pass-ui').classList.remove('active');
-    document.getElementById('subtitle-container').classList.remove('hidden'); 
+    const flightStatus = document.getElementById('flight-status');
+    if (flightStatus) flightStatus.classList.remove('show');
+    hideEventHud();
+    const subtitleContainer = document.getElementById('subtitle-container');
+    subtitleContainer.classList.remove('hidden');
+    subtitleContainer.style.display = 'flex';
+    subtitleContainer.style.opacity = '1';
     document.getElementById("hero").style.opacity = "1";
     if (mapGroup) {
       mapGroup.transition().duration(1000).attr("transform", "translate(0,0) scale(1)");
@@ -289,6 +439,7 @@ function resetMap() {
   document.getElementById("back-btn").style.display = "none";
   const passportBtn = document.getElementById('passport-btn');
   if (passportBtn) passportBtn.style.display = 'block';
+  isAnimating = false;
 }
 
 // --- 7. 여행 앨범 (사진 관리) ---
@@ -302,17 +453,29 @@ function enterAlbum(id) {
 function closeAlbum() {
   const overlay = document.getElementById("album-overlay");
   overlay.style.opacity = "0";
+  pauseAudio('airplane-loop');
+  const landing = playAudio('landing-sound');
+  if (landing) {
+    landing.onended = () => playAudio('airplane-loop', { restart: false });
+  }
   
   if (globeMode) {
     // 모바일 모드
     setTimeout(() => {
-      document.getElementById('main-content').style.display = 'flex';
+      document.getElementById('main-content').style.display = '';
       overlay.style.display = 'none';
       overlay.style.opacity = '1';
+      resetMap();
+      isAnimating = false;
     }, 300);
   } else {
     // PC 모드
-    setTimeout(() => overlay.classList.remove("active"), 300);
+    setTimeout(() => {
+      overlay.classList.remove("active");
+      overlay.style.display = 'none';
+      resetMap();
+      isAnimating = false;
+    }, 300);
   }
   
   selectedCountry = null;
@@ -346,11 +509,12 @@ function initGlobe() {
   const width = mapWrapper.clientWidth;
   const height = mapWrapper.clientHeight;
 
+  const baseScale = Math.min(window.innerWidth, window.innerHeight) * 0.42;
   const projection = d3.geo.orthographic()
-    .scale(Math.min(window.innerWidth, window.innerHeight) * 0.42)
+    .scale(baseScale)
     .translate([
         window.innerWidth / 2,
-        window.innerHeight / 2 + (globeMode ? -100 : 0)
+        window.innerHeight / 2 + (globeMode ? -190 : 0)
     ])
     .rotate(globeRotation)
     .clipAngle(90);
@@ -420,9 +584,18 @@ function initGlobe() {
     inertia();
   });
 
-svg.call(drag);
-
       svg.call(drag);
+
+      // pinch/scroll zoom for mobile globe
+      const zoom = d3.behavior.zoom()
+        .scale(baseScale)
+        .scaleExtent([baseScale * 0.6, baseScale * 2.2])
+        .on("zoom", function() {
+          projection.scale(d3.event.scale);
+          svg.selectAll("path").attr("d", path);
+        });
+
+      svg.call(zoom);
 
       // PC처럼 호버 효과 (비터치 기기)
       if (!isTouch) {
@@ -459,22 +632,38 @@ svg.call(drag);
         const center = d3.geo.centroid(geo);
         const targetRotation = [-center[0], -center[1]];
         
-        d3.transition().duration(1000).tween("rotate", function() {
-          const i = d3.interpolate(projection.rotate(), targetRotation);
+        const startRotation = projection.rotate();
+        const startScale = projection.scale();
+        const targetScale = Math.min(baseScale * 1.6, baseScale * 2.2);
+
+        d3.transition().duration(1400).ease("cubic-in-out").tween("rotate", function() {
+          const i = d3.interpolate(startRotation, targetRotation);
+          const s = d3.interpolate(startScale, targetScale);
           return function(t) {
             globeRotation = i(t);
-            projection.rotate(globeRotation);
+            projection.rotate(globeRotation).scale(s(t));
             svg.selectAll("path").attr("d", path);
           };
         }).each("end", function() {
           // 회전 완료 후 UI 표시
-          document.getElementById('globe-subtitle').classList.add('show');
-          document.getElementById('globe-subtitle').innerText = geo.properties.name.toUpperCase();
+          const globeSubtitle = document.getElementById('globe-subtitle');
+          if (globeSubtitle) {
+            globeSubtitle.classList.add('show');
+            globeSubtitle.innerText = geo.properties.name.toUpperCase();
+          }
+          document.getElementById('boarding-pass-ui').classList.add('active');
           document.getElementById("back-btn").style.display = "block";
           document.getElementById("hero").style.opacity = "0";
+          const passportBtn = document.getElementById('passport-btn');
+          if (passportBtn) passportBtn.style.display = 'none';
+          const flightStatus = document.getElementById('flight-status');
+          if (flightStatus) flightStatus.classList.add('show');
+          showEventHud(geo.id);
           
+          const accent = getAccentColor();
           svg.selectAll(".datamaps-subunit").transition().duration(800)
-            .style("opacity", d => d.id === geo.id ? 1 : 0.4);
+            .style("opacity", 1)
+            .style("fill", d => d.id === geo.id ? accent : "#e6e6e6");
           
           isAnimating = false;
         });
@@ -533,6 +722,10 @@ window.addEventListener('resize', () => {
   if (newIsMobile !== globeMode) {
     checkDeviceAndInitMap();
   }
+  const overlay = document.getElementById('passport-overlay');
+  if (overlay && overlay.style.display === 'flex') {
+    renderPassport();
+  }
 });
 
 function handleFileSelect(e) {
@@ -561,5 +754,21 @@ window.addEventListener('load', () => {
   document.getElementById('input-name').value = userConfig.name;
   document.getElementById('input-from').value = userConfig.from;
   syncCustom();
-  initPCMap(); 
-});
+  checkDeviceAndInitMap();
+  const passportPageEl = document.getElementById('passport-page');
+  if (passportPageEl) {
+    passportPageEl.addEventListener('touchstart', (e) => {
+      if (!e.touches || e.touches.length !== 1) return;
+      passportSwipeStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }, { passive: true });
+
+    passportPageEl.addEventListener('touchend', (e) => {
+      if (!passportSwipeStart || !e.changedTouches || e.changedTouches.length !== 1) return;
+      const dx = e.changedTouches[0].clientX - passportSwipeStart.x;
+      const dy = e.changedTouches[0].clientY - passportSwipeStart.y;
+      passportSwipeStart = null;
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+      changePassportPage(dx < 0 ? 1 : -1);
+    }, { passive: true });
+  }
+}); 

@@ -10,7 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/datamaps/0.5.9/datamaps.world.min.js"></script>
     
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -20,11 +20,15 @@
 <audio id="flip-sound" src="audio/flip-board.mp3"></audio>
 <audio id="stamp-sound" src="audio/stamp-effect.mp3"></audio>
 <audio id="tear-sound" src="audio/ticket-tear.mp3"></audio>
+<audio id="airplane-bp" src="audio/airplane_bp.m4a"></audio>
+<audio id="landing-sound" src="audio/landing.m4a"></audio>
+<audio id="airplane-loop" loop src="audio/airplane.m4a"></audio>
 
 <div id="intro-window">
     <div class="window-frame"><div class="window-glass"><div class="clouds"></div></div></div>
     <div class="intro-text-zone">
-        <p class="main-slogan">Focus 된 시선 위에서 흐르고, 분위기로 기억되는 여행 지도</p>
+        <p class="terminal">TERMINAL 01 · GATE 24A</p>
+        <p class="main-slogan">Focus 된 시선 위에서 흐르고, <br> 분위기로 기억되는 여행 지도</p>
         <div class="custom-form">
             <div class="input-group">
                 <label>Passenger</label>
@@ -35,7 +39,7 @@
                 <input type="text" id="input-from" placeholder="DEPARTING AIRPORT" oninput="syncCustom()">
             </div>
         </div>
-        <div class="click-prompt" onclick="startJourney()">START JOURNEY</div>
+        <div class="click-prompt" onclick="startJourney()">CHECK-IN NOW</div>
     </div>
 </div>
 
@@ -53,7 +57,9 @@
     <div id="passport-btn" onclick="togglePassport()"></div>
 
     <div id="passport-overlay" onclick="togglePassport()">
+        <button class="passport-nav prev" id="passport-prev" onclick="changePassportPage(-1); event.stopPropagation();" aria-label="Previous page">←</button>
         <div class="passport-page" id="passport-page" onclick="event.stopPropagation()"></div>
+        <button class="passport-nav next" id="passport-next" onclick="changePassportPage(1); event.stopPropagation();" aria-label="Next page">→</button>
     </div>
 
     <div id="boarding-pass-ui" onclick="handleTicketClick(event)">
@@ -91,6 +97,25 @@
     <div class="hero-overlay" id="hero">
         <h1>TRAVELOGUE</h1>
         <p>WHERE TO NEXT?</p>
+    </div>
+    <div id="flight-status">FLIGHT TRV-2026 · BOARDING · 12A</div>
+    <div id="event-hud" aria-hidden="true">
+        <div class="event-row">
+            <div class="boarding-anim">BOARDING<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>
+            <div class="status-stamp" id="status-stamp">BOARDING</div>
+        </div>
+        <div class="progress-line">
+            <span class="code" id="hud-from">ICN</span>
+            <span class="line"></span>
+            <span class="code" id="hud-to">---</span>
+        </div>
+        <div class="timeline" id="timeline">
+            <span class="step" data-step="checkin">CHECK-IN</span>
+            <span class="step" data-step="boarding">BOARDING</span>
+            <span class="step" data-step="taxi">TAXI</span>
+            <span class="step" data-step="takeoff">TAKEOFF</span>
+        </div>
+        <div class="countdown">GATE 24A · <span id="countdown">T-00:23</span></div>
     </div>
     <div id="map-wrapper"></div>
 </div>
