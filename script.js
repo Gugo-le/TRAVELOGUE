@@ -9,13 +9,23 @@ function loadJSON(key, fallback) {
 
 let travelData = loadJSON('travelogue_data', {}); 
 let userConfig = loadJSON('travelogue_config', { name: '', from: '' });
-let visitedCountries = loadJSON('visited_countries', []);
+let visitedCountries = loadJSON('visited_countries', {});
+if (Array.isArray(visitedCountries)) {
+  const migrated = {};
+  visitedCountries.forEach(code => {
+    if (!migrated[code]) migrated[code] = [];
+  });
+  visitedCountries = migrated;
+  localStorage.setItem('visited_countries', JSON.stringify(visitedCountries));
+}
 let selectedCountry = null;
 let isAnimating = false;
 let isMobileView = window.innerWidth <= 768;
 let globeMode = isMobileView; // true = 지구본(3D), false = 평면지도(2D)
 let globeRotation = [100, -30];
 let globeMap = null;
+let globeProjection = null;
+let globePath = null;
 let inertiaFrame = null;
 let velocity = [0, 0];
 let isDragging = false;
@@ -23,6 +33,8 @@ let dragStart = [0, 0];
 let countdownTimer = null;
 let passportPage = 0;
 let passportSwipeStart = null;
+let autoRotateFrame = null;
+let autoRotatePausedUntil = 0;
 
 const themeColors = ['#e67e22', '#2980b9', '#27ae60', '#8e44ad', '#c0392b'];
 
@@ -45,6 +57,21 @@ function pauseAudio(id) {
 function getAccentColor() {
   const color = getComputedStyle(document.documentElement).getPropertyValue('--accent');
   return color ? color.trim() : '#ffcccc';
+}
+
+function getTodayString() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function updateVisitHistory(code) {
+  const historyEl = document.getElementById('visit-history');
+  if (!historyEl) return;
+  const dates = (visitedCountries[code] || []).slice().sort().slice(-3).reverse();
+  historyEl.textContent = dates.length ? `PREV: ${dates.join(' · ')}` : 'FIRST VISIT';
 }
 
 // --- 0. 디바이스 체크 및 맵 초기화 ---
@@ -144,9 +171,18 @@ function togglePassport() {
 function renderPassport() {
   const page = document.getElementById('passport-page');
   const stampsPerPage = isMobileView ? 6 : 8;
-  const totalPages = Math.max(1, Math.ceil(visitedCountries.length / stampsPerPage));
+  const codes = Object.keys(visitedCountries).sort();
+  const entries = codes.flatMap(code => {
+    return (visitedCountries[code] || []).map(date => ({ code, date }));
+  }).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const summary = document.getElementById('passport-summary');
+  if (summary) {
+    const parts = codes.map(code => `${code} x${(visitedCountries[code] || []).length}`);
+    summary.textContent = parts.length ? parts.join(' · ') : 'NO VISITS YET';
+  }
+  const totalPages = Math.max(1, Math.ceil(entries.length / stampsPerPage));
   passportPage = Math.min(passportPage, totalPages - 1);
-  page.innerHTML = visitedCountries.length ? "" : "<div style='grid-column:1/-1; text-align:center; color:#1a3666; opacity:0.3; padding-top:150px; font-family:var(--font-ticket); letter-spacing:5px;'>NO RECORDS FOUND</div>";
+  page.innerHTML = entries.length ? "" : "<div style='grid-column:1/-1; text-align:center; color:#1a3666; opacity:0.3; padding-top:150px; font-family:var(--font-ticket); letter-spacing:5px;'>NO RECORDS FOUND</div>";
 
   const prevBtn = document.getElementById('passport-prev');
   const nextBtn = document.getElementById('passport-next');
@@ -159,8 +195,8 @@ function renderPassport() {
   }
   
   const start = passportPage * stampsPerPage;
-  const pageItems = visitedCountries.slice(start, start + stampsPerPage);
-  pageItems.forEach(code => {
+  const pageItems = entries.slice(start, start + stampsPerPage);
+  pageItems.forEach(({ code, date }) => {
     const stamp = document.createElement('div');
     const color = themeColors[Math.floor(Math.random()*themeColors.length)];
     const randomRot = Math.random() * 20 - 10;
@@ -170,13 +206,13 @@ function renderPassport() {
     stamp.innerHTML = `
       <div style="font-size:0.5rem; margin-bottom:5px; border-bottom:1px solid">IMMIGRATION</div>
       <div style="font-size:1.8rem; margin:2px 0;">${code}</div>
-      <div style="font-size:0.4rem;">2026.01.18</div>
+      <div style="font-size:0.4rem;">${date || ''}</div>
       <div style="font-size:0.4rem; margin-top:5px;">ADMITTED</div>
     `;
     page.appendChild(stamp);
   });
 
-  if (visitedCountries.length > stampsPerPage) {
+  if (entries.length > stampsPerPage) {
     const indicator = document.createElement('div');
     indicator.className = 'passport-pagination';
     indicator.textContent = `PAGE ${passportPage + 1} / ${totalPages}`;
@@ -186,7 +222,9 @@ function renderPassport() {
 
 function changePassportPage(delta) {
   const stampsPerPage = isMobileView ? 6 : 8;
-  const totalPages = Math.max(1, Math.ceil(visitedCountries.length / stampsPerPage));
+  const totalPages = Math.max(1, Math.ceil(
+    Object.keys(visitedCountries).reduce((sum, code) => sum + (visitedCountries[code] || []).length, 0) / stampsPerPage
+  ));
   if (totalPages <= 1) return;
   passportPage = Math.max(0, Math.min(totalPages - 1, passportPage + delta));
   renderPassport();
@@ -196,6 +234,7 @@ function changePassportPage(delta) {
 function handleTicketClick(e) {
   if (isAnimating) return;
   if (!selectedCountry) return;
+  if (e.target && e.target.closest && e.target.closest('input, select')) return;
   isAnimating = true;
   setTimelineStep("takeoff");
 
@@ -212,8 +251,13 @@ function handleTicketClick(e) {
   ticket.appendChild(stamp);
   
   // 기록 저장
-  if (!visitedCountries.includes(selectedCountry)) visitedCountries.push(selectedCountry);
+  const dateInput = document.getElementById('ticket-date');
+  const visitDate = dateInput && dateInput.value ? dateInput.value : getTodayString();
+  if (dateInput && !dateInput.value) dateInput.value = visitDate;
+  if (!visitedCountries[selectedCountry]) visitedCountries[selectedCountry] = [];
+  visitedCountries[selectedCountry].push(visitDate);
   localStorage.setItem('visited_countries', JSON.stringify(visitedCountries));
+  updateVisitHistory(selectedCountry);
 
   // 찢기 애니메이션 시퀀스
   setTimeout(() => {
@@ -307,6 +351,28 @@ function hideEventHud() {
   stopCountdown();
 }
 
+function startAutoRotate(projection, svg, path) {
+  if (autoRotateFrame) cancelAnimationFrame(autoRotateFrame);
+  let lastTime = performance.now();
+  function tick(now) {
+    autoRotateFrame = requestAnimationFrame(tick);
+    if (selectedCountry || isAnimating) {
+      lastTime = now;
+      return;
+    }
+    if (Date.now() < autoRotatePausedUntil) {
+      lastTime = now;
+      return;
+    }
+    const dt = Math.min(32, now - lastTime);
+    lastTime = now;
+    globeRotation[0] += dt * 0.006;
+    projection.rotate(globeRotation);
+    svg.selectAll("path").attr("d", path);
+  }
+  autoRotateFrame = requestAnimationFrame(tick);
+}
+
 // --- 6. 지도 엔진 (D3 & Datamaps) ---
 let map, mapGroup;
 function initPCMap() {
@@ -365,6 +431,9 @@ function initPCMap() {
 
         updateFlipBoard(d.properties.name);
         document.getElementById('ticket-dest-code').innerText = d.id;
+        const dateInput = document.getElementById('ticket-date');
+        if (dateInput && !dateInput.value) dateInput.value = getTodayString();
+        updateVisitHistory(d.id);
 
         const color = themeColors[Math.floor(Math.random()*themeColors.length)];
         document.documentElement.style.setProperty('--accent', color);
@@ -418,6 +487,9 @@ function resetMap() {
       globeMap.svg.selectAll(".datamaps-subunit").transition().duration(800)
         .style("opacity", 1)
         .style("fill", d => travelData[d.id] ? "#666666" : "#e6e6e6");
+      if (globeProjection && globePath) {
+        startAutoRotate(globeProjection, globeMap.svg, globePath);
+      }
     }
   } else {
     // PC 평면 지도 리셋
@@ -520,6 +592,8 @@ function initGlobe() {
     .clipAngle(90);
 
   const path = d3.geo.path().projection(projection);
+  globeProjection = projection;
+  globePath = path;
 
   globeMap = new Datamap({
     element: mapWrapper,
@@ -539,6 +613,7 @@ function initGlobe() {
       const svg = datamap.svg;
       const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
       const subs = svg.selectAll(".datamaps-subunit");
+      const koreaRotation = [-127, -36];
       
       // 드래그 회전
       const drag = d3.behavior.drag()
@@ -547,6 +622,7 @@ function initGlobe() {
       cancelAnimationFrame(inertiaFrame);
       inertiaFrame = null;
     }
+    autoRotatePausedUntil = Date.now() + 2500;
     velocity = [0, 0];
   })
 
@@ -591,6 +667,7 @@ function initGlobe() {
         .scale(baseScale)
         .scaleExtent([baseScale * 0.6, baseScale * 2.2])
         .on("zoom", function() {
+          autoRotatePausedUntil = Date.now() + 2500;
           projection.scale(d3.event.scale);
           svg.selectAll("path").attr("d", path);
         });
@@ -624,6 +701,9 @@ function initGlobe() {
         // flipboard 업데이트
         updateFlipBoard(geo.properties.name);
         document.getElementById('ticket-dest-code').innerText = geo.id;
+        const dateInput = document.getElementById('ticket-date');
+        if (dateInput && !dateInput.value) dateInput.value = getTodayString();
+        updateVisitHistory(geo.id);
 
         // 테마 색상 변경
         const color = themeColors[Math.floor(Math.random() * themeColors.length)];
@@ -677,6 +757,17 @@ function initGlobe() {
       });
 
       updateGlobeStyles();
+
+      d3.transition().duration(1400).ease("cubic-in-out").tween("rotate", function() {
+        const i = d3.interpolate(projection.rotate(), koreaRotation);
+        return function(t) {
+          globeRotation = i(t);
+          projection.rotate(globeRotation);
+          svg.selectAll("path").attr("d", path);
+        };
+      }).each("end", function() {
+        startAutoRotate(projection, svg, path);
+      });
     }
   });
 }

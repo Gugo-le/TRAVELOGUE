@@ -353,6 +353,19 @@ button {
   cursor: url('icons/passport-cursor.png') 16 16, pointer; 
 }
 
+.passport-summary {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.55rem;
+  letter-spacing: 3px;
+  color: rgba(26, 54, 102, 0.7);
+  font-family: var(--font-ticket);
+  text-transform: uppercase;
+  z-index: 4010;
+}
+
 .passport-pagination {
   position: absolute;
   bottom: 12px;
@@ -468,6 +481,35 @@ button {
 }
 .meta-item .label { font-size: 0.45rem; color: #bbb; text-transform: uppercase; margin-bottom: 4px; }
 .meta-item .val { font-size: 0.75rem; font-weight: 800; color: #333; }
+
+.ticket-input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+  background: transparent;
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #333;
+  font-family: var(--font-ticket);
+  letter-spacing: 1px;
+  padding: 2px 0;
+  outline: none;
+  appearance: none;
+}
+
+.ticket-input::-webkit-calendar-picker-indicator {
+  opacity: 0.5;
+}
+
+.visit-history {
+  margin-top: 10px;
+  font-size: 0.5rem;
+  letter-spacing: 2px;
+  color: rgba(0,0,0,0.5);
+  text-transform: uppercase;
+  text-align: center;
+}
 
 .barcode { width: 100%; height: 60px; background: repeating-linear-gradient(90deg, #333 0px, #333 1px, transparent 1px, transparent 3px, #333 3px, #333 5px, transparent 5px, transparent 6px); opacity: 0.8; }
 

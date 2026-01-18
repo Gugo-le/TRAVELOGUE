@@ -58,6 +58,7 @@
 
     <div id="passport-overlay" onclick="togglePassport()">
         <button class="passport-nav prev" id="passport-prev" onclick="changePassportPage(-1); event.stopPropagation();" aria-label="Previous page">←</button>
+        <div id="passport-summary" class="passport-summary" onclick="event.stopPropagation()"></div>
         <div class="passport-page" id="passport-page" onclick="event.stopPropagation()"></div>
         <button class="passport-nav next" id="passport-next" onclick="changePassportPage(1); event.stopPropagation();" aria-label="Next page">→</button>
     </div>
@@ -78,10 +79,17 @@
             </div>
             <div class="meta-grid">
                 <div class="meta-item"><div class="label">Passenger</div><div class="val" id="ticket-name">---</div></div>
-                <div class="meta-item"><div class="label">Date</div><div class="val">18 JAN 26</div></div>
-                <div class="meta-item"><div class="label">Seat</div><div class="val">12A</div></div>
-                <div class="meta-item"><div class="label">Class</div><div class="val">ECONOMY</div></div>
+                <div class="meta-item"><div class="label">Date</div><input type="date" id="ticket-date" class="ticket-input"></div>
+                <div class="meta-item"><div class="label">Seat</div><input type="text" id="ticket-seat" class="ticket-input" value="12A"></div>
+                <div class="meta-item"><div class="label">Class</div>
+                    <select id="ticket-class" class="ticket-input">
+                        <option value="ECONOMY" selected>ECONOMY</option>
+                        <option value="BUSINESS">BUSINESS</option>
+                        <option value="FIRST">FIRST</option>
+                    </select>
+                </div>
             </div>
+            <div id="visit-history" class="visit-history">FIRST VISIT</div>
         </div>
         <div class="ticket-stub">
             <div style="text-align:left;">
