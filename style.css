@@ -839,6 +839,8 @@ button {
   .fragment { width: 45%; height: 240px; }
   .upload-zone { position: fixed; bottom: 0; left: 0; }
   #map-wrapper { position: absolute; inset: 0; }
+  #album-overlay { transition: opacity 0.6s ease; transform: none; }
+  #album-overlay.show { transform: none; }
 }
 
 @media (max-width: 420px) {
