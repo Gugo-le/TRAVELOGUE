@@ -507,6 +507,7 @@ button {
   inset: 0; 
   background: var(--bg); 
   cursor: url('icons/plane-map-cursor.png') 16 16, grab; 
+  touch-action: none;
 }
 #map-wrapper.grabbing {
   cursor: url('icons/plane-map-cursor-grabbing.png') 16 16, grabbing; 

@@ -514,7 +514,7 @@ function initGlobe() {
     .scale(baseScale)
     .translate([
         window.innerWidth / 2,
-        window.innerHeight / 2 + (globeMode ? -190 : 0)
+        window.innerHeight / 2 + (globeMode ? -150 : 0)
     ])
     .rotate(globeRotation)
     .clipAngle(90);
@@ -755,6 +755,12 @@ window.addEventListener('load', () => {
   document.getElementById('input-from').value = userConfig.from;
   syncCustom();
   checkDeviceAndInitMap();
+  const mapWrapper = document.getElementById('map-wrapper');
+  if (mapWrapper) {
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach(evt => {
+      mapWrapper.addEventListener(evt, (e) => e.preventDefault(), { passive: false });
+    });
+  }
   const passportPageEl = document.getElementById('passport-page');
   if (passportPageEl) {
     passportPageEl.addEventListener('touchstart', (e) => {
