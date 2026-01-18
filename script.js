@@ -7,6 +7,8 @@ let isMobileView = window.innerWidth <= 768;
 let globeMode = isMobileView; // true = 지구본(3D), false = 평면지도(2D)
 let globeRotation = [100, -30];
 let globeMap = null;
+let inertiaTimer = null;
+let velocity = [0, 0];
 
 const themeColors = ['#e67e22', '#2980b9', '#27ae60', '#8e44ad', '#c0392b'];
 
@@ -374,14 +376,49 @@ function initGlobe() {
       
       // 드래그 회전
       const drag = d3.behavior.drag()
-        .on("drag", function() {
-          const dx = d3.event.dx;
-          const dy = d3.event.dy;
-          globeRotation[0] += dx * 0.25;
-          globeRotation[1] -= dy * 0.25;
-          projection.rotate(globeRotation);
-          svg.selectAll("path").attr("d", path);
-        });
+  .on("dragstart", function () {
+    if (inertiaFrame) {
+      cancelAnimationFrame(inertiaFrame);
+      inertiaFrame = null;
+    }
+    velocity = [0, 0];
+  })
+
+  .on("drag", function () {
+    const dx = d3.event.dx;
+    const dy = d3.event.dy;
+
+    velocity = [dx * 0.15, dy * 0.15];
+
+    globeRotation[0] += dx * 0.25;
+    globeRotation[1] -= dy * 0.25;
+
+    projection.rotate(globeRotation);
+    svg.selectAll("path").attr("d", path);
+  })
+
+  .on("dragend", function () {
+    const friction = 0.95;
+
+    function inertia() {
+      velocity[0] *= friction;
+      velocity[1] *= friction;
+
+      globeRotation[0] += velocity[0];
+      globeRotation[1] -= velocity[1];
+
+      projection.rotate(globeRotation);
+      svg.selectAll("path").attr("d", path);
+
+      if (Math.abs(velocity[0]) > 0.01 || Math.abs(velocity[1]) > 0.01) {
+        inertiaFrame = requestAnimationFrame(inertia);
+      }
+    }
+
+    inertia();
+  });
+
+svg.call(drag);
 
       svg.call(drag);
 
