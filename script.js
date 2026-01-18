@@ -9,6 +9,8 @@ let globeRotation = [100, -30];
 let globeMap = null;
 let inertiaTimer = null;
 let velocity = [0, 0];
+let isDragging = false;
+let dragStart = [0, 0];
 
 const themeColors = ['#e67e22', '#2980b9', '#27ae60', '#8e44ad', '#c0392b'];
 
