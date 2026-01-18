@@ -564,6 +564,7 @@ button {
   transition: opacity 0.4s ease, transform 0.4s ease;
   font-family: var(--font-ticket);
   z-index: 15;
+  white-space: nowrap;
 }
 
 #flight-status.show {
@@ -712,12 +713,18 @@ button {
   inset: 0;
   background: rgba(255, 255, 255, 0.98);
   z-index: 3000;
-  display: none;
+  display: flex;
+  flex-direction: column;
   opacity: 0;
-  transition: 0.8s;
+  transform: translateY(10px) scale(0.985);
+  transition: opacity 0.7s ease, transform 0.7s ease;
   overflow: auto; 
+  visibility: hidden;
+  pointer-events: none;
+  will-change: opacity, transform;
 }
-#album-overlay.active { display: block; } 
+#album-overlay.active { visibility: visible; pointer-events: auto; } 
+#album-overlay.show { opacity: 1; transform: translateY(0) scale(1); }
 
 .close-album-btn {
   position: absolute; 

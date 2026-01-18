@@ -224,8 +224,9 @@ function handleTicketClick(e) {
       if (globeMode) {
         // 모바일: 앨범 열기
         document.getElementById('main-content').style.display = 'none';
-        document.getElementById('album-overlay').style.display = 'flex';
-        document.getElementById('album-overlay').style.opacity = '1';
+        const overlay = document.getElementById('album-overlay');
+        overlay.classList.add("active");
+        requestAnimationFrame(() => overlay.classList.add("show"));
         renderAlbumPhotos(selectedCountry);
       } else {
         // PC: enterAlbum 호출
@@ -240,7 +241,7 @@ function handleTicketClick(e) {
         ticket.querySelectorAll('.dynamic-stamp').forEach(s => s.remove()); 
         isAnimating = false; 
       }, 1000);
-    }, 800);
+    }, 1800);
   }, 500);
 }
 
@@ -445,37 +446,36 @@ function resetMap() {
 // --- 7. 여행 앨범 (사진 관리) ---
 function enterAlbum(id) {
   const overlay = document.getElementById("album-overlay");
-  overlay.style.display = "block";
-  setTimeout(() => overlay.style.opacity = "1", 10);
+  overlay.classList.add("active");
+  requestAnimationFrame(() => overlay.classList.add("show"));
   renderFragments();
 }
 
 function closeAlbum() {
   const overlay = document.getElementById("album-overlay");
-  overlay.style.opacity = "0";
+  overlay.classList.remove("show");
   pauseAudio('airplane-loop');
   const landing = playAudio('landing-sound');
   if (landing) {
     landing.onended = () => playAudio('airplane-loop', { restart: false });
   }
+  const transitionMs = 700;
   
   if (globeMode) {
     // 모바일 모드
     setTimeout(() => {
       document.getElementById('main-content').style.display = '';
-      overlay.style.display = 'none';
-      overlay.style.opacity = '1';
+      overlay.classList.remove("active");
       resetMap();
       isAnimating = false;
-    }, 300);
+    }, transitionMs);
   } else {
     // PC 모드
     setTimeout(() => {
       overlay.classList.remove("active");
-      overlay.style.display = 'none';
       resetMap();
       isAnimating = false;
-    }, 300);
+    }, transitionMs);
   }
   
   selectedCountry = null;
@@ -616,6 +616,7 @@ function initGlobe() {
       // 클릭 이벤트 (PC버전과 동일하게)
       subs.on("click", function(geo) {
         if (isAnimating) return;
+        if (d3.event) d3.event.stopPropagation();
         
         selectedCountry = geo.id;
         isAnimating = true;
@@ -669,6 +670,12 @@ function initGlobe() {
         });
       });
 
+      // tap empty ocean area to reset on mobile
+      svg.on("click", function() {
+        if (isAnimating) return;
+        if (selectedCountry) resetMap();
+      });
+
       updateGlobeStyles();
     }
   });
@@ -683,8 +690,9 @@ function updateGlobeStyles() {
 
 function openAlbumMobile(geo) {
   document.getElementById('main-content').style.display = 'none';
-  document.getElementById('album-overlay').style.display = 'flex';
-  document.getElementById('album-overlay').style.opacity = '1';
+  const overlay = document.getElementById('album-overlay');
+  overlay.classList.add('active');
+  requestAnimationFrame(() => overlay.classList.add("show"));
   selectedCountry = geo.id;
   renderAlbumPhotos(selectedCountry);
 }
