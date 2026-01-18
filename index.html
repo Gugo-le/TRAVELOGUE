@@ -8,6 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.3/d3.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.9/topojson.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/datamaps/0.5.9/datamaps.world.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -61,7 +62,7 @@
     <div id="boarding-pass-ui" onclick="handleTicketClick(event)">
         <div class="ticket-main">
             <div class="ticket-header">
-                <div class="brand-box"><div class="brand">SKYLINE JOURNEY</div><div class="sub">ROK INTERNATIONAL</div></div>
+                <div class="brand-box"><div class="brand">TRAVELOGUE JOURNEY</div><div class="sub">ROK INTERNATIONAL</div></div>
                 <div style="text-align:right;">
                     <div class="label" style="font-size:0.4rem; color:#bbb;">FLIGHT</div>
                     <div class="val" style="font-size:0.75rem; font-weight:bold;">TRV-2026</div>
@@ -123,12 +124,20 @@
     <div id="map-wrapper"></div>
 </div>
 
-<div id="album-overlay">
-    <button class="close-album-btn" onclick="closeAlbum()">CLOSE</button>
-    <div id="fragment-zone"></div>
-    <div class="upload-zone">
-        <label for="file-input" class="upload-button">UPLOAD PHOTO</label>
-        <input type="file" id="file-input" accept="image/*" multiple onchange="handleFileSelect(event)" style="display:none;">
+<div id="album-overlay" aria-hidden="true">
+    <div class="album-panel">
+        <button class="album-close" onclick="closeAlbum()">CLOSE</button>
+        <div class="album-header">
+            <p class="album-title">TRAVELOGUE ALBUM</p>
+            <p class="album-sub" id="album-subtitle">ICN → ---</p>
+        </div>
+        <div class="album-grid" id="album-grid"></div>
+        <div class="album-upload">
+            <label class="upload-button">
+                ADD PHOTO
+                <input type="file" id="album-upload" accept="image/*" multiple>
+            </label>
+        </div>
     </div>
 </div>
 

@@ -7,7 +7,7 @@ function loadJSON(key, fallback) {
   }
 }
 
-let travelData = loadJSON('travelogue_data', {}); 
+let travelData = loadJSON('travelogue_data', {});
 let userConfig = loadJSON('travelogue_config', { name: '', from: '' });
 let visitedCountries = loadJSON('visited_countries', {});
 if (Array.isArray(visitedCountries)) {
@@ -35,7 +35,8 @@ let passportPage = 0;
 let passportSwipeStart = null;
 let autoRotateFrame = null;
 let autoRotatePausedUntil = 0;
-
+let albumCountry = null;
+let snapshotBusy = false;
 const themeColors = ['#e67e22', '#2980b9', '#27ae60', '#8e44ad', '#c0392b'];
 
 function playAudio(id, options = {}) {
@@ -52,6 +53,19 @@ function pauseAudio(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.pause();
+}
+
+function playLandingThenResume() {
+  const loop = document.getElementById('airplane-loop');
+  const landing = document.getElementById('landing-sound');
+  if (loop) loop.pause();
+  if (!landing) return;
+  landing.currentTime = 0;
+  landing.onended = () => {
+    landing.onended = null;
+    if (loop) playAudio('airplane-loop', { restart: false });
+  };
+  playAudio('landing-sound');
 }
 
 function getAccentColor() {
@@ -209,6 +223,11 @@ function renderPassport() {
       <div style="font-size:0.4rem;">${date || ''}</div>
       <div style="font-size:0.4rem; margin-top:5px;">ADMITTED</div>
     `;
+    stamp.style.cursor = 'pointer';
+    stamp.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openAlbum(code);
+    });
     page.appendChild(stamp);
   });
 
@@ -263,30 +282,13 @@ function handleTicketClick(e) {
   setTimeout(() => {
     ticket.classList.add('tearing');
     updateFlipBoard("LANDING NOW");
-
     setTimeout(() => {
-      if (globeMode) {
-        // 모바일: 앨범 열기
-        document.getElementById('main-content').style.display = 'none';
-        const overlay = document.getElementById('album-overlay');
-        overlay.classList.add("active");
-        requestAnimationFrame(() => overlay.classList.add("show"));
-        renderAlbumPhotos(selectedCountry);
-      } else {
-        // PC: enterAlbum 호출
-        enterAlbum(selectedCountry);
-      }
-      
-      setTimeout(() => { 
-        ticket.classList.remove('active', 'tearing'); 
-        if (!globeMode) {
-          document.getElementById('subtitle-container').classList.remove('hidden');
-        }
-        ticket.querySelectorAll('.dynamic-stamp').forEach(s => s.remove()); 
-        isAnimating = false; 
-      }, 1000);
-    }, 1600);
-  }, 500);
+      ticket.classList.remove('active', 'tearing');
+      ticket.querySelectorAll('.dynamic-stamp').forEach(s => s.remove());
+      resetMap();
+      isAnimating = false;
+    }, 1400);
+  }, 300);
 }
 
 function formatCountdown(totalSeconds) {
@@ -394,7 +396,7 @@ function initPCMap() {
           mapGroup.attr("transform", `translate(0,${dy}) scale(1)`);
         } catch (e) { /* noop if transform fails */ }
       }
-      const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+      const canHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
       const subs = datamap.svg.selectAll(".datamaps-subunit");
 
       // click handler (works for mouse and many touch scenarios)
@@ -404,7 +406,7 @@ function initPCMap() {
       });
 
       // hover handlers only on non-touch devices
-      if (!isTouch) {
+      if (canHover) {
         subs.on("mouseenter", function(d) { 
           if(!selectedCountry) { 
             updateFlipBoard(d.properties.name); 
@@ -445,13 +447,15 @@ function initPCMap() {
           document.getElementById("hero").style.opacity = "0";
           const passportBtn = document.getElementById('passport-btn');
           if (passportBtn) passportBtn.style.display = 'none';
+          const snapBtn = document.getElementById('snapshot-btn');
+          if (snapBtn) snapBtn.style.display = 'block';
           const flightStatus = document.getElementById('flight-status');
           if (flightStatus) flightStatus.classList.add('show');
           showEventHud(d.id);
           isAnimating = false;
         });
-        map.svg.selectAll(".datamaps-subunit").transition().duration(800).style("opacity", x => x.id === d.id ? 1 : 0.4);
-      }
+  map.svg.selectAll(".datamaps-subunit").transition().duration(800).style("opacity", x => x.id === d.id ? 1 : 0.4);
+}
     }
   });
 }
@@ -486,7 +490,7 @@ function resetMap() {
     if (globeMap && globeMap.svg) {
       globeMap.svg.selectAll(".datamaps-subunit").transition().duration(800)
         .style("opacity", 1)
-        .style("fill", d => travelData[d.id] ? "#666666" : "#e6e6e6");
+        .style("fill", "#e6e6e6");
       if (globeProjection && globePath) {
         startAutoRotate(globeProjection, globeMap.svg, globePath);
       }
@@ -512,67 +516,10 @@ function resetMap() {
   document.getElementById("back-btn").style.display = "none";
   const passportBtn = document.getElementById('passport-btn');
   if (passportBtn) passportBtn.style.display = 'block';
+  const albumOverlay = document.getElementById('album-overlay');
+  if (albumOverlay) albumOverlay.classList.remove('show');
+  document.querySelectorAll('.route-anim, .route-plane').forEach(el => el.remove());
   isAnimating = false;
-}
-
-// --- 7. 여행 앨범 (사진 관리) ---
-function enterAlbum(id) {
-  const overlay = document.getElementById("album-overlay");
-  overlay.classList.add("active");
-  requestAnimationFrame(() => overlay.classList.add("show"));
-  renderFragments();
-}
-
-function closeAlbum() {
-  const overlay = document.getElementById("album-overlay");
-  overlay.classList.remove("show");
-  pauseAudio('airplane-loop');
-  const landing = playAudio('landing-sound');
-  if (landing) {
-    landing.onended = () => playAudio('airplane-loop', { restart: false });
-  }
-  const transitionMs = 700;
-  
-  if (globeMode) {
-    // 모바일 모드
-    setTimeout(() => {
-      document.getElementById('main-content').style.display = '';
-      overlay.classList.remove("active");
-      resetMap();
-      isAnimating = false;
-    }, transitionMs);
-  } else {
-    // PC 모드
-    setTimeout(() => {
-      overlay.classList.remove("active");
-      resetMap();
-      isAnimating = false;
-    }, transitionMs);
-  }
-  
-  selectedCountry = null;
-}
-
-function renderFragments() {
-  const zone = document.getElementById("fragment-zone"); 
-  zone.innerHTML = "";
-  const photos = travelData[selectedCountry] || [];
-  
-  if (!photos.length) { 
-    zone.innerHTML = "<div style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#ccc; letter-spacing:8px; font-size:0.7rem;'>NO LOGS YET</div>"; 
-    return; 
-  }
-  
-  photos.forEach((src, i) => {
-    const frag = document.createElement("div");
-    frag.className = "fragment";
-    // 랜덤 위치 및 회전
-    frag.style.left = `${Math.random() * 60 + 10}%`;
-    frag.style.top = `${Math.random() * 60 + 10}%`;
-    frag.style.transform = `rotate(${(Math.random()-0.5)*15}deg)`;
-    frag.innerHTML = `<img src="${src}"><div class="caption">${selectedCountry} LOG.0${i+1}</div>`;
-    zone.appendChild(frag);
-  });
 }
 
 // --- 지구본 모드 (모바일) ---
@@ -737,10 +684,11 @@ function initGlobe() {
           document.getElementById("hero").style.opacity = "0";
           const passportBtn = document.getElementById('passport-btn');
           if (passportBtn) passportBtn.style.display = 'none';
+          const snapBtn = document.getElementById('snapshot-btn');
+          if (snapBtn) snapBtn.style.display = 'block';
           const flightStatus = document.getElementById('flight-status');
           if (flightStatus) flightStatus.classList.add('show');
           showEventHud(geo.id);
-          
           const accent = getAccentColor();
           svg.selectAll(".datamaps-subunit").transition().duration(800)
             .style("opacity", 1)
@@ -774,39 +722,7 @@ function initGlobe() {
 
 function updateGlobeStyles() {
   if (!globeMap || !globeMap.svg) return;
-  globeMap.svg.selectAll(".datamaps-subunit").style("fill", d => {
-    return travelData[d.id] ? "#666666" : "#e6e6e6";
-  });
-}
-
-function openAlbumMobile(geo) {
-  document.getElementById('main-content').style.display = 'none';
-  const overlay = document.getElementById('album-overlay');
-  overlay.classList.add('active');
-  requestAnimationFrame(() => overlay.classList.add("show"));
-  selectedCountry = geo.id;
-  renderAlbumPhotos(selectedCountry);
-}
-
-function renderAlbumPhotos(countryCode) {
-  const zone = document.getElementById('fragment-zone');
-  zone.innerHTML = '';
-  const photos = travelData[countryCode] || [];
-  
-  if (!photos.length) {
-    zone.innerHTML = "<div style='padding:40px; text-align:center; color:#ccc;'>NO LOGS YET</div>";
-    return;
-  }
-  
-  photos.forEach((src, i) => {
-    const frag = document.createElement("div");
-    frag.className = "fragment";
-    frag.style.left = `${Math.random() * 60 + 10}%`;
-    frag.style.top = `${Math.random() * 60 + 10}%`;
-    frag.style.transform = `rotate(${(Math.random() - 0.5) * 15}deg)`;
-    frag.innerHTML = `<img src="${src}"><div class="caption">${countryCode} LOG.0${i + 1}</div>`;
-    zone.appendChild(frag);
-  });
+  globeMap.svg.selectAll(".datamaps-subunit").style("fill", "#e6e6e6");
 }
 
 // --- 평면 지도 모드 (PC) ---
@@ -826,27 +742,6 @@ window.addEventListener('resize', () => {
     renderPassport();
   }
 });
-
-function handleFileSelect(e) {
-  const files = Array.from(e.target.files);
-  if (!travelData[selectedCountry]) travelData[selectedCountry] = [];
-  
-  files.forEach(f => {
-    const r = new FileReader();
-    r.onload = (ev) => { 
-      travelData[selectedCountry].push(ev.target.result); 
-      localStorage.setItem('travelogue_data', JSON.stringify(travelData)); 
-      
-      // 모드별로 다르게 렌더링
-      if (globeMode) {
-        renderAlbumPhotos(selectedCountry);
-      } else {
-        renderFragments();
-      }
-    };
-    r.readAsDataURL(f);
-  });
-}
 
 // --- 8. 초기 실행 ---
 window.addEventListener('load', () => { 
@@ -876,4 +771,91 @@ window.addEventListener('load', () => {
       changePassportPage(dx < 0 ? 1 : -1);
     }, { passive: true });
   }
+
+  const albumUploadInput = document.getElementById('album-upload');
+  if (albumUploadInput) {
+    albumUploadInput.addEventListener('change', handleAlbumUpload);
+  }
+
 }); 
+
+// --- Album (open via passport stamp) ---
+function openAlbum(code) {
+  albumCountry = code;
+  const overlay = document.getElementById('album-overlay');
+  const subtitle = document.getElementById('album-subtitle');
+  if (subtitle) {
+    const fromCode = document.getElementById('ticket-from-code');
+    const from = fromCode ? (fromCode.textContent || '---') : '---';
+    subtitle.textContent = `${from} → ${code || '---'}`;
+  }
+  if (overlay) overlay.classList.add('show');
+  renderAlbumGrid();
+}
+
+function closeAlbum() {
+  const overlay = document.getElementById('album-overlay');
+  if (overlay) overlay.classList.remove('show');
+  albumCountry = null;
+}
+
+function renderAlbumGrid() {
+  const grid = document.getElementById('album-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const photos = travelData[albumCountry] || [];
+  if (!photos.length) {
+    const empty = document.createElement('div');
+    empty.className = 'album-empty';
+    empty.textContent = 'NO PHOTOS YET';
+    grid.appendChild(empty);
+    return;
+  }
+  photos.forEach(src => {
+    const item = document.createElement('div');
+    item.className = 'album-item';
+    const img = document.createElement('img');
+    img.src = src;
+    item.appendChild(img);
+    grid.appendChild(item);
+  });
+}
+
+function handleAlbumUpload(e) {
+  if (!albumCountry) return;
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  if (!travelData[albumCountry]) travelData[albumCountry] = [];
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      travelData[albumCountry].push(ev.target.result);
+      localStorage.setItem('travelogue_data', JSON.stringify(travelData));
+      renderAlbumGrid();
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value = '';
+}
+// Boarding pass snapshot capture
+async function captureBoardingPass() {
+  if (snapshotBusy) return;
+  snapshotBusy = true;
+  const btn = document.getElementById('snapshot-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const target = document.getElementById('boarding-pass-ui');
+    if (!target) return;
+    const canvas = await html2canvas(target, { backgroundColor: null, scale: 2 });
+    const dataUrl = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `boarding-${selectedCountry || 'trip'}.png`;
+    a.click();
+  } catch (e) {
+    console.warn('snapshot failed', e);
+  } finally {
+    if (btn) btn.disabled = false;
+    snapshotBusy = false;
+  }
+}
