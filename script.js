@@ -615,7 +615,7 @@ function initGlobe() {
 
       // 클릭 이벤트 (PC버전과 동일하게)
       subs.on("click", function(geo) {
-        if (isAnimating || selectedCountry) return;
+        if (isAnimating) return;
         
         selectedCountry = geo.id;
         isAnimating = true;
