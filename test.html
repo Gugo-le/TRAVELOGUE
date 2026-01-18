@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TRAVELOGUE - YOUR JOURNEY</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.3/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.9/topojson.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/datamaps/0.5.9/datamaps.world.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- CSS MERGED --- */
+        :root {
+            --bg: #fafafa;
+            --text: #111;
+            --accent: #e67e22;
+            --ticket-bg: #ffffff;
+            --font-ticket: 'Courier New', Courier, monospace;
+            --font-slogan: 'Roboto Mono', monospace;
+        }
+
+        * { box-sizing: border-box; -webkit-font-smoothing: antialiased; font-family: var(--font-ticket) !important; }
+        html, body { margin: 0; width: 100%; height: 100%; background: var(--bg); overflow: hidden; user-select: none; }
+
+        /* INTRO & WINDOW */
+        #intro-window { position: fixed; inset: 0; z-index: 9999; background: #f4f0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: all 1.2s cubic-bezier(0.8, 0, 0.2, 1); }
+        .window-frame { width: 220px; height: 340px; background: #fff; border-radius: 120px; padding: 10px; box-shadow: 0 6px 16px rgba(0,0,0,0.04); position: relative; overflow: hidden; border: 5px solid #f2f2f2; margin-bottom: 30px; }
+        .window-glass { width: 100%; height: 100%; border-radius: 90px; overflow: hidden; background: linear-gradient(to bottom, #7dd9c7 0%, #afc1e0 100%); position: relative; }
+        .clouds { position: absolute; width: 400%; height: 100%; background: url('https://www.transparenttextures.com/patterns/white-prism.png'); opacity: 0.15; animation: cloudFlow 60s linear infinite; }
+        @keyframes cloudFlow { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+        .custom-form { display: flex; flex-direction: column; gap: 25px; margin-bottom: 50px; align-items: center; }
+        .input-group { position: relative; width: 240px; }
+        .input-group label { position: absolute; top: -18px; left: 0; font-size: 0.6rem; color: #bbb; text-transform: uppercase; }
+        .input-group input { width: 100%; background: transparent; border: none; border-bottom: 1px solid #ddd; padding: 8px 0; font-size: 0.9rem; outline: none; text-align: center; }
+        .click-prompt { font-size: 0.65rem; letter-spacing: 4px; color: var(--accent); padding: 10px 32px; border-radius: 25px; border: 1.5px solid var(--accent); cursor: pointer; font-weight: 500; }
+
+        /* LOADING */
+        #loading-overlay { position: fixed; inset: 0; background: linear-gradient(to top, #74ebd5 0%, #acb6e5 100%); z-index: 9998; display: none; flex-direction: column; justify-content: center; align-items: center; color: white; letter-spacing: 5px; opacity: 0; transition: opacity 0.5s; }
+        #loading-overlay.active { display: flex; opacity: 1; }
+        .airplane-loading { font-size: 4rem; animation: flyAcross 3s ease-in-out infinite alternate; }
+        @keyframes flyAcross { 0% { transform: translateX(-50vw); } 100% { transform: translateX(50vw); } }
+
+        /* MAIN CONTENT */
+        #main-content { width: 100%; height: 100%; opacity: 0; transition: 1s; display: none; }
+        #main-content.active { opacity: 1; display: block; }
+
+        /* FLIP BOARD */
+        #subtitle-container { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); z-index: 20; text-align: center; }
+        .flip-board { display: flex; gap: 3px; justify-content: center; }
+        .flip-char { width: 28px; height: 40px; background: #222; color: #eee; font-size: 1.4rem; font-weight: bold; display: flex; align-items: center; justify-content: center; border-radius: 3px; border-bottom: 2px solid #000; }
+
+        /* BOARDING PASS */
+        #boarding-pass-ui { position: fixed; bottom: -400px; left: 50%; transform: translateX(-50%) scale(0.9); width: 600px; height: 200px; z-index: 1500; display: flex; transition: 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); filter: drop-shadow(0 30px 60px rgba(0,0,0,0.15)); }
+        #boarding-pass-ui.active { bottom: 60px; transform: translateX(-50%) scale(1); }
+        .ticket-main { flex: 3; padding: 20px; background: #fff; border-radius: 8px 0 0 8px; border-right: 2px dashed #eee; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
+        .ticket-stub { flex: 1; padding: 20px; background: #fdfdfd; border-radius: 0 8px 8px 0; display: flex; flex-direction: column; justify-content: space-between; }
+        .city-code { font-size: 2.5rem; font-weight: 800; }
+        .route { display: flex; align-items: center; justify-content: space-between; }
+
+        /* PASSPORT */
+        #passport-btn { position: fixed; bottom: 30px; right: 30px; width: 70px; height: 100px; background: #1a3666; border-radius: 4px; z-index: 2000; box-shadow: 0 10px 20px rgba(0,0,0,0.3); cursor: pointer; transition: 0.3s; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; text-align: center; border: 2px solid #fff; }
+        #passport-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 4000; display: none; align-items: center; justify-content: center; opacity: 0; transition: 0.5s; }
+        .passport-page { width: 90%; max-width: 800px; height: 500px; background: #fdf5e6; border-radius: 5px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; padding: 30px; overflow-y: auto; }
+        .passport-stamp { border: 4px double; padding: 10px; text-align: center; }
+
+        /* ALBUM */
+        #album-overlay { position: fixed; inset: 0; background: #fff; z-index: 3000; display: none; opacity: 0; transition: 0.5s; overflow-y: auto; }
+        #fragment-zone { padding: 80px 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
+        .fragment { width: 200px; background: #fff; padding: 10px; border: 1px solid #eee; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .fragment img { width: 100%; height: 150px; object-fit: cover; }
+
+        /* STAMP ANIMATION */
+        .dynamic-stamp { position: absolute; width: 100px; height: 100px; border: 4px double var(--accent); border-radius: 50%; color: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 900; z-index: 2000; opacity: 0; }
+        .stamped { animation: stampHit 0.35s forwards; }
+        @keyframes stampHit { 0% { transform: scale(4); opacity: 0; } 100% { transform: scale(1) rotate(-15deg); opacity: 0.6; } }
+        #boarding-pass-ui.tearing .ticket-main { transform: translateX(-100vw) rotate(-10deg); opacity: 0; transition: 0.8s; }
+        #boarding-pass-ui.tearing .ticket-stub { transform: translate(100vw, 100vh) rotate(40deg); opacity: 0; transition: 1s; }
+
+        /* UI ELEMENTS */
+        #back-btn { position: absolute; top: 20px; left: 20px; padding: 10px; border: 1px solid #ddd; background: #fff; z-index: 1000; display: none; cursor: pointer; font-size: 0.7rem; }
+        #map-wrapper { position: absolute; inset: 0; }
+        .hero-overlay { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; }
+
+        /* MOBILE OVERRIDES */
+        @media (max-width: 768px) {
+            #boarding-pass-ui { width: 90%; height: auto; flex-direction: column; }
+            .ticket-main, .ticket-stub { border-radius: 8px; margin-bottom: 5px; }
+            .flip-char { width: 20px; height: 30px; font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="intro-window">
+    <div class="window-frame"><div class="window-glass"><div class="clouds"></div></div></div>
+    <div class="intro-text-zone">
+        <p class="main-slogan">Focus 된 시선 위에서 흐르는 여행 지도</p>
+        <div class="custom-form">
+            <div class="input-group"><label>Passenger</label><input type="text" id="input-name" placeholder="LAST NAME" oninput="syncCustom()"></div>
+            <div class="input-group"><label>From</label><input type="text" id="input-from" placeholder="DEPARTING AIRPORT" oninput="syncCustom()"></div>
+        </div>
+        <div class="click-prompt" onclick="startJourney()">START JOURNEY</div>
+    </div>
+</div>
+
+<div id="loading-overlay"><div class="airplane-loading">✈</div><p>TAKING OFF...</p></div>
+
+<div id="main-content">
+    <button id="back-btn" onclick="resetMap()">← WORLD</button>
+    <div class="hero-overlay" id="hero"><h1>TRAVELOGUE</h1></div>
+    <div id="map-wrapper"></div>
+    <div id="subtitle-container"><div class="flip-board" id="flip-board"></div></div>
+    <div id="passport-btn" onclick="togglePassport()">PASSPORT<br>RECORDS</div>
+</div>
+
+<div id="passport-overlay" onclick="togglePassport()"><div class="passport-page" id="passport-page" onclick="event.stopPropagation()"></div></div>
+
+<div id="boarding-pass-ui" onclick="handleTicketClick(event)">
+    <div class="ticket-main">
+        <div class="route">
+            <div class="city-code" id="ticket-from-code">ICN</div>
+            <div>✈</div>
+            <div class="city-code" id="ticket-dest-code">---</div>
+        </div>
+        <div style="font-size:0.7rem; border-top:1px solid #eee; padding-top:10px;">
+            PASSENGER: <span id="ticket-name">---</span>
+        </div>
+    </div>
+    <div class="ticket-stub">
+        <div style="font-size:0.6rem; color:#bbb;">BOARDING PASS</div>
+        <div style="font-size:1.2rem; font-weight:bold;">GATE 12A</div>
+    </div>
+</div>
+
+<div id="album-overlay">
+    <button onclick="closeAlbum()" style="position:fixed; top:20px; right:20px; z-index:4000;">CLOSE</button>
+    <div id="fragment-zone"></div>
+    <div style="position:fixed; bottom:0; width:100%; padding:20px; background:#fff; text-align:center; border-top:1px solid #eee;">
+        <input type="file" id="file-input" multiple onchange="handleFileSelect(event)">
+    </div>
+</div>
+
+<script>
+    /* --- JS INTEGRATED --- */
+    let travelData = JSON.parse(localStorage.getItem('travelogue_data')) || {};
+    let visitedCountries = JSON.parse(localStorage.getItem('visited_countries')) || [];
+    let selectedCountry = null;
+    let isAnimating = false;
+    let globeMode = window.innerWidth <= 768;
+    let globeRotation = [100, -30];
+    let mapInstance = null;
+    const themeColors = ['#e67e22', '#2980b9', '#27ae60', '#8e44ad', '#c0392b'];
+
+    function syncCustom() {
+        const name = document.getElementById('input-name').value;
+        const from = document.getElementById('input-from').value;
+        document.getElementById('ticket-name').innerText = name.toUpperCase() || "GUEST";
+        document.getElementById('ticket-from-code').innerText = from.substring(0,3).toUpperCase() || "ICN";
+    }
+
+    function startJourney() {
+        if (isAnimating) return;
+        isAnimating = true;
+        document.getElementById('intro-window').style.transform = 'translateY(-100%)';
+        setTimeout(() => {
+            const loading = document.getElementById('loading-overlay');
+            loading.classList.add('active');
+            setTimeout(() => {
+                loading.classList.remove('active');
+                document.getElementById('main-content').classList.add('active');
+                initMap();
+                updateFlipBoard("WELCOME");
+                isAnimating = false;
+            }, 3000);
+        }, 1000);
+    }
+
+    function initMap() {
+        const wrapper = document.getElementById('map-wrapper');
+        wrapper.innerHTML = '';
+        globeMode = window.innerWidth <= 768;
+
+        const projectionConfig = globeMode ? 
+            d3.geo.orthographic().scale(Math.min(window.innerWidth, window.innerHeight) * 0.4).translate([window.innerWidth/2, window.innerHeight/2]).rotate(globeRotation).clipAngle(90) :
+            d3.geo.equirectangular().scale(window.innerWidth/6.5).translate([window.innerWidth/2, window.innerHeight/2]);
+
+        mapInstance = new Datamap({
+            element: wrapper,
+            fills: { defaultFill: "#e6e6e6" },
+            setProjection: function(el) { return { projection: projectionConfig, path: d3.geo.path().projection(projectionConfig) }; },
+            geographyConfig: { borderWidth: 0.5, borderColor: '#fff', highlightOnHover: false, popupOnHover: false },
+            done: function(datamap) {
+                const subs = datamap.svg.selectAll(".datamaps-subunit");
+                
+                if (globeMode) {
+                    const drag = d3.behavior.drag().on("drag", function() {
+                        globeRotation[0] += d3.event.dx * 0.25;
+                        globeRotation[1] -= d3.event.dy * 0.25;
+                        projectionConfig.rotate(globeRotation);
+                        datamap.svg.selectAll("path").attr("d", d3.geo.path().projection(projectionConfig));
+                    });
+                    datamap.svg.call(drag);
+                }
+
+                subs.on("click", function(d) {
+                    if (isAnimating || selectedCountry) return;
+                    selectedCountry = d.id;
+                    updateFlipBoard(d.properties.name);
+                    document.getElementById('ticket-dest-code').innerText = d.id;
+                    const accent = themeColors[Math.floor(Math.random()*themeColors.length)];
+                    document.documentElement.style.setProperty('--accent', accent);
+
+                    if (globeMode) {
+                        const center = d3.geo.centroid(d);
+                        d3.transition().duration(1000).tween("rotate", function() {
+                            const i = d3.interpolate(projectionConfig.rotate(), [-center[0], -center[1]]);
+                            return t => {
+                                globeRotation = i(t);
+                                projectionConfig.rotate(globeRotation);
+                                datamap.svg.selectAll("path").attr("d", d3.geo.path().projection(projectionConfig));
+                            };
+                        }).each("end", showTicket);
+                    } else {
+                        const bounds = this.getBBox();
+                        const scale = 3;
+                        const tx = (window.innerWidth/2) - (scale * (bounds.x + bounds.width/2));
+                        const ty = (window.innerHeight/2) - (scale * (bounds.y + bounds.height/2));
+                        datamap.svg.select("g").transition().duration(1200).attr("transform", `translate(${tx},${ty}) scale(${scale})`).each("end", showTicket);
+                    }
+                    subs.transition().duration(500).style("opacity", x => x.id === d.id ? 1 : 0.3);
+                });
+            }
+        });
+    }
+
+    function showTicket() {
+        document.getElementById('boarding-pass-ui').classList.add('active');
+        document.getElementById('back-btn').style.display = 'block';
+    }
+
+    function handleTicketClick(e) {
+        if (isAnimating) return;
+        isAnimating = true;
+        const ticket = document.getElementById('boarding-pass-ui');
+        const stamp = document.createElement('div');
+        stamp.className = 'dynamic-stamp stamped'; stamp.innerText = 'VERIFIED';
+        stamp.style.left = (e.clientX - ticket.offsetLeft) + 'px';
+        stamp.style.top = (e.clientY - ticket.offsetTop) + 'px';
+        ticket.appendChild(stamp);
+
+        if (!visitedCountries.includes(selectedCountry)) visitedCountries.push(selectedCountry);
+        localStorage.setItem('visited_countries', JSON.stringify(visitedCountries));
+
+        setTimeout(() => {
+            ticket.classList.add('tearing');
+            setTimeout(() => {
+                openAlbum();
+                ticket.classList.remove('active', 'tearing');
+                ticket.querySelectorAll('.dynamic-stamp').forEach(s => s.remove());
+                isAnimating = false;
+            }, 1000);
+        }, 600);
+    }
+
+    function updateFlipBoard(text) {
+        const board = document.getElementById('flip-board');
+        board.innerHTML = "";
+        const target = text.toUpperCase().substring(0, 12).padEnd(8, " ");
+        [...target].forEach((char, i) => {
+            const el = document.createElement('div'); el.className = 'flip-char';
+            board.appendChild(el);
+            let c = 0;
+            const itv = setInterval(() => {
+                el.innerText = String.fromCharCode(65 + Math.floor(Math.random()*26));
+                if (++c > 5 + i) { clearInterval(itv); el.innerText = char; }
+            }, 50);
+        });
+    }
+
+    function resetMap() {
+        selectedCountry = null;
+        document.getElementById('boarding-pass-ui').classList.remove('active');
+        document.getElementById('back-btn').style.display = 'none';
+        updateFlipBoard("WORLD");
+        initMap();
+    }
+
+    function openAlbum() {
+        document.getElementById('album-overlay').style.display = 'block';
+        setTimeout(() => document.getElementById('album-overlay').style.opacity = '1', 10);
+        renderFragments();
+    }
+
+    function closeAlbum() {
+        document.getElementById('album-overlay').style.opacity = '0';
+        setTimeout(() => { document.getElementById('album-overlay').style.display = 'none'; resetMap(); }, 500);
+    }
+
+    function renderFragments() {
+        const zone = document.getElementById('fragment-zone');
+        zone.innerHTML = "";
+        const photos = travelData[selectedCountry] || [];
+        if (!photos.length) { zone.innerHTML = "NO LOGS"; return; }
+        photos.forEach(src => {
+            const frag = document.createElement('div'); frag.className = 'fragment';
+            frag.innerHTML = `<img src="${src}"><p>${selectedCountry}</p>`;
+            zone.appendChild(frag);
+        });
+    }
+
+    function handleFileSelect(e) {
+        const files = Array.from(e.target.files);
+        if (!travelData[selectedCountry]) travelData[selectedCountry] = [];
+        files.forEach(f => {
+            const r = new FileReader();
+            r.onload = ev => { travelData[selectedCountry].push(ev.target.result); localStorage.setItem('travelogue_data', JSON.stringify(travelData)); renderFragments(); };
+            r.readAsDataURL(f);
+        });
+    }
+
+    function togglePassport() {
+        const ov = document.getElementById('passport-overlay');
+        if (ov.style.display === 'flex') { ov.style.opacity = '0'; setTimeout(() => ov.style.display = 'none', 500); }
+        else { renderPassport(); ov.style.display = 'flex'; setTimeout(() => ov.style.opacity = '1', 10); }
+    }
+
+    function renderPassport() {
+        const p = document.getElementById('passport-page');
+        p.innerHTML = visitedCountries.map(c => `<div class="passport-stamp" style="color:${themeColors[Math.floor(Math.random()*5)]}">STAMPED: ${c}<br>2026.01.18</div>`).join('');
+    }
+
+    window.addEventListener('resize', initMap);
+</script>
+</body>
+</html>

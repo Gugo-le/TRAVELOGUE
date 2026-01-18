@@ -3,8 +3,27 @@ let userConfig = JSON.parse(localStorage.getItem('travelogue_config')) || { name
 let visitedCountries = JSON.parse(localStorage.getItem('visited_countries')) || [];
 let selectedCountry = null;
 let isAnimating = false;
+let isMobileView = window.innerWidth <= 768;
+let globeMode = isMobileView; // true = 지구본(3D), false = 평면지도(2D)
+let globeRotation = [100, -30];
+let globeMap = null;
 
 const themeColors = ['#e67e22', '#2980b9', '#27ae60', '#8e44ad', '#c0392b'];
+
+// --- 0. 디바이스 체크 및 맵 초기화 ---
+function checkDeviceAndInitMap() {
+  isMobileView = window.innerWidth <= 768;
+  globeMode = isMobileView;
+  
+  const mapWrapper = document.getElementById('map-wrapper');
+  mapWrapper.innerHTML = '';
+  
+  if (globeMode) {
+    initGlobe();
+  } else {
+    initFlatMap();
+  }
+}
 
 // --- 1. 초기 설정 및 동기화 ---
 function syncCustom() {
@@ -35,6 +54,10 @@ function startJourney() {
       loading.classList.remove('active');
       document.getElementById('main-content').classList.add('active');
       updateFlipBoard("WELCOME ABOARD");
+      
+      // 맵 초기화 (디바이스에 따라 다르게)
+      checkDeviceAndInitMap();
+      
       isAnimating = false;
     }, 3000);
   }, 1000);
@@ -126,10 +149,22 @@ function handleTicketClick(e) {
     updateFlipBoard("LANDING NOW");
 
     setTimeout(() => {
-      enterAlbum(selectedCountry); 
+      if (globeMode) {
+        // 모바일: 앨범 열기
+        document.getElementById('main-content').style.display = 'none';
+        document.getElementById('album-overlay').style.display = 'flex';
+        document.getElementById('album-overlay').style.opacity = '1';
+        renderAlbumPhotos(selectedCountry);
+      } else {
+        // PC: enterAlbum 호출
+        enterAlbum(selectedCountry);
+      }
+      
       setTimeout(() => { 
         ticket.classList.remove('active', 'tearing'); 
-        document.getElementById('subtitle-container').classList.remove('hidden'); 
+        if (!globeMode) {
+          document.getElementById('subtitle-container').classList.remove('hidden');
+        }
         ticket.querySelectorAll('.dynamic-stamp').forEach(s => s.remove()); 
         isAnimating = false; 
       }, 1000);
@@ -225,16 +260,31 @@ function zoomToCountry(datamap, geo, callback) {
 
 function resetMap() {
   selectedCountry = null; 
-  updateFlipBoard("SELECT DEST");
-  document.getElementById('boarding-pass-ui').classList.remove('active');
-  document.getElementById('subtitle-container').classList.remove('hidden'); 
-  document.getElementById("hero").style.opacity = "1";
+  
+  if (globeMode) {
+    // 모바일 구 지도 리셋
+    updateFlipBoard("");
+    document.getElementById('globe-subtitle').classList.remove('show');
+    if (globeMap && globeMap.svg) {
+      globeMap.svg.selectAll(".datamaps-subunit").transition().duration(800)
+        .style("opacity", 1)
+        .style("fill", d => travelData[d.id] ? "#666666" : "#e6e6e6");
+    }
+  } else {
+    // PC 평면 지도 리셋
+    updateFlipBoard("SELECT DEST");
+    document.getElementById('boarding-pass-ui').classList.remove('active');
+    document.getElementById('subtitle-container').classList.remove('hidden'); 
+    document.getElementById("hero").style.opacity = "1";
+    if (mapGroup) {
+      mapGroup.transition().duration(1000).attr("transform", "translate(0,0) scale(1)");
+      map.svg.selectAll(".datamaps-subunit").transition().duration(800).style("opacity", 1).style("fill", "#e6e6e6");
+    }
+  }
+  
   document.getElementById("back-btn").style.display = "none";
-  // restore passport button visibility
   const passportBtn = document.getElementById('passport-btn');
   if (passportBtn) passportBtn.style.display = 'block';
-  mapGroup.transition().duration(1000).attr("transform", "translate(0,0) scale(1)");
-  map.svg.selectAll(".datamaps-subunit").transition().duration(800).style("opacity", 1).style("fill", "#e6e6e6");
 }
 
 // --- 7. 여행 앨범 (사진 관리) ---
@@ -248,7 +298,20 @@ function enterAlbum(id) {
 function closeAlbum() {
   const overlay = document.getElementById("album-overlay");
   overlay.style.opacity = "0";
-  setTimeout(() => overlay.style.display = "none", 800);
+  
+  if (globeMode) {
+    // 모바일 모드
+    setTimeout(() => {
+      document.getElementById('main-content').style.display = 'flex';
+      overlay.style.display = 'none';
+      overlay.style.opacity = '1';
+    }, 300);
+  } else {
+    // PC 모드
+    setTimeout(() => overlay.classList.remove("active"), 300);
+  }
+  
+  selectedCountry = null;
 }
 
 function renderFragments() {
@@ -273,6 +336,166 @@ function renderFragments() {
   });
 }
 
+// --- 지구본 모드 (모바일) ---
+function initGlobe() {
+  const mapWrapper = document.getElementById('map-wrapper');
+  const width = mapWrapper.clientWidth;
+  const height = mapWrapper.clientHeight;
+
+  const projection = d3.geo.orthographic()
+    .scale(Math.min(window.innerWidth, window.innerHeight) * 0.42)
+    .translate([
+        window.innerWidth / 2,
+        window.innerHeight / 2 + (globeMode ? -100 : 0)
+    ])
+    .rotate(globeRotation)
+    .clipAngle(90);
+
+  const path = d3.geo.path().projection(projection);
+
+  globeMap = new Datamap({
+    element: mapWrapper,
+    scope: 'world',
+    setProjection: function(element) {
+      return { projection: projection, path: path };
+    },
+    fills: { defaultFill: "#e6e6e6" },
+    geographyConfig: {
+      borderWidth: 0.5,
+      borderColor: '#ffffff',
+      highlightFillColor: '#ffcccc',
+      highlightBorderColor: '#000000',
+      popupOnHover: false
+    },
+    done: function(datamap) {
+      const svg = datamap.svg;
+      const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+      const subs = svg.selectAll(".datamaps-subunit");
+      
+      // 드래그 회전
+      const drag = d3.behavior.drag()
+        .on("drag", function() {
+          const dx = d3.event.dx;
+          const dy = d3.event.dy;
+          globeRotation[0] += dx * 0.25;
+          globeRotation[1] -= dy * 0.25;
+          projection.rotate(globeRotation);
+          svg.selectAll("path").attr("d", path);
+        });
+
+      svg.call(drag);
+
+      // PC처럼 호버 효과 (비터치 기기)
+      if (!isTouch) {
+        subs.on("mouseenter", function(geo) {
+          if (!selectedCountry) {
+            updateFlipBoard(geo.properties.name);
+            d3.select(this).style("fill", "#ffcccc");
+          }
+        })
+        .on("mouseleave", function(geo) {
+          if (!selectedCountry) {
+            updateFlipBoard("");
+            d3.select(this).style("fill", "#e6e6e6");
+          }
+        });
+      }
+
+      // 클릭 이벤트 (PC버전과 동일하게)
+      subs.on("click", function(geo) {
+        if (isAnimating || selectedCountry) return;
+        
+        selectedCountry = geo.id;
+        isAnimating = true;
+
+        // flipboard 업데이트
+        updateFlipBoard(geo.properties.name);
+        document.getElementById('ticket-dest-code').innerText = geo.id;
+
+        // 테마 색상 변경
+        const color = themeColors[Math.floor(Math.random() * themeColors.length)];
+        document.documentElement.style.setProperty('--accent', color);
+
+        // 부드러운 회전으로 선택한 국가를 정면으로
+        const center = d3.geo.centroid(geo);
+        const targetRotation = [-center[0], -center[1]];
+        
+        d3.transition().duration(1000).tween("rotate", function() {
+          const i = d3.interpolate(projection.rotate(), targetRotation);
+          return function(t) {
+            globeRotation = i(t);
+            projection.rotate(globeRotation);
+            svg.selectAll("path").attr("d", path);
+          };
+        }).each("end", function() {
+          // 회전 완료 후 UI 표시
+          document.getElementById('globe-subtitle').classList.add('show');
+          document.getElementById('globe-subtitle').innerText = geo.properties.name.toUpperCase();
+          document.getElementById("back-btn").style.display = "block";
+          document.getElementById("hero").style.opacity = "0";
+          
+          svg.selectAll(".datamaps-subunit").transition().duration(800)
+            .style("opacity", d => d.id === geo.id ? 1 : 0.4);
+          
+          isAnimating = false;
+        });
+      });
+
+      updateGlobeStyles();
+    }
+  });
+}
+
+function updateGlobeStyles() {
+  if (!globeMap || !globeMap.svg) return;
+  globeMap.svg.selectAll(".datamaps-subunit").style("fill", d => {
+    return travelData[d.id] ? "#666666" : "#e6e6e6";
+  });
+}
+
+function openAlbumMobile(geo) {
+  document.getElementById('main-content').style.display = 'none';
+  document.getElementById('album-overlay').style.display = 'flex';
+  document.getElementById('album-overlay').style.opacity = '1';
+  selectedCountry = geo.id;
+  renderAlbumPhotos(selectedCountry);
+}
+
+function renderAlbumPhotos(countryCode) {
+  const zone = document.getElementById('fragment-zone');
+  zone.innerHTML = '';
+  const photos = travelData[countryCode] || [];
+  
+  if (!photos.length) {
+    zone.innerHTML = "<div style='padding:40px; text-align:center; color:#ccc;'>NO LOGS YET</div>";
+    return;
+  }
+  
+  photos.forEach((src, i) => {
+    const frag = document.createElement("div");
+    frag.className = "fragment";
+    frag.style.left = `${Math.random() * 60 + 10}%`;
+    frag.style.top = `${Math.random() * 60 + 10}%`;
+    frag.style.transform = `rotate(${(Math.random() - 0.5) * 15}deg)`;
+    frag.innerHTML = `<img src="${src}"><div class="caption">${countryCode} LOG.0${i + 1}</div>`;
+    zone.appendChild(frag);
+  });
+}
+
+// --- 평면 지도 모드 (PC) ---
+function initFlatMap() {
+  // PC 버전은 initPCMap 사용
+  initPCMap();
+}
+
+// 윈도우 리사이즈 시 체크
+window.addEventListener('resize', () => {
+  const newIsMobile = window.innerWidth <= 768;
+  if (newIsMobile !== globeMode) {
+    checkDeviceAndInitMap();
+  }
+});
+
 function handleFileSelect(e) {
   const files = Array.from(e.target.files);
   if (!travelData[selectedCountry]) travelData[selectedCountry] = [];
@@ -282,7 +505,13 @@ function handleFileSelect(e) {
     r.onload = (ev) => { 
       travelData[selectedCountry].push(ev.target.result); 
       localStorage.setItem('travelogue_data', JSON.stringify(travelData)); 
-      renderFragments(); 
+      
+      // 모드별로 다르게 렌더링
+      if (globeMode) {
+        renderAlbumPhotos(selectedCountry);
+      } else {
+        renderFragments();
+      }
     };
     r.readAsDataURL(f);
   });
