@@ -285,7 +285,7 @@ function handleTicketClick(e) {
         ticket.querySelectorAll('.dynamic-stamp').forEach(s => s.remove()); 
         isAnimating = false; 
       }, 1000);
-    }, 1800);
+    }, 1600);
   }, 500);
 }
 
