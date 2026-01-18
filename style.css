@@ -49,6 +49,7 @@ button {
 }
 
 .window-frame {
+  /* airplane window style */
   width: 200px;
   height: 280px;
   background: #fff;
@@ -58,7 +59,7 @@ button {
   position: relative;
   overflow: hidden;
   border: 6px solid #eee;
-  margin-bottom: 40px;
+  margin-bottom: 30px;
 }
 
 .window-glass {
@@ -133,23 +134,24 @@ button {
 
 .click-prompt {
   font-size: 0.65rem;
-  letter-spacing: 5px;
+  letter-spacing: 4px;
   color: #555;
-  padding: 15px 40px;
-  border-radius: 2px;
+  padding: 10px 32px;
+  border-radius: 25px;
   border: 1px solid #ddd;
   cursor: pointer;
-  background: #fff;
-  transition: 0.4s;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  background: transparent;
+  transition: 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   font-family: var(--font-slogan);
 }
 
 .click-prompt:hover {
   border-color: var(--accent);
   color: var(--accent);
+  background: transparent;
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.08);
 }
 
 .intro-text-zone {
@@ -224,8 +226,11 @@ button {
 .flip-board {
   display: flex;
   gap: 3px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-  border-radius: 4px;
+  border-radius: 6px;
+  /* transparent background */
+  background: transparent;
+  padding: 10px 12px;
+  box-shadow: none;
 }
 
 .flip-char {
@@ -242,6 +247,25 @@ button {
   border-radius: 3px;
   border-bottom: 2px solid #000;
   background: linear-gradient(to bottom, #333 50%, #222 51%); 
+}
+
+/* Subtitle note (default desktop) */
+.subtitle-note {
+  font-size: 0.88rem;
+  letter-spacing: 2px;
+  color: rgba(247,179,179,0.95);
+  margin-top: 10px;
+}
+
+/* Ensure datamap SVG scales to container */
+#map-wrapper svg { width: 100% !important; height: 100% !important; display: block; }
+
+/* Medium screens: make flip board wrap and shrink */
+@media (max-width: 1024px) {
+  .flip-board { flex-wrap: wrap; justify-content: center; gap: 2px; }
+  .flip-char { width: 24px; height: 34px; font-size: 1.15rem; }
+  #subtitle-container p { font-size: 0.85rem; margin-top: 8px; color: #f7b3b3; letter-spacing: 1.8px; }
+  #map-wrapper svg { max-height: calc(100vh - 140px); }
 }
 
 /* --- PASSPORT --- */
@@ -571,4 +595,54 @@ button {
 .upload-button:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* Responsive - Mobile */
+@media (max-width: 768px) {
+  html, body { overflow: auto; font-size: 14px; }
+  #intro-window { padding: 16px; }
+  .window-frame { width: min(56vw, 200px); height: min(78vw, 280px); min-width: 140px; border-radius: 100px; margin-bottom: 20px; }
+  .input-group { width: min(80vw, 320px); }
+  .main-slogan { font-size: 0.9rem; }
+  .click-prompt { padding: 12px 24px; font-size: 0.75rem; letter-spacing: 3px; }
+  /* slightly smaller passport visual while keeping touch area */
+  #passport-btn { width: 56px; height: 82px; bottom: 18px; right: 14px; box-shadow: 0 12px 28px rgba(0,0,0,0.28); }
+  /* keep boarding pass hidden by default; `.active` will reveal it */
+  #boarding-pass-ui { width: 95%; height: auto; flex-direction: column; position: fixed; bottom: -400px; left: 50%; transform: translateX(-50%); }
+  #boarding-pass-ui.active { bottom: 20px; }
+  .ticket-main, .ticket-stub { width: 100%; border-radius: 8px; padding: 16px; flex: unset; box-shadow: none; border: none; }
+  .route { gap: 10px; align-items: center; }
+  .city-code { font-size: 2.2rem; min-width: 60px; }
+  .meta-grid { grid-template-columns: repeat(2, 1fr); text-align: left; }
+  /* center subtitle to avoid left overflow and enable wrapping */
+  #subtitle-container { bottom: 90px; left: 50%; transform: translateX(-50%); }
+  .flip-board { justify-content: center; }
+  .subtitle-note { margin-top: 8px; font-size: 0.95rem; color: rgba(247,179,179,0.95); }
+  /* make flipboard a single, scrollable row on mobile to match PC look */
+  .flip-board { flex-wrap: nowrap; overflow-x: auto; padding: 8px 12px; border-radius: 10px; background: transparent; box-shadow: none; }
+  .flip-board::-webkit-scrollbar { height: 8px; }
+  .flip-board::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 8px; }
+  /* pull map content upward so hero + title feel closer */
+  #map-wrapper { display: flex; align-items: flex-start; justify-content: center; padding-top: 120px; }
+  .hero-overlay h1 { font-size: 1.6rem; letter-spacing: 8px; }
+  #back-btn { top: 12px; left: 12px; padding: 8px 12px; display: block; font-size: 0.7rem; }
+  .passport-page { width: 94%; max-width: 560px; height: auto; padding: 20px; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); }
+  #fragment-zone { padding: 40px 20px; gap: 16px; }
+  .fragment { width: 45%; height: 240px; }
+  .upload-zone { position: fixed; bottom: 0; left: 0; }
+  #map-wrapper { position: absolute; inset: 0; }
+}
+
+@media (max-width: 420px) {
+  .window-frame { width: 70vw; height: 48vw; }
+  .input-group { width: 86vw; }
+  .main-slogan { font-size: 0.8rem; }
+  .fragment { width: 100%; height: 220px; }
+  .hero-overlay h1 { font-size: 1.2rem; letter-spacing: 6px; }
+  .flip-char { width: 24px; height: 34px; font-size: 1.1rem; }
+  .flip-board { gap: 2px; justify-content: center; }
+  .flip-char { width: 20px; height: 30px; font-size: 1rem; }
+  #subtitle-container { bottom: 70px; }
+  #map-wrapper { padding-top: 36px; }
+  #passport-btn { width: 52px; height: 76px; right: 10px; bottom: 12px; }
 }

@@ -28,11 +28,11 @@
         <div class="custom-form">
             <div class="input-group">
                 <label>Passenger</label>
-                <input type="text" id="input-name" placeholder="YOUR NAME" oninput="syncCustom()">
+                <input type="text" id="input-name" placeholder="FAMILY NAME/LAST NAME" oninput="syncCustom()">
             </div>
             <div class="input-group">
                 <label>From</label>
-                <input type="text" id="input-from" placeholder="ICN" oninput="syncCustom()">
+                <input type="text" id="input-from" placeholder="DEPARTING AIRPORT" oninput="syncCustom()">
             </div>
         </div>
         <div class="click-prompt" onclick="startJourney()">START JOURNEY</div>
@@ -47,7 +47,7 @@
 <div id="main-content">
     <div id="subtitle-container">
         <div class="flip-board" id="flip-board"></div>
-        <p style="font-size:0.88rem; letter-spacing:2px; color:#f7b3b3; margin-top:10px;">Travel, one page at a time.</p>
+        <p class="subtitle-note">Travel, one page at a time.</p>
     </div>
 
     <div id="passport-btn" onclick="togglePassport()"></div>

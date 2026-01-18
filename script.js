@@ -1,5 +1,5 @@
 let travelData = JSON.parse(localStorage.getItem('travelogue_data')) || {}; 
-let userConfig = JSON.parse(localStorage.getItem('travelogue_config')) || { name: 'ADVENTURER', from: 'ICN' };
+let userConfig = JSON.parse(localStorage.getItem('travelogue_config')) || { name: '', from: '' };
 let visitedCountries = JSON.parse(localStorage.getItem('visited_countries')) || [];
 let selectedCountry = null;
 let isAnimating = false;
@@ -8,8 +8,8 @@ const themeColors = ['#e67e22', '#2980b9', '#27ae60', '#8e44ad', '#c0392b'];
 
 // --- 1. 초기 설정 및 동기화 ---
 function syncCustom() {
-  const name = document.getElementById('input-name').value || 'ADVENTURER';
-  const from = document.getElementById('input-from').value || 'ICN';
+  const name = document.getElementById('input-name').value || '';
+  const from = document.getElementById('input-from').value || '';
   document.getElementById('ticket-name').innerText = name.toUpperCase();
   document.getElementById('ticket-from-code').innerText = from.substring(0,3).toUpperCase();
   userConfig = { name, from };
@@ -151,8 +151,25 @@ function initPCMap() {
     },
     done: datamap => {
       mapGroup = datamap.svg.select("g");
-      datamap.svg.selectAll(".datamaps-subunit")
-        .on("mouseenter", function(d) { 
+      // nudge world map up a bit on narrow viewports so hero/title area and map feel balanced
+      if (window.innerWidth <= 768) {
+        try {
+          const dy = -Math.round(window.innerHeight * 0.12);
+          mapGroup.attr("transform", `translate(0,${dy}) scale(1)`);
+        } catch (e) { /* noop if transform fails */ }
+      }
+      const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+      const subs = datamap.svg.selectAll(".datamaps-subunit");
+
+      // click handler (works for mouse and many touch scenarios)
+      subs.on("click", function(d) { 
+        if (isAnimating || selectedCountry) return;
+        selectCountry(d, datamap);
+      });
+
+      // hover handlers only on non-touch devices
+      if (!isTouch) {
+        subs.on("mouseenter", function(d) { 
           if(!selectedCountry) { 
             updateFlipBoard(d.properties.name); 
             d3.select(this).style("fill", "#ffcccc"); 
@@ -163,29 +180,36 @@ function initPCMap() {
             updateFlipBoard(""); 
             d3.select(this).style("fill", "#e6e6e6"); 
           } 
-        })
-        .on("click", function(d) {
-          if (isAnimating || selectedCountry) return;
-          selectedCountry = d.id; 
-          isAnimating = true;
-          
-          updateFlipBoard(d.properties.name);
-          document.getElementById('ticket-dest-code').innerText = d.id;
-          
-          // 목적지 테마 색상 적용
-          const color = themeColors[Math.floor(Math.random()*themeColors.length)];
-          document.documentElement.style.setProperty('--accent', color);
-          
-          // 줌 애니메이션
-          zoomToCountry(datamap, d, () => {
-             document.getElementById('boarding-pass-ui').classList.add('active');
-             document.getElementById('subtitle-container').classList.add('hidden'); 
-             document.getElementById("back-btn").style.display = "block";
-             document.getElementById("hero").style.opacity = "0";
-             isAnimating = false;
-          });
-          map.svg.selectAll(".datamaps-subunit").transition().duration(800).style("opacity", x => x.id === d.id ? 1 : 0.4);
         });
+      } else {
+        // touchstart to make touch feeling snappier on mobile
+        subs.on("touchstart", function(d) {
+          if (isAnimating || selectedCountry) return;
+          selectCountry(d, datamap);
+        });
+      }
+
+      function selectCountry(d, datamap) {
+        selectedCountry = d.id;
+        isAnimating = true;
+
+        updateFlipBoard(d.properties.name);
+        document.getElementById('ticket-dest-code').innerText = d.id;
+
+        const color = themeColors[Math.floor(Math.random()*themeColors.length)];
+        document.documentElement.style.setProperty('--accent', color);
+
+        zoomToCountry(datamap, d, () => {
+          document.getElementById('boarding-pass-ui').classList.add('active');
+          document.getElementById('subtitle-container').classList.add('hidden'); 
+          document.getElementById("back-btn").style.display = "block";
+          document.getElementById("hero").style.opacity = "0";
+          const passportBtn = document.getElementById('passport-btn');
+          if (passportBtn) passportBtn.style.display = 'none';
+          isAnimating = false;
+        });
+        map.svg.selectAll(".datamaps-subunit").transition().duration(800).style("opacity", x => x.id === d.id ? 1 : 0.4);
+      }
     }
   });
 }
@@ -206,6 +230,9 @@ function resetMap() {
   document.getElementById('subtitle-container').classList.remove('hidden'); 
   document.getElementById("hero").style.opacity = "1";
   document.getElementById("back-btn").style.display = "none";
+  // restore passport button visibility
+  const passportBtn = document.getElementById('passport-btn');
+  if (passportBtn) passportBtn.style.display = 'block';
   mapGroup.transition().duration(1000).attr("transform", "translate(0,0) scale(1)");
   map.svg.selectAll(".datamaps-subunit").transition().duration(800).style("opacity", 1).style("fill", "#e6e6e6");
 }
