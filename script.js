@@ -240,6 +240,7 @@ let pendingRoute = null;
 let routeLayer = null;
 let routePlane = null;
 let routePath = null;
+let routeHalo = null;
 let routeMarkers = null;
 let routeProgress = 0;
 let activeRoute = null;
@@ -824,14 +825,22 @@ function clearRouteOverlay() {
   routePlaneOverlay = null;
   lastPlaneProjected = null;
   routePath = null;
+  routeHalo = null;
   routeMarkers = null;
   activeRoute = null;
   routeProgress = 0;
 }
 
+function refreshRoutePaths() {
+  if (!globePath) return;
+  if (routePath) routePath.attr("d", globePath);
+  if (routeHalo) routeHalo.attr("d", globePath);
+}
+
 function refreshGlobePaths() {
   if (!globeMap || !globePath) return;
-  globeMap.svg.selectAll("path").attr("d", globePath);
+  globeMap.svg.selectAll(".datamaps-subunit").attr("d", globePath);
+  refreshRoutePaths();
 }
 
 function updateRouteMarkers() {
@@ -903,6 +912,11 @@ function renderRouteOverlay(route) {
   if (routeLayer.node() && routeLayer.node().parentNode) {
     routeLayer.node().parentNode.appendChild(routeLayer.node());
   }
+  routeHalo = routeLayer.append("path")
+    .datum(lineGeo)
+    .attr("class", "route-anim-halo")
+    .attr("d", globePath)
+    .attr("fill", "none");
   routePath = routeLayer.append("path")
     .datum(lineGeo)
     .attr("class", "route-anim")
@@ -932,11 +946,11 @@ function renderRouteOverlay(route) {
   routePlane = routeLayer.append("g")
     .attr("class", "route-plane")
     .style("opacity", 0);
-  routePlane.append("text")
-    .attr("text-anchor", "middle")
-    .attr("alignment-baseline", "middle")
+  routePlane.append("path")
+    .attr("d", "M10 0 L-6 4 L-3 0 L-6 -4 Z")
     .attr("fill", accent)
-    .text("✈");
+    .attr("stroke", "#111")
+    .attr("stroke-width", 0.6);
 
   updateRouteMarkers();
   updateRoutePlanePosition();
@@ -1462,7 +1476,8 @@ function startAutoRotate(projection, svg, path) {
     lastTime = now;
     globeRotation[0] += dt * 0.004;
     projection.rotate(globeRotation);
-    svg.selectAll("path").attr("d", path);
+    svg.selectAll(".datamaps-subunit").attr("d", path);
+    refreshRoutePaths();
     updateRouteMarkers();
     updateRoutePlanePosition();
   }
@@ -1768,7 +1783,8 @@ function initGlobe() {
     globeRotation[1] -= dy * 0.25;
 
     projection.rotate(globeRotation);
-    svg.selectAll("path").attr("d", path);
+    svg.selectAll(".datamaps-subunit").attr("d", path);
+    refreshRoutePaths();
     updateRouteMarkers();
     updateRoutePlanePosition();
   })
@@ -1786,7 +1802,8 @@ function initGlobe() {
       globeRotation[1] -= velocity[1];
 
       projection.rotate(globeRotation);
-      svg.selectAll("path").attr("d", path);
+      svg.selectAll(".datamaps-subunit").attr("d", path);
+      refreshRoutePaths();
       updateRouteMarkers();
       updateRoutePlanePosition();
 
@@ -1808,7 +1825,8 @@ function initGlobe() {
           autoRotatePausedUntil = Date.now() + 700;
           userGlobeControlUntil = Date.now() + 2000;
           projection.scale(d3.event.scale);
-          svg.selectAll("path").attr("d", path);
+          svg.selectAll(".datamaps-subunit").attr("d", path);
+          refreshRoutePaths();
           updateRouteMarkers();
           updateRoutePlanePosition();
         });
@@ -1863,7 +1881,8 @@ function initGlobe() {
           return function(t) {
             globeRotation = i(t);
             projection.rotate(globeRotation).scale(s(t));
-            svg.selectAll("path").attr("d", path);
+            svg.selectAll(".datamaps-subunit").attr("d", path);
+            refreshRoutePaths();
           };
         }).each("end", function() {
           // 회전 완료 후 UI 표시
@@ -1918,7 +1937,7 @@ function initGlobe() {
         globeRotation = [-route.origin.lon, -route.origin.lat];
         projection.rotate(globeRotation).scale(focusScale);
         refreshGlobePaths();
-        if (routePath) routePath.attr("d", globePath);
+        refreshRoutePaths();
         updateRouteMarkers();
         updateRoutePlanePosition();
         requestAnimationFrame(() => {
@@ -1934,6 +1953,7 @@ function initGlobe() {
             onEnd: () => {
               updateFlipBoard("ARRIVED");
               pauseAudio('airplane-loop');
+              routeProgress = 1;
               flightMode = false;
               isAnimating = false;
               forceGlobeMode = false;
@@ -1959,7 +1979,8 @@ function initGlobe() {
         return function(t) {
           globeRotation = i(t);
           projection.rotate(globeRotation);
-          svg.selectAll("path").attr("d", path);
+          svg.selectAll(".datamaps-subunit").attr("d", path);
+          refreshRoutePaths();
         };
       }).each("end", function() {
         startAutoRotate(projection, svg, path);
