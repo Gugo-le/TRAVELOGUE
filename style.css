@@ -21,7 +21,7 @@ html, body {
   font-family: var(--font-ticket);
   background: var(--bg);
   overflow: hidden;
-  cursor: url('icons/default-cursor.png') 16 16, auto;
+  cursor: default;
   user-select: none;
 }
 
@@ -276,11 +276,11 @@ button {
   right: 30px;
   width: 90px;
   height: 128px;
-  background-image: url('images/KOR_ePassport.jpg'); 
+  background-image: url('assets/images/KOR_ePassport.jpg'); 
   background-size: cover;
   background-position: center;
   border-radius: 4px;
-  cursor: url('icons/passport-cursor.png') 16 16, pointer; 
+  cursor: pointer; 
   z-index: 2000;
   box-shadow: 0 15px 35px rgba(0,0,0,0.4);
   transition: 0.4s ease;
@@ -301,7 +301,7 @@ button {
   justify-content: center;
   opacity: 0;
   transition: 0.5s;
-  cursor: url('icons/default-cursor.png') 16 16, auto;
+  cursor: default;
 }
 
 .passport-nav {
@@ -350,7 +350,7 @@ button {
   position: relative;
   background-image: radial-gradient(rgba(26, 54, 102, 0.05) 1px, transparent 1px);
   background-size: 40px 40px;
-  cursor: url('icons/passport-cursor.png') 16 16, pointer; 
+  cursor: pointer; 
 }
 
 .passport-summary {
@@ -413,7 +413,7 @@ button {
   z-index: 1500;
   display: flex;
   transition: 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  cursor: url('icons/ticket-cursor.png') 16 16, pointer; 
+  cursor: pointer; 
   filter: drop-shadow(0 30px 60px rgba(0,0,0,0.15));
 }
 
@@ -549,11 +549,11 @@ button {
   position: absolute; 
   inset: 0; 
   background: var(--bg); 
-  cursor: url('icons/plane-map-cursor.png') 16 16, grab; 
+  cursor: grab; 
   touch-action: none;
 }
 #map-wrapper.grabbing {
-  cursor: url('icons/plane-map-cursor-grabbing.png') 16 16, grabbing; 
+  cursor: grabbing; 
 }
 
 .hero-overlay {
@@ -580,7 +580,7 @@ button {
   background: white;
   font-size: 0.6rem;
   letter-spacing: 2px;
-  cursor: url('icons/default-cursor.png') 16 16, pointer;
+  cursor: pointer;
   z-index: 100;
   display: none;
   font-family: var(--font-ticket);
@@ -792,7 +792,7 @@ button {
   border: 1px solid rgba(0,0,0,0.12);
   background: #fff;
   border-radius: 10px;
-  cursor: url('icons/default-cursor.png') 16 16, pointer;
+  cursor: pointer;
 }
 
 .album-header {
@@ -867,7 +867,7 @@ button {
   font-family: var(--font-ticket);
   letter-spacing: 3px;
   font-size: 0.6rem;
-  cursor: url('icons/default-cursor.png') 16 16, pointer;
+  cursor: pointer;
 }
 
 /* Responsive - Mobile */
@@ -977,7 +977,7 @@ button {
   font-family: var(--font-ticket);
   border: 1px solid rgba(0,0,0,0.2);
   box-shadow: 0 10px 24px rgba(0,0,0,0.15);
-  cursor: url("icons/default-cursor.png") 16 16, pointer;
+  cursor: pointer;
   display: none;
   z-index: 2000;
 }
