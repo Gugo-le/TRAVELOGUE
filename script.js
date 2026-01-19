@@ -248,6 +248,7 @@ let lastRouteInfo = null;
 let flipMessageIndex = 0;
 let routePlaneOverlay = null;
 let lastPlaneProjected = null;
+let routePlaneIcon = null;
 let flightCountdownTimer = null;
 let flightStartTime = 0;
 let flightDurationMs = 0;
@@ -511,7 +512,7 @@ function buildRouteFromSelection() {
 // --- 0. 디바이스 체크 및 맵 초기화 ---
 function checkDeviceAndInitMap() {
   isMobileView = window.innerWidth <= 768;
-  globeMode = forceGlobeMode || isMobileView;
+  globeMode = forceGlobeMode || isMobileView || flightMode;
   
   const mapWrapper = document.getElementById('map-wrapper');
   if (mapWrapper) {
@@ -824,6 +825,7 @@ function clearRouteOverlay() {
   if (routePlaneOverlay) routePlaneOverlay.remove();
   routePlaneOverlay = null;
   lastPlaneProjected = null;
+  routePlaneIcon = null;
   routePath = null;
   routeHalo = null;
   routeMarkers = null;
@@ -835,6 +837,9 @@ function refreshRoutePaths() {
   if (!globePath) return;
   if (routePath) routePath.attr("d", globePath);
   if (routeHalo) routeHalo.attr("d", globePath);
+  if (routeLayer && routeLayer.node() && routeLayer.node().parentNode) {
+    routeLayer.node().parentNode.appendChild(routeLayer.node());
+  }
 }
 
 function refreshGlobePaths() {
@@ -868,7 +873,8 @@ function updateRoutePlanePositionAt(coord, nextCoord) {
   }
   if (routePlane) {
     routePlane.style('opacity', 1);
-    routePlane.attr('transform', `translate(${projected[0]}, ${projected[1]}) rotate(${angle})`);
+    routePlane.attr('transform', `translate(${projected[0]}, ${projected[1]})`);
+    if (routePlaneIcon) routePlaneIcon.attr('transform', `rotate(${angle})`);
   }
 }
 
@@ -883,13 +889,13 @@ function updateRoutePlaneFromPath(t) {
   const nextPoint = node.getPointAtLength(total * Math.min(1, clamped + 0.003));
   const angle = Math.atan2(nextPoint.y - point.y, nextPoint.x - point.x) * 180 / Math.PI;
   routePlane.style('opacity', 1);
-  routePlane.attr('transform', `translate(${point.x}, ${point.y}) rotate(${angle})`);
+  routePlane.attr('transform', `translate(${point.x}, ${point.y})`);
+  if (routePlaneIcon) routePlaneIcon.attr('transform', `rotate(${angle})`);
   return true;
 }
 
 function updateRoutePlanePosition() {
   if (!activeRoute || !globeProjection) return;
-  if (updateRoutePlaneFromPath(routeProgress)) return;
   const coord = getRouteCoordAt(activeRoute, routeProgress);
   const nextCoord = getRouteCoordAt(activeRoute, Math.min(1, routeProgress + 0.01));
   updateRoutePlanePositionAt(coord, nextCoord);
@@ -946,11 +952,16 @@ function renderRouteOverlay(route) {
   routePlane = routeLayer.append("g")
     .attr("class", "route-plane")
     .style("opacity", 0);
-  routePlane.append("path")
-    .attr("d", "M10 0 L-6 4 L-3 0 L-6 -4 Z")
+  routePlane.append("circle")
+    .attr("r", 3.2)
     .attr("fill", accent)
     .attr("stroke", "#111")
-    .attr("stroke-width", 0.6);
+    .attr("stroke-width", 0.8);
+  routePlaneIcon = routePlane.append("path")
+    .attr("d", "M14 0 L-8 6 L-4 0 L-8 -6 Z")
+    .attr("fill", accent)
+    .attr("stroke", "#111")
+    .attr("stroke-width", 1.1);
 
   updateRouteMarkers();
   updateRoutePlanePosition();
@@ -1406,9 +1417,7 @@ function animateRoute(route, duration = 3200) {
       if (routePath) routePath.attr("d", globePath);
       updateRouteMarkers();
     }
-    if (!updateRoutePlaneFromPath(t)) {
-      updateRoutePlanePositionAt(coord, nextCoord);
-    }
+    updateRoutePlanePositionAt(coord, nextCoord);
     if (t < 1) {
       requestAnimationFrame(tick);
     } else {
@@ -1429,7 +1438,7 @@ function startFlightSequence(route) {
   }
   playAudio('airplane-loop', { restart: true });
   flightMode = true;
-  forceGlobeMode = false;
+  forceGlobeMode = true;
   pendingRoute = route;
   globeRotation = [-route.origin.lon, -route.origin.lat];
   resetMap();
