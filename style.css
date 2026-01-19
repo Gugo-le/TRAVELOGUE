@@ -1341,6 +1341,11 @@ button {
   z-index: 1;
 }
 
+.airport-suggest-search.is-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .airport-suggest-item {
   padding: 10px 16px;
   cursor: pointer;

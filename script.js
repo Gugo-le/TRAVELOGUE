@@ -508,6 +508,12 @@ function attachAirportSuggest(input, onSelect, options = {}) {
         input.blur();
       }
     });
+    if (isMobileView) {
+      searchInput.readOnly = true;
+      searchInput.setAttribute('inputmode', 'none');
+      searchInput.classList.add('is-disabled');
+      searchInput.placeholder = 'SCROLL TO SELECT';
+    }
     listBox = document.createElement('div');
     listBox.className = 'airport-suggest-list';
     panel.appendChild(header);
@@ -557,7 +563,7 @@ function attachAirportSuggest(input, onSelect, options = {}) {
     if (backdrop) backdrop.style.display = 'block';
     list.style.display = 'block';
     isOpen = true;
-    if (searchInput) searchInput.focus();
+    if (searchInput && !isMobileView) searchInput.focus();
   };
 
   const close = () => {
