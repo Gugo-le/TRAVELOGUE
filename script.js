@@ -267,6 +267,7 @@ let landingTransitionPending = false;
 let landingReturnTimer = null;
 let landingOnEnded = null;
 let landingTapStart = null;
+let audioUnlocked = false;
 
 function playAudio(id, options = {}) {
   const el = document.getElementById(id);
@@ -282,6 +283,32 @@ function pauseAudio(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.pause();
+}
+
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  const ids = ['airplane-bp', 'airplane-loop', 'landing-sound', 'stamp-sound'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const wasMuted = el.muted;
+    el.muted = true;
+    const p = el.play();
+    if (p && typeof p.then === 'function') {
+      p.then(() => {
+        el.pause();
+        el.currentTime = 0;
+        el.muted = wasMuted;
+      }).catch(() => {
+        el.muted = wasMuted;
+      });
+    } else {
+      el.pause();
+      el.currentTime = 0;
+      el.muted = wasMuted;
+    }
+  });
 }
 
 function playLandingThenResume() {
@@ -1254,9 +1281,9 @@ function focusAirportFlat(airport, options = {}) {
 function focusAirportSelection(airport) {
   if (!airport || flightMode) return;
   if (globeMode) {
-    focusAirport(airport, { duration: 1100, scale: globeProjection ? globeProjection.scale() * 2.2 : undefined });
+    focusAirport(airport, { duration: 900, scale: globeProjection ? globeProjection.scale() : undefined });
   } else {
-    focusAirportFlat(airport, { duration: 1100, scale: 3.6 });
+    focusAirportFlat(airport, { duration: 900, scale: flatZoomScale || 1 });
   }
 }
 
@@ -2357,6 +2384,8 @@ window.addEventListener('resize', () => {
 
 // --- 8. 초기 실행 ---
 window.addEventListener('load', () => { 
+  document.addEventListener('touchstart', unlockAudio, { passive: true, once: true });
+  document.addEventListener('click', unlockAudio, { passive: true, once: true });
   document.getElementById('input-name').value = userConfig.name;
   document.getElementById('input-from').value = userConfig.from;
   populateOriginAirports(userConfig.from);
