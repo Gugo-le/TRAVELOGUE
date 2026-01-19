@@ -268,6 +268,10 @@ let landingReturnTimer = null;
 let landingOnEnded = null;
 let landingTapStart = null;
 let audioUnlocked = false;
+let journeyRoutes = loadJSON('travelogue_routes', []);
+let journeyLayer = null;
+let journeyNetworkTimer = null;
+let journeyNetworkVisible = false;
 const noFlyZones = [
   {
     code: 'PRK',
@@ -704,7 +708,7 @@ function buildRouteFromSelection() {
     pathCoords,
     distanceKm
   };
-  return applyNoFlyZones(route);
+  return applyNoFlyZones(applyTransitRoute(route));
 }
 
 // --- 0. 디바이스 체크 및 맵 초기화 ---
@@ -1039,6 +1043,75 @@ function clearRouteOverlay() {
   routeProgress = 0;
 }
 
+function clearJourneyNetwork() {
+  if (journeyLayer) journeyLayer.remove();
+  journeyLayer = null;
+  journeyNetworkVisible = false;
+  if (journeyNetworkTimer) {
+    clearTimeout(journeyNetworkTimer);
+    journeyNetworkTimer = null;
+  }
+}
+
+function recordJourneyRoute(route) {
+  if (!route || !route.origin || !route.destination) return;
+  const key = `${route.origin.code}-${route.destination.code}-${route.pathCoords?.length || 0}`;
+  if (!journeyRoutes) journeyRoutes = [];
+  if (journeyRoutes.some(entry => entry.key === key)) return;
+  journeyRoutes.push({
+    key,
+    origin: {
+      code: route.origin.code,
+      lat: route.origin.lat,
+      lon: route.origin.lon,
+      country: route.origin.country
+    },
+    destination: {
+      code: route.destination.code,
+      lat: route.destination.lat,
+      lon: route.destination.lon,
+      country: route.destination.country
+    },
+    pathCoords: route.pathCoords && route.pathCoords.length ? route.pathCoords : [[route.origin.lon, route.origin.lat], [route.destination.lon, route.destination.lat]],
+    createdAt: Date.now()
+  });
+  localStorage.setItem('travelogue_routes', JSON.stringify(journeyRoutes));
+}
+
+function renderJourneyNetwork() {
+  if (!journeyNetworkVisible) return;
+  const svg = globeMode && globeMap && globePath ? globeMap.svg : (map && flatPath ? map.svg : null);
+  const path = globePath || flatPath;
+  if (!svg || !path) return;
+  if (!journeyRoutes || !journeyRoutes.length) return;
+  if (journeyLayer) journeyLayer.remove();
+  journeyLayer = svg.append('g').attr('class', 'journey-layer');
+  journeyLayer.selectAll('path')
+    .data(journeyRoutes)
+    .enter()
+    .append('path')
+    .attr('class', 'journey-path')
+    .attr('d', d => path({ type: 'LineString', coordinates: d.pathCoords }));
+  if (journeyLayer.node() && journeyLayer.node().parentNode) {
+    journeyLayer.node().parentNode.appendChild(journeyLayer.node());
+  }
+}
+
+function refreshJourneyNetwork() {
+  const path = globePath || flatPath;
+  if (!journeyLayer || !path) return;
+  journeyLayer.selectAll('path')
+    .attr('d', d => path({ type: 'LineString', coordinates: d.pathCoords }));
+}
+
+function scheduleJourneyNetwork() {
+  if (journeyNetworkTimer) clearTimeout(journeyNetworkTimer);
+  journeyNetworkTimer = setTimeout(() => {
+    journeyNetworkVisible = true;
+    renderJourneyNetwork();
+  }, 15000);
+}
+
 function clearAirportSelectionMarkers() {
   if (airportSelectionLayer) airportSelectionLayer.remove();
   airportSelectionLayer = null;
@@ -1130,6 +1203,7 @@ function refreshRoutePaths() {
   }
   if (routeLayer) routeLayer.attr("visibility", "visible");
   updateAirportSelectionMarkerPositions();
+  refreshJourneyNetwork();
 }
 
 function refreshGlobePaths() {
@@ -1350,6 +1424,7 @@ function pointInZone(point, zone) {
     const lat = point[1];
     if (lon < zone.bounds.minLon || lon > zone.bounds.maxLon) return false;
     if (lat < zone.bounds.minLat || lat > zone.bounds.maxLat) return false;
+    if (zone.polygon) return pointInPolygon(point, zone.polygon);
     return true;
   }
   if (zone.polygon) return pointInPolygon(point, zone.polygon);
@@ -1377,6 +1452,89 @@ function computeDistanceFromCoords(coords) {
     total += estimateDistanceKmByCoords(coords[i], coords[i + 1]);
   }
   return total;
+}
+
+function findOpenFlightsOneStop(origin, destination) {
+  if (!openFlightsReady || !origin || !destination) return null;
+  const originCode = origin.code;
+  const destCode = destination.code;
+  if (!originCode || !destCode) return null;
+  const firstLeg = openFlightsRoutes.get(originCode);
+  if (!firstLeg || !firstLeg.size) return null;
+  let best = null;
+  let bestDistance = Infinity;
+  firstLeg.forEach(viaCode => {
+    if (!viaCode || viaCode === originCode || viaCode === destCode) return;
+    const secondLeg = openFlightsRoutes.get(viaCode);
+    if (!secondLeg || !secondLeg.has(destCode)) return;
+    const viaAirport = airportIndex[viaCode];
+    if (!viaAirport || viaAirport.country === 'PRK') return;
+    const distance = estimateDistanceKm(origin, viaAirport) + estimateDistanceKm(viaAirport, destination);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = viaAirport;
+    }
+  });
+  return best;
+}
+
+function findNoFlyTransit(origin, destination, zone) {
+  if (!openFlightsReady || !origin || !destination || !zone) return null;
+  const originCode = origin.code;
+  const destCode = destination.code;
+  const firstLeg = openFlightsRoutes.get(originCode);
+  if (!firstLeg || !firstLeg.size) return null;
+  let best = null;
+  let bestDistance = Infinity;
+  firstLeg.forEach(viaCode => {
+    if (!viaCode || viaCode === originCode || viaCode === destCode) return;
+    const secondLeg = openFlightsRoutes.get(viaCode);
+    if (!secondLeg || !secondLeg.has(destCode)) return;
+    const viaAirport = airportIndex[viaCode];
+    if (!viaAirport || viaAirport.country === 'PRK') return;
+    const leg1 = [[origin.lon, origin.lat], [viaAirport.lon, viaAirport.lat]];
+    const leg2 = [[viaAirport.lon, viaAirport.lat], [destination.lon, destination.lat]];
+    if (pathIntersectsZone(leg1, zone) || pathIntersectsZone(leg2, zone)) return;
+    const distance = estimateDistanceKm(origin, viaAirport) + estimateDistanceKm(viaAirport, destination);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = viaAirport;
+    }
+  });
+  return best;
+}
+
+function isNaturalTransit(origin, via, destination) {
+  if (!origin || !via || !destination) return false;
+  const direct = estimateDistanceKm(origin, destination);
+  const viaDist = estimateDistanceKm(origin, via) + estimateDistanceKm(via, destination);
+  return viaDist <= direct * 1.25;
+}
+
+function applyTransitRoute(route) {
+  if (!route || !route.origin || !route.destination) return route;
+  const originCountry = route.origin.country;
+  const destCountry = route.destination.country;
+  const otherCountry = originCountry === 'KOR' ? destCountry : (destCountry === 'KOR' ? originCountry : null);
+  if (!otherCountry) return route;
+  if (otherCountry !== 'CHN' && otherCountry !== 'RUS') return route;
+  const transitAirport = findOpenFlightsOneStop(route.origin, route.destination);
+  if (!transitAirport || !isNaturalTransit(route.origin, transitAirport, route.destination)) return route;
+  route.path = [route.origin, transitAirport, route.destination];
+  route.pathCoords = [
+    [route.origin.lon, route.origin.lat],
+    [transitAirport.lon, transitAirport.lat],
+    [route.destination.lon, route.destination.lat]
+  ];
+  route.distanceKm = computeDistanceFromCoords(route.pathCoords);
+  route._segments = null;
+  route._totalDistance = null;
+  route._interpolator = null;
+  route._displayCoords = null;
+  route._displaySegments = null;
+  route._displayTotalDistance = null;
+  route._displayInterpolator = null;
+  return route;
 }
 
 function curveAvoidsZone(coords, zone) {
@@ -1427,15 +1585,41 @@ function buildPacificLinearPath(origin, destination) {
   return coords;
 }
 
+function clampLat(lat) {
+  return Math.max(-85, Math.min(85, lat));
+}
+
+function buildNoFlyMildCurve(origin, destination, zone) {
+  const originCoord = [origin.lon, origin.lat];
+  const destCoord = [destination.lon, destination.lat];
+  const interpolate = d3.geo.interpolate(originCoord, destCoord);
+  const offsets = [1.5, 2.5, 3.5, 4.5, 5.5];
+  const steps = 72;
+  for (const offset of offsets) {
+    for (const sign of [-1, 1]) {
+      const coords = [];
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const base = interpolate(t);
+        const bow = Math.sin(Math.PI * t);
+        const lat = clampLat(base[1] + offset * bow * sign);
+        coords.push([base[0], lat]);
+      }
+      if (curveAvoidsZone(coords, zone)) return coords;
+    }
+  }
+  return null;
+}
+
 function buildNoFlyCurvedPath(origin, destination, zone, options = {}) {
   const originCoord = [origin.lon, origin.lat];
   const destCoord = [destination.lon, destination.lat];
   const interpolate = d3.geo.interpolate(originCoord, destCoord);
   const forceEast = options.forceEast === true;
   const offsets = forceEast
-    ? [30, 36, 42, 48, 54, 60, 66, 72]
-    : [6, 8, 10, 12, 14, 16, 18, 22, 26, 30];
-  const steps = forceEast ? 110 : 96;
+    ? [20, 24, 28, 32, 36, 40, 44, 48]
+    : [2, 3, 4, 5];
+  const steps = forceEast ? 90 : 72;
   const preferEast = forceEast || destCoord[0] < 0 || destCoord[0] > originCoord[0];
   const signs = forceEast ? [1] : (preferEast ? [1, -1] : [-1, 1]);
   let lastCoords = null;
@@ -1446,8 +1630,7 @@ function buildNoFlyCurvedPath(origin, destination, zone, options = {}) {
         const t = i / steps;
         const base = interpolate(t);
         const bow = Math.sin(Math.PI * t);
-        const shaped = forceEast ? Math.pow(bow, 0.6) : bow;
-        const curve = forceEast ? (0.2 * bow + 0.8 * shaped) : shaped;
+        const curve = forceEast ? Math.pow(bow, 0.85) : bow;
         const lon = normalizeLon(base[0] + (offset * curve * sign));
         coords.push([lon, base[1]]);
       }
@@ -1494,11 +1677,17 @@ function applyNoFlyZones(route) {
   if (!zone) return route;
   const forcePacific = shouldForcePacificDetour(route.origin, route.destination);
   if (!forcePacific && !pathIntersectsZone(route.pathCoords, zone)) return route;
-  const pacificLine = forcePacific ? buildPacificLinearPath(route.origin, route.destination) : null;
-  const curved = pacificLine || buildNoFlyCurvedPath(route.origin, route.destination, zone, { forceEast: forcePacific });
-  if (!curved) return route;
-  route.pathCoords = curved;
-  route.distanceKm = computeDistanceFromCoords(curved);
+  if (forcePacific) {
+    const pacificLine = buildPacificLinearPath(route.origin, route.destination);
+    if (!pacificLine) return route;
+    route.pathCoords = pacificLine;
+    route.distanceKm = computeDistanceFromCoords(pacificLine);
+  } else {
+    const mildCurve = buildNoFlyMildCurve(route.origin, route.destination, zone);
+    if (!mildCurve) return route;
+    route.pathCoords = mildCurve;
+    route.distanceKm = computeDistanceFromCoords(mildCurve);
+  }
   route._segments = null;
   route._totalDistance = null;
   route._interpolator = null;
@@ -1945,6 +2134,7 @@ function startFlightSequence(route) {
     resetMap();
     return;
   }
+  clearJourneyNetwork();
   playAudio('airplane-loop', { restart: true });
   flightMode = true;
   forceGlobeMode = true;
@@ -2069,6 +2259,8 @@ function beginFlightOnGlobe(route) {
       onEnd: () => {
         updateFlipBoard("ARRIVED");
         pauseAudio('airplane-loop');
+        recordJourneyRoute(route);
+        scheduleJourneyNetwork();
         routeProgress = 1;
         flightMode = false;
         isAnimating = false;
@@ -2123,6 +2315,7 @@ function initPCMap() {
           updateRouteMarkers();
           updateRoutePlanePosition();
           updateAirportSelectionMarkerPositions();
+          refreshJourneyNetwork();
         });
       datamap.svg.call(flatZoomBehavior);
 
@@ -2183,6 +2376,7 @@ function initPCMap() {
 }
     }
   });
+  renderJourneyNetwork();
 }
 
 function zoomToCountry(datamap, geo, callback) {
@@ -2536,6 +2730,7 @@ function initGlobe() {
       });
 
       updateGlobeStyles();
+      renderJourneyNetwork();
 
       if (flightMode && pendingRoute) {
         const route = pendingRoute;
