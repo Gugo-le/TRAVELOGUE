@@ -268,6 +268,28 @@ let landingReturnTimer = null;
 let landingOnEnded = null;
 let landingTapStart = null;
 let audioUnlocked = false;
+const noFlyZones = [
+  {
+    code: 'PRK',
+    bounds: {
+      minLon: 124.0,
+      maxLon: 131.6,
+      minLat: 37.0,
+      maxLat: 43.2
+    },
+    polygon: [
+      [124.2, 37.6],
+      [125.3, 39.2],
+      [126.6, 41.1],
+      [128.6, 42.5],
+      [130.9, 42.3],
+      [130.4, 39.2],
+      [129.6, 37.9],
+      [127.2, 37.5],
+      [124.8, 37.6]
+    ]
+  }
+];
 
 function playAudio(id, options = {}) {
   const el = document.getElementById(id);
@@ -652,6 +674,7 @@ function setDestinationAirport(code) {
   setCodeValue(input, airport.code);
   updateTicketAirportCodes();
   focusAirportSelection(airport);
+  highlightSelectedCountry();
   updateAirportSelectionMarkers();
 }
 
@@ -674,13 +697,14 @@ function buildRouteFromSelection() {
   for (let i = 0; i < pathAirports.length - 1; i++) {
     distanceKm += estimateDistanceKm(pathAirports[i], pathAirports[i + 1]);
   }
-  return {
+  const route = {
     origin,
     destination,
     path: pathAirports,
     pathCoords,
     distanceKm
   };
+  return applyNoFlyZones(route);
 }
 
 // --- 0. 디바이스 체크 및 맵 초기화 ---
@@ -1301,6 +1325,188 @@ function estimateDistanceKm(origin, destination) {
 
 function estimateDistanceKmByCoords(a, b) {
   return estimateDistanceKm({ lat: a[1], lon: a[0] }, { lat: b[1], lon: b[0] });
+}
+
+function pointInPolygon(point, polygon) {
+  const x = point[0];
+  const y = point[1];
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][0];
+    const yi = polygon[i][1];
+    const xj = polygon[j][0];
+    const yj = polygon[j][1];
+    const intersect = ((yi > y) !== (yj > y)) &&
+      (x < ((xj - xi) * (y - yi)) / (yj - yi + 0.0000001) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function pointInZone(point, zone) {
+  if (!zone) return false;
+  if (zone.bounds) {
+    const lon = point[0];
+    const lat = point[1];
+    if (lon < zone.bounds.minLon || lon > zone.bounds.maxLon) return false;
+    if (lat < zone.bounds.minLat || lat > zone.bounds.maxLat) return false;
+    return true;
+  }
+  if (zone.polygon) return pointInPolygon(point, zone.polygon);
+  return false;
+}
+
+function pathIntersectsZone(coords, zone, steps = 96) {
+  if (!coords || coords.length < 2) return false;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const start = coords[i];
+    const end = coords[i + 1];
+    const interpolate = d3.geo.interpolate(start, end);
+    for (let s = 0; s <= steps; s++) {
+      const point = interpolate(s / steps);
+      if (pointInZone(point, zone)) return true;
+    }
+  }
+  return false;
+}
+
+function computeDistanceFromCoords(coords) {
+  if (!coords || coords.length < 2) return 0;
+  let total = 0;
+  for (let i = 0; i < coords.length - 1; i++) {
+    total += estimateDistanceKmByCoords(coords[i], coords[i + 1]);
+  }
+  return total;
+}
+
+function curveAvoidsZone(coords, zone) {
+  if (!coords || !zone) return false;
+  for (let i = 0; i < coords.length; i++) {
+    if (pointInZone(coords[i], zone)) return false;
+  }
+  return true;
+}
+
+function normalizeLon(lon) {
+  let v = lon;
+  if (v > 180) v -= 360;
+  if (v < -180) v += 360;
+  return v;
+}
+
+function buildPacificLinearPath(origin, destination) {
+  if (!origin || !destination) return null;
+  const oLon = origin.lon;
+  const oLat = origin.lat;
+  const dLon = destination.lon;
+  const dLat = destination.lat;
+  const dLonAdj = dLon < oLon ? dLon + 360 : dLon;
+  const totalLon = dLonAdj - oLon;
+  if (totalLon <= 0) return null;
+  const coords = [];
+  const splitAt = 180;
+  const hasWrap = oLon <= splitAt && dLonAdj > splitAt;
+  const totalSteps = 90;
+  const addSegment = (lonStart, lonEnd, lonOffset = 0, steps) => {
+    const count = Math.max(8, steps);
+    for (let i = 0; i <= count; i++) {
+      const lon = lonStart + (lonEnd - lonStart) * (i / count);
+      const t = ((lon + lonOffset) - oLon) / totalLon;
+      const lat = oLat + (dLat - oLat) * t;
+      coords.push([lon, lat]);
+    }
+  };
+  if (hasWrap) {
+    const seg1 = Math.round(totalSteps * ((splitAt - oLon) / totalLon));
+    const seg2 = totalSteps - seg1;
+    addSegment(oLon, 179.8, 0, seg1);
+    addSegment(-179.8, dLonAdj - 360, 360, seg2);
+  } else {
+    addSegment(oLon, dLonAdj, 0, totalSteps);
+  }
+  return coords;
+}
+
+function buildNoFlyCurvedPath(origin, destination, zone, options = {}) {
+  const originCoord = [origin.lon, origin.lat];
+  const destCoord = [destination.lon, destination.lat];
+  const interpolate = d3.geo.interpolate(originCoord, destCoord);
+  const forceEast = options.forceEast === true;
+  const offsets = forceEast
+    ? [30, 36, 42, 48, 54, 60, 66, 72]
+    : [6, 8, 10, 12, 14, 16, 18, 22, 26, 30];
+  const steps = forceEast ? 110 : 96;
+  const preferEast = forceEast || destCoord[0] < 0 || destCoord[0] > originCoord[0];
+  const signs = forceEast ? [1] : (preferEast ? [1, -1] : [-1, 1]);
+  let lastCoords = null;
+  for (const offset of offsets) {
+    for (const sign of signs) {
+      const coords = [];
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const base = interpolate(t);
+        const bow = Math.sin(Math.PI * t);
+        const shaped = forceEast ? Math.pow(bow, 0.6) : bow;
+        const curve = forceEast ? (0.2 * bow + 0.8 * shaped) : shaped;
+        const lon = normalizeLon(base[0] + (offset * curve * sign));
+        coords.push([lon, base[1]]);
+      }
+      lastCoords = coords;
+      if (curveAvoidsZone(coords, zone)) return coords;
+    }
+  }
+  return lastCoords;
+}
+
+function shouldForcePacificDetour(origin, destination) {
+  if (!origin || !destination) return false;
+  const other = origin.country === 'KOR' ? destination : (destination.country === 'KOR' ? origin : null);
+  if (!other) return false;
+  return other.lon < -30;
+}
+
+function findNoFlyDetour(origin, destination, polygon) {
+  if (!origin || !destination) return null;
+  const originCoord = [origin.lon, origin.lat];
+  const destCoord = [destination.lon, destination.lat];
+  const east = [141.2, 35.4];
+  const pacific = [165.0, 38.0];
+  const south = [126.0, 33.2];
+  const candidates = [];
+  if (destCoord[0] < 0) {
+    candidates.push([east, pacific], [east], [south]);
+  } else if (destCoord[0] < originCoord[0]) {
+    candidates.push([south], [east], [east, pacific]);
+  } else {
+    candidates.push([east], [south]);
+  }
+  for (const detour of candidates) {
+    const coords = [originCoord, ...detour, destCoord];
+    if (!pathIntersectsPolygon(coords, polygon)) return coords;
+  }
+  return null;
+}
+
+function applyNoFlyZones(route) {
+  if (!route || !route.origin || !route.destination) return route;
+  if (route.origin.country !== 'KOR' && route.destination.country !== 'KOR') return route;
+  const zone = noFlyZones[0];
+  if (!zone) return route;
+  const forcePacific = shouldForcePacificDetour(route.origin, route.destination);
+  if (!forcePacific && !pathIntersectsZone(route.pathCoords, zone)) return route;
+  const pacificLine = forcePacific ? buildPacificLinearPath(route.origin, route.destination) : null;
+  const curved = pacificLine || buildNoFlyCurvedPath(route.origin, route.destination, zone, { forceEast: forcePacific });
+  if (!curved) return route;
+  route.pathCoords = curved;
+  route.distanceKm = computeDistanceFromCoords(curved);
+  route._segments = null;
+  route._totalDistance = null;
+  route._interpolator = null;
+  route._displayCoords = null;
+  route._displaySegments = null;
+  route._displayTotalDistance = null;
+  route._displayInterpolator = null;
+  return route;
 }
 
 function buildRouteInterpolator(route) {
@@ -2356,6 +2562,20 @@ function initGlobe() {
 function updateGlobeStyles() {
   if (!globeMap || !globeMap.svg) return;
   globeMap.svg.selectAll(".datamaps-subunit").style("fill", "#e6e6e6");
+}
+
+function highlightSelectedCountry() {
+  if (!selectedCountry) return;
+  const accent = getAccentColor();
+  if (globeMode && globeMap && globeMap.svg) {
+    globeMap.svg.selectAll(".datamaps-subunit")
+      .style("fill", d => d.id === selectedCountry ? accent : "#e6e6e6")
+      .style("opacity", d => d.id === selectedCountry ? 1 : 0.4);
+  } else if (map && map.svg) {
+    map.svg.selectAll(".datamaps-subunit")
+      .style("fill", d => d.id === selectedCountry ? accent : "#e6e6e6")
+      .style("opacity", d => d.id === selectedCountry ? 1 : 0.4);
+  }
 }
 
 // --- 평면 지도 모드 (PC) ---
