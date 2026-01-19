@@ -26,6 +26,8 @@ let globeRotation = [100, -30];
 let globeMap = null;
 let globeProjection = null;
 let globePath = null;
+let flatProjection = null;
+let flatPath = null;
 let inertiaFrame = null;
 let velocity = [0, 0];
 let isDragging = false;
@@ -38,6 +40,7 @@ let autoRotatePausedUntil = 0;
 let albumCountry = null;
 let snapshotBusy = false;
 const themeColors = ['#e67e22', '#2980b9', '#27ae60', '#8e44ad', '#c0392b'];
+const allowConnectingRoutes = false;
 const airportsByCountry = {
   KOR: [
     { code: 'ICN', name: 'Incheon', lat: 37.4602, lon: 126.4407 },
@@ -315,9 +318,15 @@ function normalizeIata(value) {
   return String(value || '').trim().toUpperCase().substring(0, 3);
 }
 
+function isValidIata(code) {
+  return /^[A-Z0-9]{3}$/.test(code || '');
+}
+
 function getAirportByCode(code) {
   if (!code) return null;
-  return airportIndex[normalizeIata(code)] || null;
+  const normalized = normalizeIata(code);
+  if (!isValidIata(normalized)) return null;
+  return airportIndex[normalized] || null;
 }
 
 function getAllAirportsForList() {
@@ -449,9 +458,85 @@ function populateDestinationAirports(countryCode, preferredCode) {
   updateTicketAirportCodes();
 }
 
+function attachAirportSuggest(input, onSelect) {
+  if (!input) return;
+  let panel = null;
+  let isOpen = false;
+
+  const buildItems = () => {
+    const entries = getAllAirportsForList();
+    return entries;
+  };
+
+  const ensurePanel = () => {
+    if (panel) return panel;
+    panel = document.createElement('div');
+    panel.className = 'airport-suggest';
+    panel.style.display = 'none';
+    document.body.appendChild(panel);
+    return panel;
+  };
+
+  const positionPanel = () => {
+    if (!panel) return;
+    const rect = input.getBoundingClientRect();
+    const width = Math.max(rect.width, 180);
+    const left = Math.min(rect.left, window.innerWidth - width - 12);
+    const top = rect.bottom + 6;
+    panel.style.width = `${width}px`;
+    panel.style.left = `${Math.max(12, left)}px`;
+    panel.style.top = `${Math.max(12, top)}px`;
+  };
+
+  const render = () => {
+    const items = buildItems();
+    const list = ensurePanel();
+    list.innerHTML = '';
+    items.forEach(entry => {
+      const item = document.createElement('div');
+      item.className = 'airport-suggest-item';
+      item.textContent = `${entry.code} · ${entry.name}`;
+      item.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        const code = normalizeIata(entry.code);
+        input.value = code;
+        if (typeof onSelect === 'function') onSelect(code);
+        list.style.display = 'none';
+        isOpen = false;
+        input.blur();
+      });
+      list.appendChild(item);
+    });
+    positionPanel();
+    list.style.display = items.length ? 'block' : 'none';
+    isOpen = items.length > 0;
+  };
+
+  const close = () => {
+    if (!panel) return;
+    panel.style.display = 'none';
+    isOpen = false;
+  };
+
+  input.setAttribute('readonly', 'readonly');
+  input.setAttribute('inputmode', 'none');
+  input.addEventListener('focus', render);
+  input.addEventListener('click', render);
+  input.addEventListener('blur', () => {
+    setTimeout(() => close(), 120);
+  });
+  window.addEventListener('resize', () => {
+    if (isOpen) positionPanel();
+  });
+  window.addEventListener('scroll', () => {
+    if (isOpen) positionPanel();
+  }, true);
+}
+
 function setOriginAirport(code, options = {}) {
   const { syncInput = false } = options;
-  const airport = getAirportByCode(code);
+  const normalized = normalizeIata(code);
+  const airport = getAirportByCode(normalized);
   if (!airport) return;
   selectedOriginAirport = airport;
   const input = document.getElementById('ticket-from-code');
@@ -472,7 +557,8 @@ function setDestinationCountry(countryCode) {
 }
 
 function setDestinationAirport(code) {
-  const airport = getAirportByCode(code);
+  const normalized = normalizeIata(code);
+  const airport = getAirportByCode(normalized);
   if (!airport) return;
   selectedCountry = airport.country || selectedCountry;
   populateDestinationAirports(selectedCountry, airport.code);
@@ -834,12 +920,14 @@ function clearRouteOverlay() {
 }
 
 function refreshRoutePaths() {
-  if (!globePath) return;
-  if (routePath) routePath.attr("d", globePath);
-  if (routeHalo) routeHalo.attr("d", globePath);
+  const path = globePath || flatPath;
+  if (!path) return;
+  if (routePath) routePath.attr("d", path);
+  if (routeHalo) routeHalo.attr("d", path);
   if (routeLayer && routeLayer.node() && routeLayer.node().parentNode) {
     routeLayer.node().parentNode.appendChild(routeLayer.node());
   }
+  if (routeLayer) routeLayer.attr("visibility", "visible");
 }
 
 function refreshGlobePaths() {
@@ -849,24 +937,26 @@ function refreshGlobePaths() {
 }
 
 function updateRouteMarkers() {
-  if (!routeMarkers || !globeProjection) return;
+  const projection = globeProjection || flatProjection;
+  if (!routeMarkers || !projection) return;
   routeMarkers.attr("transform", d => {
-    const projected = globeProjection([d.lon, d.lat]);
+    const projected = projection([d.lon, d.lat]);
     if (!projected) return 'translate(-9999,-9999)';
     return `translate(${projected[0]},${projected[1]})`;
   });
 }
 
 function updateRoutePlanePositionAt(coord, nextCoord) {
-  if (!globeProjection) return;
-  const projected = globeProjection(coord);
+  const projection = globeProjection || flatProjection;
+  if (!projection) return;
+  const projected = projection(coord);
   if (!projected) {
     if (routePlane) routePlane.style('opacity', 0);
     return;
   }
   let angle = 0;
   if (nextCoord) {
-    const nextProjected = globeProjection(nextCoord);
+    const nextProjected = projection(nextCoord);
     if (nextProjected) {
       angle = Math.atan2(nextProjected[1] - projected[1], nextProjected[0] - projected[0]) * 180 / Math.PI;
     }
@@ -902,10 +992,11 @@ function updateRoutePlanePosition() {
 }
 
 function renderRouteOverlay(route) {
-  if (!globeMap || !globePath) return;
+  const svg = globeMap && globePath ? globeMap.svg : (map && flatPath ? map.svg : null);
+  const path = globePath || flatPath;
+  if (!svg || !path) return;
   clearRouteOverlay();
   activeRoute = route;
-  const svg = globeMap.svg;
   const accent = getAccentColor();
   const lineGeo = {
     type: "LineString",
@@ -914,19 +1005,20 @@ function renderRouteOverlay(route) {
 
   routeLayer = svg.append("g")
     .attr("class", "route-layer")
-    .attr("pointer-events", "none");
+    .attr("pointer-events", "none")
+    .attr("visibility", "visible");
   if (routeLayer.node() && routeLayer.node().parentNode) {
     routeLayer.node().parentNode.appendChild(routeLayer.node());
   }
   routeHalo = routeLayer.append("path")
     .datum(lineGeo)
     .attr("class", "route-anim-halo")
-    .attr("d", globePath)
+    .attr("d", path)
     .attr("fill", "none");
   routePath = routeLayer.append("path")
     .datum(lineGeo)
     .attr("class", "route-anim")
-    .attr("d", globePath)
+    .attr("d", path)
     .attr("stroke", accent)
     .style("stroke", accent)
     .attr("stroke-width", 3)
@@ -953,15 +1045,15 @@ function renderRouteOverlay(route) {
     .attr("class", "route-plane")
     .style("opacity", 0);
   routePlane.append("circle")
-    .attr("r", 3.2)
+    .attr("r", isMobileView ? 4.2 : 3.2)
     .attr("fill", accent)
     .attr("stroke", "#111")
-    .attr("stroke-width", 0.8);
+    .attr("stroke-width", isMobileView ? 1.1 : 0.8);
   routePlaneIcon = routePlane.append("path")
-    .attr("d", "M14 0 L-8 6 L-4 0 L-8 -6 Z")
+    .attr("d", isMobileView ? "M18 0 L-10 8 L-5 0 L-10 -8 Z" : "M14 0 L-8 6 L-4 0 L-8 -6 Z")
     .attr("fill", accent)
     .attr("stroke", "#111")
-    .attr("stroke-width", 1.1);
+    .attr("stroke-width", isMobileView ? 1.5 : 1.1);
 
   updateRouteMarkers();
   updateRoutePlanePosition();
@@ -1253,6 +1345,13 @@ function getOpenFlightsRoutePath(originCode, destinationCode) {
   const destination = normalizeIata(destinationCode);
   if (!origin || !destination || origin === destination) return null;
   if (!openFlightsRoutes.has(origin)) return null;
+  if (!allowConnectingRoutes) {
+    const direct = openFlightsRoutes.get(origin);
+    if (direct && direct.has(destination)) {
+      return [airportIndex[origin], airportIndex[destination]].filter(Boolean);
+    }
+    return null;
+  }
   const cacheKey = `${origin}-${destination}`;
   if (openFlightsRouteCache.has(cacheKey)) {
     return openFlightsRouteCache.get(cacheKey);
@@ -1414,7 +1513,7 @@ function animateRoute(route, duration = 3200) {
       globeRotation[1] += (targetRotation[1] - globeRotation[1]) * 0.35;
       globeProjection.rotate(globeRotation);
       refreshGlobePaths();
-      if (routePath) routePath.attr("d", globePath);
+      refreshRoutePaths();
       updateRouteMarkers();
     }
     updateRoutePlanePositionAt(coord, nextCoord);
@@ -1439,6 +1538,7 @@ function startFlightSequence(route) {
   playAudio('airplane-loop', { restart: true });
   flightMode = true;
   forceGlobeMode = true;
+  globeMode = true;
   pendingRoute = route;
   globeRotation = [-route.origin.lon, -route.origin.lat];
   resetMap();
@@ -1453,6 +1553,17 @@ function startFlightSequence(route) {
     checkDeviceAndInitMap();
     return;
   }
+  if (isMobileView) {
+    checkDeviceAndInitMap();
+    waitForGlobeAndBegin(route);
+    return;
+  }
+  const shouldReinit = !globeMap || !globeProjection || !globeMode;
+  if (!shouldReinit) {
+    pendingRoute = null;
+    beginFlightOnGlobe(route);
+    return;
+  }
   mapWrapper.classList.remove('map-fade');
   const transitionDelay = globeMode ? 200 : 1400;
   const fadeDuration = 700;
@@ -1461,6 +1572,7 @@ function startFlightSequence(route) {
     setTimeout(() => {
       forceGlobeMode = true;
       checkDeviceAndInitMap();
+      waitForGlobeAndBegin(route);
       requestAnimationFrame(() => {
         mapWrapper.classList.remove('map-fade');
       });
@@ -1493,6 +1605,80 @@ function startAutoRotate(projection, svg, path) {
   autoRotateFrame = requestAnimationFrame(tick);
 }
 
+function waitForGlobeAndBegin(route) {
+  const start = Date.now();
+  const maxWait = 2500;
+  function tick() {
+    if (globeMap && globeProjection && globePath) {
+      pendingRoute = null;
+      beginFlightOnGlobe(route);
+      return;
+    }
+    if (Date.now() - start > maxWait) {
+      isAnimating = false;
+      return;
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function beginFlightOnGlobe(route) {
+  if (!globeProjection || !globePath || !globeMap || !route) return;
+  isAnimating = false;
+  const projection = globeProjection;
+  const baseScale = projection.scale();
+  const distanceKm = route.distanceKm || estimateDistanceKm(route.origin, route.destination);
+  const focusScale = getRouteZoomScale(baseScale, distanceKm);
+  const flightDuration = getRouteDurationMs(distanceKm);
+  renderRouteOverlay(route);
+  lastRouteInfo = {
+    origin: route.origin,
+    destination: route.destination,
+    distanceKm,
+    durationMs: flightDuration
+  };
+  flipMessageIndex = 0;
+  updateFlipBoard(`${route.origin.code} TO ${route.destination.code}`);
+  globeRotation = [-route.origin.lon, -route.origin.lat];
+  projection.rotate(globeRotation).scale(focusScale);
+  refreshGlobePaths();
+  refreshRoutePaths();
+  updateRouteMarkers();
+  updateRoutePlanePosition();
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      animateRoute(route, flightDuration);
+    });
+  });
+  const arrivalDelay = Math.max(1200, flightDuration);
+  setTimeout(() => {
+    focusAirport(route.destination, {
+      scale: Math.min(focusScale * 1.1, baseScale * 2.6),
+      duration: 1200,
+      onEnd: () => {
+        updateFlipBoard("ARRIVED");
+        pauseAudio('airplane-loop');
+        routeProgress = 1;
+        flightMode = false;
+        isAnimating = false;
+        forceGlobeMode = false;
+        if (flightCountdownTimer) {
+          clearInterval(flightCountdownTimer);
+          flightCountdownTimer = null;
+        }
+        if (globeProjection && globeMap && globePath) {
+          startAutoRotate(globeProjection, globeMap.svg, globePath);
+        }
+        const passportBtn = document.getElementById('passport-btn');
+        if (passportBtn) passportBtn.style.display = 'block';
+        playAudio('landing-sound');
+        scheduleReturnAfterLandingAudio();
+      }
+    });
+  }, arrivalDelay);
+}
+
 // --- 6. 지도 엔진 (D3 & Datamaps) ---
 let map, mapGroup;
 function initPCMap() {
@@ -1507,6 +1693,8 @@ function initPCMap() {
     },
     done: datamap => {
       mapGroup = datamap.svg.select("g");
+      flatProjection = datamap.projection || flatProjection;
+      flatPath = datamap.path || flatPath;
       // nudge world map up a bit on narrow viewports so hero/title area and map feel balanced
       if (window.innerWidth <= 768) {
         try {
@@ -1930,56 +2118,7 @@ function initGlobe() {
       if (flightMode && pendingRoute) {
         const route = pendingRoute;
         pendingRoute = null;
-        const baseScale = projection.scale();
-        const distanceKm = route.distanceKm || estimateDistanceKm(route.origin, route.destination);
-        const focusScale = getRouteZoomScale(baseScale, distanceKm);
-        const flightDuration = getRouteDurationMs(distanceKm);
-        renderRouteOverlay(route);
-        lastRouteInfo = {
-          origin: route.origin,
-          destination: route.destination,
-          distanceKm,
-          durationMs: flightDuration
-        };
-        flipMessageIndex = 0;
-        updateFlipBoard(`${route.origin.code} TO ${route.destination.code}`);
-        globeRotation = [-route.origin.lon, -route.origin.lat];
-        projection.rotate(globeRotation).scale(focusScale);
-        refreshGlobePaths();
-        refreshRoutePaths();
-        updateRouteMarkers();
-        updateRoutePlanePosition();
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            animateRoute(route, flightDuration);
-          });
-        });
-        const arrivalDelay = Math.max(1200, flightDuration);
-        setTimeout(() => {
-          focusAirport(route.destination, {
-            scale: Math.min(focusScale * 1.1, baseScale * 2.6),
-            duration: 1200,
-            onEnd: () => {
-              updateFlipBoard("ARRIVED");
-              pauseAudio('airplane-loop');
-              routeProgress = 1;
-              flightMode = false;
-              isAnimating = false;
-              forceGlobeMode = false;
-              if (flightCountdownTimer) {
-                clearInterval(flightCountdownTimer);
-                flightCountdownTimer = null;
-              }
-              if (globeProjection && globeMap && globePath) {
-                startAutoRotate(globeProjection, globeMap.svg, globePath);
-              }
-              const passportBtn = document.getElementById('passport-btn');
-              if (passportBtn) passportBtn.style.display = 'block';
-              playAudio('landing-sound');
-              scheduleReturnAfterLandingAudio();
-            }
-          });
-        }, arrivalDelay);
+        beginFlightOnGlobe(route);
         return;
       }
 
@@ -2005,12 +2144,17 @@ function updateGlobeStyles() {
 
 // --- 평면 지도 모드 (PC) ---
 function initFlatMap() {
+  if (flightMode || forceGlobeMode) {
+    initGlobe();
+    return;
+  }
   // PC 버전은 initPCMap 사용
   initPCMap();
 }
 
 // 윈도우 리사이즈 시 체크
 window.addEventListener('resize', () => {
+  if (flightMode) return;
   const newIsMobile = window.innerWidth <= 768;
   const desiredMode = forceGlobeMode || newIsMobile;
   if (desiredMode !== globeMode) {
@@ -2122,7 +2266,7 @@ window.addEventListener('load', () => {
     if (!target) return;
     const isBoardingPass = target.closest('#boarding-pass-ui');
     const isTicketInput = target.closest('#boarding-pass-ui input, #boarding-pass-ui select');
-    if (isTicketInput) return;
+    if (isTicketInput || target.closest('.airport-suggest')) return;
     if (target.closest('button') || (isBoardingPass && !isTicketInput) || target.closest('.click-prompt')) {
       playAudio('airplane-bp');
     }
@@ -2136,6 +2280,10 @@ window.addEventListener('load', () => {
       if (code) setOriginAirport(code, { syncInput: true });
       showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : selectedCountry);
     });
+    attachAirportSuggest(fromCodeInput, (code) => {
+      if (code) setOriginAirport(code, { syncInput: true });
+      showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : selectedCountry);
+    });
   }
 
   const toCodeInput = document.getElementById('ticket-dest-code');
@@ -2143,6 +2291,10 @@ window.addEventListener('load', () => {
     toCodeInput.addEventListener('change', () => {
       const code = normalizeIata(getCodeValue(toCodeInput));
       setCodeValue(toCodeInput, code);
+      if (code) setDestinationAirport(code);
+      showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : selectedCountry);
+    });
+    attachAirportSuggest(toCodeInput, (code) => {
       if (code) setDestinationAirport(code);
       showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : selectedCountry);
     });
