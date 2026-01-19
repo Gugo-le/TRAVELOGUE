@@ -232,6 +232,7 @@ button {
   background: transparent;
   padding: 10px 12px;
   box-shadow: none;
+  cursor: pointer;
 }
 
 .flip-char {
@@ -467,9 +468,48 @@ button {
   text-align: center; 
   min-width: 80px; 
 }
+.plane-path {
+  position: relative;
+  z-index: 0;
+}
+.city-code-input {
+  background: rgba(255,255,255,0.85);
+  border: 1px solid rgba(0,0,0,0.08);
+  outline: none;
+  min-width: 132px;
+  width: 132px;
+  text-transform: uppercase;
+  cursor: text;
+  padding: 4px 6px;
+  line-height: 1.05;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  letter-spacing: 2px;
+  font-size: 2rem;
+  color: #111;
+  font-family: var(--font-ticket);
+  appearance: none;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+}
+.city-code-input::placeholder {
+  color: #bbb;
+}
+.city-code-input:focus {
+  border-color: rgba(230, 126, 34, 0.6);
+  box-shadow: 0 0 0 2px rgba(230, 126, 34, 0.2), inset 0 0 0 1px rgba(255,255,255,0.8);
+  background: #fff;
+}
 .plane-path { flex: 1; height: 1px; background: rgba(0,0,0,0.1); position: relative; margin: 0 10px; }
 .plane-path { background: linear-gradient(90deg, rgba(0,0,0,0.08), var(--accent), rgba(0,0,0,0.08)); }
 .plane-path::after { content: "✈"; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); color: var(--accent); font-size: 1rem; }
+.route.route-ready .plane-path::after {
+  opacity: 0;
+}
 
 .meta-grid { 
   display: grid; 
@@ -546,11 +586,17 @@ button {
 
 /* --- MAP & HERO --- */
 #map-wrapper { 
-  position: absolute; 
+  position: absolute;
   inset: 0; 
   background: var(--bg); 
   cursor: grab; 
   touch-action: none;
+  opacity: 1;
+  transition: opacity 0.8s ease;
+  overflow: hidden;
+}
+#map-wrapper.map-fade {
+  opacity: 0;
 }
 #map-wrapper.grabbing {
   cursor: grabbing; 
@@ -882,13 +928,20 @@ button {
   #passport-btn { width: 56px; height: 82px; bottom: 80px; right: 14px; box-shadow: 0 12px 28px rgba(0,0,0,0.28); }
   /* keep boarding pass hidden by default; `.active` will reveal it */
   #boarding-pass-ui { width: 95%; height: auto; flex-direction: column; position: fixed; bottom: -400px; left: 50%; transform: translateX(-50%); }
-  #boarding-pass-ui.active { bottom: 20px; }
+  #boarding-pass-ui.active { bottom: calc(20px + env(safe-area-inset-bottom)); }
   .ticket-main, .ticket-stub { width: 100%; border-radius: 8px; padding: 16px; flex: unset; box-shadow: none; border: none; }
   .route { gap: 10px; align-items: center; }
   .city-code { font-size: 2.2rem; min-width: 60px; }
+  .city-code-input {
+    min-width: 86px;
+    width: 86px;
+    font-size: 1.6rem;
+    letter-spacing: 1px;
+    padding: 2px 4px;
+  }
   .meta-grid { grid-template-columns: repeat(2, 1fr); text-align: left; }
   /* center subtitle to avoid left overflow and enable wrapping */
-  #subtitle-container { bottom: 170px; left: 50%; transform: translateX(-50%); }
+  #subtitle-container { bottom: calc(170px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); }
   .flip-board { justify-content: center; }
   .subtitle-note { margin-top: 8px; font-size: 0.95rem; color: rgba(247,179,179,0.95); }
   /* make flipboard a single, scrollable row on mobile to match PC look */
@@ -896,11 +949,12 @@ button {
   .flip-board::-webkit-scrollbar { height: 8px; }
   .flip-board::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 8px; }
   /* pull map content upward so hero + title feel closer */
-  #map-wrapper { display: flex; align-items: flex-start; justify-content: center; padding-top: 120px; }
+  #map-wrapper.flat-mode { display: flex; align-items: flex-start; justify-content: center; padding-top: calc(120px + env(safe-area-inset-top)); }
+  #map-wrapper.globe-mode { padding-top: 0; }
   .hero-overlay h1 { font-size: 2.2rem; letter-spacing: 8px; font-weight: 100; }
-  #back-btn { top: 12px; left: 12px; padding: 8px 12px; font-size: 0.7rem; }
-  #flight-status { top: 14px; font-size: 0.5rem; letter-spacing: 3.5px; }
-  #event-hud { top: 64px; width: min(420px, 92vw); }
+  #back-btn { top: calc(12px + env(safe-area-inset-top)); left: 12px; padding: 8px 12px; font-size: 0.7rem; }
+  #flight-status { top: calc(14px + env(safe-area-inset-top)); font-size: 0.5rem; letter-spacing: 3.5px; }
+  #event-hud { top: calc(64px + env(safe-area-inset-top)); width: min(420px, 92vw); }
   .event-row { font-size: 0.5rem; letter-spacing: 2.6px; }
   .progress-line { font-size: 0.55rem; }
   .timeline { font-size: 0.48rem; letter-spacing: 2px; }
@@ -908,6 +962,10 @@ button {
   .passport-page { width: 94%; max-width: 560px; height: auto; padding: 20px; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); }
   .passport-nav { display: none; }
   #map-wrapper { position: absolute; inset: 0; }
+  #snapshot-btn { bottom: calc(20px + env(safe-area-inset-bottom)); right: 14px; }
+  #passport-btn { bottom: calc(80px + env(safe-area-inset-bottom)); }
+  .plane-path { min-width: 80px; }
+  .route-plane-overlay { width: 22px; height: 22px; font-size: 18px; }
 }
 
 @media (max-width: 420px) {
@@ -918,9 +976,18 @@ button {
   .flip-char { width: 24px; height: 34px; font-size: 1.1rem; }
   .flip-board { gap: 2px; justify-content: center; }
   .flip-char { width: 20px; height: 30px; font-size: 1rem; }
-  #subtitle-container { bottom: 70px; }
-  #map-wrapper { padding-top: 36px; }
-  #passport-btn { width: 52px; height: 76px; right: 10px; bottom: 12px; }
+  .city-code-input {
+    min-width: 72px;
+    width: 72px;
+    font-size: 1.4rem;
+    letter-spacing: 1px;
+  }
+  #subtitle-container { bottom: calc(70px + env(safe-area-inset-bottom)); }
+  #map-wrapper.flat-mode { padding-top: calc(36px + env(safe-area-inset-top)); }
+  #map-wrapper.globe-mode { padding-top: 0; }
+  #passport-btn { width: 52px; height: 76px; right: 10px; bottom: calc(12px + env(safe-area-inset-bottom)); }
+  #snapshot-btn { bottom: calc(16px + env(safe-area-inset-bottom)); right: 10px; }
+  .route-plane-overlay { width: 20px; height: 20px; font-size: 16px; }
 }
 
 /* INTRO STEP CONTROL */
@@ -982,6 +1049,61 @@ button {
   z-index: 2000;
 }
 
-.route-plane {
+.route-layer {
   pointer-events: none;
+}
+
+.route-anim {
+  fill: none;
+  stroke: var(--accent) !important;
+  stroke-width: 3px;
+  stroke-linecap: round;
+  opacity: 0.7;
+  stroke-dasharray: none;
+  filter: drop-shadow(0 0 8px rgba(0,0,0,0.4));
+}
+
+.route-marker circle {
+  fill: #111;
+  stroke: var(--accent);
+  stroke-width: 3px;
+}
+
+.route-marker.destination circle {
+  fill: var(--accent);
+  stroke: #111;
+}
+
+.route-marker text {
+  font-family: var(--font-ticket);
+  font-size: 0.55rem;
+  letter-spacing: 1px;
+  fill: var(--accent);
+  text-anchor: middle;
+}
+
+.route-plane-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: var(--accent);
+  pointer-events: none;
+  transform: translate(-9999px, -9999px);
+  text-shadow: none;
+  z-index: 20;
+}
+
+.route-plane text {
+  font-size: 20px;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.35);
 }

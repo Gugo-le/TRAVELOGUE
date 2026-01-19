@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TRAVELOGUE - YOUR JOURNEY</title>
+    <title>TRAVELOGUE - 여행을 시작하는 순간의 설렘</title>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.3/d3.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.9/topojson.min.js"></script>
@@ -56,6 +56,7 @@
     </div>
 
     <div id="passport-btn" onclick="togglePassport()"></div>
+    <button id="snapshot-btn" onclick="captureBoardingPass()" aria-label="Capture screen">SNAPSHOT</button>
 
     <div id="passport-overlay" onclick="togglePassport()">
         <button class="passport-nav prev" id="passport-prev" onclick="changePassportPage(-1); event.stopPropagation();" aria-label="Previous page">←</button>
@@ -73,11 +74,13 @@
                     <div class="val" style="font-size:0.75rem; font-weight:bold;">TRV-2026</div>
                 </div>
             </div>
-            <div class="route">
-                <div class="city-code" id="ticket-from-code">ICN</div>
+            <div class="route" id="route-line">
+                <input class="city-code city-code-input" id="ticket-from-code" list="airport-list-all" value="ICN" maxlength="3" aria-label="From airport" autocapitalize="characters" spellcheck="false">
                 <div class="plane-path"></div>
-                <div class="city-code" id="ticket-dest-code">---</div>
+                <input class="city-code city-code-input" id="ticket-dest-code" list="airport-list-dest" placeholder="---" maxlength="3" aria-label="To airport" autocapitalize="characters" spellcheck="false">
             </div>
+            <datalist id="airport-list-all"></datalist>
+            <datalist id="airport-list-dest"></datalist>
             <div class="meta-grid">
                 <div class="meta-item"><div class="label">Passenger</div><div class="val" id="ticket-name">---</div></div>
                 <div class="meta-item"><div class="label">Date</div><input type="date" id="ticket-date" class="ticket-input"></div>
