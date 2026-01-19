@@ -38,7 +38,6 @@ let passportSwipeStart = null;
 let autoRotateFrame = null;
 let autoRotatePausedUntil = 0;
 let albumCountry = null;
-let snapshotBusy = false;
 const themeColors = ['#e67e22', '#2980b9', '#27ae60', '#8e44ad', '#c0392b'];
 const allowConnectingRoutes = false;
 const airportsByCountry = {
@@ -252,10 +251,14 @@ let flipMessageIndex = 0;
 let routePlaneOverlay = null;
 let lastPlaneProjected = null;
 let routePlaneIcon = null;
+let airportSelectionLayer = null;
+let airportSelectionMarkers = null;
 let flightCountdownTimer = null;
 let flightStartTime = 0;
 let flightDurationMs = 0;
 let userGlobeControlUntil = 0;
+let globeBaseScale = null;
+let flatZoomScale = 1;
 let openFlightsReady = false;
 let openFlightsAirports = new Map();
 let openFlightsRoutes = new Map();
@@ -311,7 +314,7 @@ function updateVisitHistory(code) {
   const historyEl = document.getElementById('visit-history');
   if (!historyEl) return;
   const dates = (visitedCountries[code] || []).slice().sort().slice(-3).reverse();
-  historyEl.textContent = dates.length ? `PREV: ${dates.join(' · ')}` : 'FIRST VISIT';
+  historyEl.textContent = dates.length ? `${dates.join(' · ')}` : 'FIRST VISIT';
 }
 
 function normalizeIata(value) {
@@ -458,14 +461,24 @@ function populateDestinationAirports(countryCode, preferredCode) {
   updateTicketAirportCodes();
 }
 
-function attachAirportSuggest(input, onSelect) {
+function attachAirportSuggest(input, onSelect, options = {}) {
   if (!input) return;
   let panel = null;
+  let searchInput = null;
+  let listBox = null;
   let isOpen = false;
+  const { listProvider } = options;
 
-  const buildItems = () => {
-    const entries = getAllAirportsForList();
-    return entries;
+  const buildItems = (query) => {
+    const entries = typeof listProvider === 'function'
+      ? listProvider()
+      : getAllAirportsForList();
+    if (!query) return entries;
+    const q = String(query || '').trim().toUpperCase();
+    return entries.filter(entry => {
+      const name = String(entry.name || '').toUpperCase();
+      return entry.code.includes(q) || name.includes(q);
+    });
   };
 
   const ensurePanel = () => {
@@ -473,6 +486,22 @@ function attachAirportSuggest(input, onSelect) {
     panel = document.createElement('div');
     panel.className = 'airport-suggest';
     panel.style.display = 'none';
+    searchInput = document.createElement('input');
+    searchInput.className = 'airport-suggest-search';
+    searchInput.type = 'search';
+    searchInput.placeholder = 'SEARCH AIRPORT';
+    searchInput.addEventListener('input', render);
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        close();
+        input.blur();
+      }
+    });
+    listBox = document.createElement('div');
+    listBox.className = 'airport-suggest-list';
+    panel.appendChild(searchInput);
+    panel.appendChild(listBox);
     document.body.appendChild(panel);
     return panel;
   };
@@ -489,27 +518,37 @@ function attachAirportSuggest(input, onSelect) {
   };
 
   const render = () => {
-    const items = buildItems();
+    const query = searchInput ? searchInput.value : '';
+    const items = buildItems(query).slice(0, 80);
     const list = ensurePanel();
-    list.innerHTML = '';
-    items.forEach(entry => {
-      const item = document.createElement('div');
-      item.className = 'airport-suggest-item';
-      item.textContent = `${entry.code} · ${entry.name}`;
-      item.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        const code = normalizeIata(entry.code);
-        input.value = code;
-        if (typeof onSelect === 'function') onSelect(code);
-        list.style.display = 'none';
-        isOpen = false;
-        input.blur();
+    listBox.innerHTML = '';
+    if (searchInput) searchInput.value = query || '';
+    if (!items.length) {
+      const empty = document.createElement('div');
+      empty.className = 'airport-suggest-empty';
+      empty.textContent = 'NO RESULTS';
+      listBox.appendChild(empty);
+    } else {
+      items.forEach(entry => {
+        const item = document.createElement('div');
+        item.className = 'airport-suggest-item';
+        item.textContent = `${entry.code} · ${entry.name}`;
+        item.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          const code = normalizeIata(entry.code);
+          input.value = code;
+          if (typeof onSelect === 'function') onSelect(code);
+          list.style.display = 'none';
+          isOpen = false;
+          input.blur();
+        });
+        listBox.appendChild(item);
       });
-      list.appendChild(item);
-    });
+    }
     positionPanel();
-    list.style.display = items.length ? 'block' : 'none';
-    isOpen = items.length > 0;
+    list.style.display = 'block';
+    isOpen = true;
+    if (searchInput) searchInput.focus();
   };
 
   const close = () => {
@@ -522,8 +561,10 @@ function attachAirportSuggest(input, onSelect) {
   input.setAttribute('inputmode', 'none');
   input.addEventListener('focus', render);
   input.addEventListener('click', render);
-  input.addEventListener('blur', () => {
-    setTimeout(() => close(), 120);
+  document.addEventListener('pointerdown', (e) => {
+    if (!isOpen || !panel) return;
+    if (panel.contains(e.target) || e.target === input) return;
+    close();
   });
   window.addEventListener('resize', () => {
     if (isOpen) positionPanel();
@@ -548,6 +589,8 @@ function setOriginAirport(code, options = {}) {
   updateTicketAirportCodes();
   userConfig.from = airport.code;
   localStorage.setItem('travelogue_config', JSON.stringify(userConfig));
+  focusAirportSelection(airport);
+  updateAirportSelectionMarkers();
 }
 
 function setDestinationCountry(countryCode) {
@@ -565,6 +608,8 @@ function setDestinationAirport(code) {
   const input = document.getElementById('ticket-dest-code');
   setCodeValue(input, airport.code);
   updateTicketAirportCodes();
+  focusAirportSelection(airport);
+  updateAirportSelectionMarkers();
 }
 
 function buildRouteFromSelection() {
@@ -619,6 +664,9 @@ function syncCustom() {
   const name = document.getElementById('input-name').value || '';
   const from = document.getElementById('input-from').value || '';
   document.getElementById('ticket-name').innerText = name.toUpperCase();
+  const seatInput = document.getElementById('ticket-seat');
+  const seatStub = document.getElementById('ticket-seat-stub');
+  if (seatInput && seatStub) seatStub.textContent = (seatInput.value || '').toUpperCase();
   const fromCode = normalizeIata(from);
   const matched = getAirportByCode(fromCode);
   if (matched) {
@@ -631,6 +679,11 @@ function syncCustom() {
   userConfig = { name, from };
   localStorage.setItem('travelogue_config', JSON.stringify(userConfig));
   updateTicketAirportCodes();
+}
+
+function syncSeatStub(value) {
+  const seatStub = document.getElementById('ticket-seat-stub');
+  if (seatStub) seatStub.textContent = (value || '').toUpperCase();
 }
 
 // --- 2. 여정 시작 (Intro -> Takeoff -> Main) ---
@@ -919,6 +972,104 @@ function clearRouteOverlay() {
   routeProgress = 0;
 }
 
+function clearAirportSelectionMarkers() {
+  if (airportSelectionLayer) airportSelectionLayer.remove();
+  airportSelectionLayer = null;
+  airportSelectionMarkers = null;
+}
+
+function getAirportSelectionData() {
+  const unique = new Map();
+  const addAirport = (airport, type) => {
+    if (!airport || !airport.code) return;
+    if (!unique.has(airport.code)) {
+      unique.set(airport.code, { ...airport, type });
+    }
+  };
+
+  if (selectedOriginAirport) addAirport(selectedOriginAirport, 'origin');
+
+  const destinationCountry = selectedCountry || (selectedDestinationAirport && selectedDestinationAirport.country);
+  if (destinationCountry && airportsByCountry[destinationCountry]) {
+    airportsByCountry[destinationCountry].forEach(airport => {
+      addAirport(airport, 'destination');
+    });
+  } else if (selectedDestinationAirport) {
+    addAirport(selectedDestinationAirport, 'destination');
+  }
+
+  return Array.from(unique.values());
+}
+
+function updateAirportSelectionMarkers() {
+  const isBoardingPassActive = document.getElementById('boarding-pass-ui')?.classList.contains('active');
+  if (!isBoardingPassActive) return;
+  const isGlobe = globeMode && globeMap && globePath;
+  const svg = isGlobe ? globeMap.svg : (map && flatPath ? map.svg : null);
+  const projection = isGlobe ? globeProjection : flatProjection;
+  if (!projection) return;
+  const layerParent = isGlobe ? svg : mapGroup;
+  if (!layerParent) return;
+  clearAirportSelectionMarkers();
+  const data = getAirportSelectionData();
+  if (!data.length) return;
+  airportSelectionLayer = layerParent.append('g').attr('class', 'airport-selection-layer');
+  airportSelectionMarkers = airportSelectionLayer.selectAll('g')
+    .data(data)
+    .enter()
+    .append('g')
+    .attr('class', d => `airport-selection ${d.type}`);
+  airportSelectionMarkers.on('click', function(d) {
+    if (!d) return;
+    if (d3.event && d3.event.stopPropagation) d3.event.stopPropagation();
+    const isOrigin = d.type === 'origin';
+    if (isOrigin) {
+      setOriginAirport(d.code, { syncInput: true });
+    } else {
+      setDestinationAirport(d.code);
+    }
+    updateAirportSelectionMarkers();
+  });
+  airportSelectionMarkers.append('rect')
+    .attr('class', 'airport-selection-badge')
+    .attr('x', -22)
+    .attr('y', -8)
+    .attr('width', 44)
+    .attr('height', 16)
+    .attr('rx', 6)
+    .attr('ry', 6)
+    .attr('stroke', getAccentColor());
+  airportSelectionMarkers.append('text')
+    .attr('class', 'airport-selection-label')
+    .attr('x', 0)
+    .attr('y', 2)
+    .attr('text-anchor', 'middle')
+    .text(d => `✈ ${d.code}`);
+
+  airportSelectionMarkers.each(function(d) {
+    if (!d || (d.code !== 'ICN' && d.code !== 'GMP')) return;
+    const badge = d3.select(this).select('.airport-selection-badge');
+    const label = d3.select(this).select('.airport-selection-label');
+    badge.attr('stroke', '#1d76d2');
+    label.attr('fill', '#1d76d2');
+  });
+  updateAirportSelectionMarkerPositions();
+}
+
+function updateAirportSelectionMarkerPositions() {
+  const projection = globeMode ? globeProjection : flatProjection;
+  if (!airportSelectionMarkers || !projection) return;
+  const zoomFactor = globeMode && globeProjection && globeBaseScale
+    ? Math.max(1, globeProjection.scale() / globeBaseScale)
+    : Math.max(1, flatZoomScale || 1);
+  const badgeScale = Math.max(0.18, Math.min(1, 1 / Math.pow(zoomFactor, 1.3)));
+  airportSelectionMarkers.attr('transform', d => {
+    const projected = projection([d.lon, d.lat]);
+    if (!projected) return 'translate(-9999,-9999)';
+    return `translate(${projected[0]},${projected[1]}) scale(${badgeScale})`;
+  });
+}
+
 function refreshRoutePaths() {
   const path = globePath || flatPath;
   if (!path) return;
@@ -928,6 +1079,7 @@ function refreshRoutePaths() {
     routeLayer.node().parentNode.appendChild(routeLayer.node());
   }
   if (routeLayer) routeLayer.attr("visibility", "visible");
+  updateAirportSelectionMarkerPositions();
 }
 
 function refreshGlobePaths() {
@@ -944,6 +1096,7 @@ function updateRouteMarkers() {
     if (!projected) return 'translate(-9999,-9999)';
     return `translate(${projected[0]},${projected[1]})`;
   });
+  updateAirportSelectionMarkerPositions();
 }
 
 function updateRoutePlanePositionAt(coord, nextCoord) {
@@ -1081,6 +1234,31 @@ function focusAirport(airport, options = {}) {
   }).each("end", function() {
     if (onEnd) onEnd();
   });
+}
+
+let flatZoomBehavior = null;
+
+function focusAirportFlat(airport, options = {}) {
+  if (!mapGroup || !flatProjection || !airport) return;
+  const { duration = 900, scale = 1.8 } = options;
+  const point = flatProjection([airport.lon, airport.lat]);
+  if (!point || point.length < 2) return;
+  const tx = (window.innerWidth / 2) - (scale * point[0]);
+  const ty = (window.innerHeight / 2.3) - (scale * point[1]);
+  mapGroup.transition().duration(duration).attr("transform", `translate(${tx},${ty}) scale(${scale})`);
+  flatZoomScale = scale;
+  if (flatZoomBehavior) {
+    flatZoomBehavior.translate([tx, ty]).scale(scale);
+  }
+}
+
+function focusAirportSelection(airport) {
+  if (!airport || flightMode) return;
+  if (globeMode) {
+    focusAirport(airport, { duration: 1100, scale: globeProjection ? globeProjection.scale() * 2.2 : undefined });
+  } else {
+    focusAirportFlat(airport, { duration: 1100, scale: 3.6 });
+  }
 }
 
 function estimateDistanceKm(origin, destination) {
@@ -1704,6 +1882,17 @@ function initPCMap() {
       }
       const canHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
       const subs = datamap.svg.selectAll(".datamaps-subunit");
+      flatZoomBehavior = d3.behavior.zoom()
+        .scaleExtent([1, 10])
+        .on("zoom", function() {
+          mapGroup.attr("transform", `translate(${d3.event.translate}) scale(${d3.event.scale})`);
+          flatZoomScale = d3.event.scale;
+          refreshRoutePaths();
+          updateRouteMarkers();
+          updateRoutePlanePosition();
+          updateAirportSelectionMarkerPositions();
+        });
+      datamap.svg.call(flatZoomBehavior);
 
       // click handler (works for mouse and many touch scenarios)
       subs.on("click", function(d) { 
@@ -1752,11 +1941,10 @@ function initPCMap() {
           document.getElementById("hero").style.opacity = "0";
           const passportBtn = document.getElementById('passport-btn');
           if (passportBtn) passportBtn.style.display = 'none';
-          const snapBtn = document.getElementById('snapshot-btn');
-          if (snapBtn) snapBtn.style.display = 'block';
           const flightStatus = document.getElementById('flight-status');
           if (flightStatus) flightStatus.classList.add('show');
           showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : d.id);
+          updateAirportSelectionMarkers();
           isAnimating = false;
         });
   map.svg.selectAll(".datamaps-subunit").transition().duration(800).style("opacity", x => x.id === d.id ? 1 : 0.4);
@@ -1772,6 +1960,10 @@ function zoomToCountry(datamap, geo, callback) {
   const tx = (window.innerWidth/2) - (scale * (bounds.x + bounds.width/2));
   const ty = (window.innerHeight/2.5) - (scale * (bounds.y + bounds.height/2)); 
   mapGroup.transition().duration(1200).attr("transform", `translate(${tx},${ty}) scale(${scale})`).each("end", callback);
+  flatZoomScale = scale;
+  if (flatZoomBehavior) {
+    flatZoomBehavior.translate([tx, ty]).scale(scale);
+  }
 }
 
 function resetMap() {
@@ -1821,11 +2013,10 @@ function resetMap() {
   document.getElementById("back-btn").style.display = "none";
   const passportBtn = document.getElementById('passport-btn');
   if (passportBtn) passportBtn.style.display = 'block';
-  const snapBtn = document.getElementById('snapshot-btn');
-  if (snapBtn) snapBtn.style.display = 'none';
   const albumOverlay = document.getElementById('album-overlay');
   if (albumOverlay) albumOverlay.classList.remove('show');
   clearRouteOverlay();
+  clearAirportSelectionMarkers();
   const mapWrapper = document.getElementById('map-wrapper');
   if (mapWrapper) mapWrapper.classList.remove('map-fade');
   if (flightCountdownTimer) {
@@ -1844,6 +2035,7 @@ function returnToWorldLanding() {
   pauseAudio('airplane-loop');
   pauseAudio('landing-sound');
   clearRouteOverlay();
+  clearAirportSelectionMarkers();
   if (flightCountdownTimer) {
     clearInterval(flightCountdownTimer);
     flightCountdownTimer = null;
@@ -1868,8 +2060,6 @@ function returnToWorldLanding() {
   if (backBtn) backBtn.style.display = "none";
   const passportBtn = document.getElementById('passport-btn');
   if (passportBtn) passportBtn.style.display = 'block';
-  const snapBtn = document.getElementById('snapshot-btn');
-  if (snapBtn) snapBtn.style.display = 'none';
   const albumOverlay = document.getElementById('album-overlay');
   if (albumOverlay) albumOverlay.classList.remove('show');
   checkDeviceAndInitMap();
@@ -1922,6 +2112,7 @@ function initGlobe() {
   const height = mapWrapper.clientHeight || window.innerHeight;
 
   const baseScale = Math.min(width, height) * 0.7;
+  globeBaseScale = baseScale;
   const verticalOffset = globeMode ? Math.min(150, Math.round(height * 0.18)) : 0;
   const projection = d3.geo.orthographic()
     .scale(baseScale)
@@ -2017,7 +2208,7 @@ function initGlobe() {
       // pinch/scroll zoom for mobile globe
       const zoom = d3.behavior.zoom()
         .scale(baseScale)
-        .scaleExtent([baseScale * 0.6, baseScale * 3.8])
+        .scaleExtent([baseScale * 0.6, baseScale * 6.5])
         .on("zoom", function() {
           autoRotatePausedUntil = Date.now() + 700;
           userGlobeControlUntil = Date.now() + 2000;
@@ -2093,11 +2284,10 @@ function initGlobe() {
           document.getElementById("hero").style.opacity = "0";
           const passportBtn = document.getElementById('passport-btn');
           if (passportBtn) passportBtn.style.display = 'none';
-          const snapBtn = document.getElementById('snapshot-btn');
-          if (snapBtn) snapBtn.style.display = 'block';
           const flightStatus = document.getElementById('flight-status');
           if (flightStatus) flightStatus.classList.add('show');
           showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : geo.id);
+          updateAirportSelectionMarkers();
           const accent = getAccentColor();
           svg.selectAll(".datamaps-subunit").transition().duration(800)
             .style("opacity", 1)
@@ -2283,7 +2473,7 @@ window.addEventListener('load', () => {
     attachAirportSuggest(fromCodeInput, (code) => {
       if (code) setOriginAirport(code, { syncInput: true });
       showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : selectedCountry);
-    });
+    }, { listProvider: () => getAllAirportsForList() });
   }
 
   const toCodeInput = document.getElementById('ticket-dest-code');
@@ -2297,6 +2487,25 @@ window.addEventListener('load', () => {
     attachAirportSuggest(toCodeInput, (code) => {
       if (code) setDestinationAirport(code);
       showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : selectedCountry);
+    }, {
+      listProvider: () => {
+        if (selectedCountry && airportsByCountry[selectedCountry]) {
+          return airportsByCountry[selectedCountry].map(airport => ({
+            code: airport.code,
+            name: airport.name || airport.code,
+            labelCountry: selectedCountry
+          }));
+        }
+        return getAllAirportsForList();
+      }
+    });
+  }
+
+  const seatInput = document.getElementById('ticket-seat');
+  if (seatInput) {
+    syncSeatStub(seatInput.value);
+    seatInput.addEventListener('input', (e) => {
+      syncSeatStub(e.target.value);
     });
   }
 
@@ -2359,40 +2568,4 @@ function handleAlbumUpload(e) {
     reader.readAsDataURL(file);
   });
   e.target.value = '';
-}
-// Boarding pass snapshot capture
-async function captureBoardingPass() {
-  if (snapshotBusy) return;
-  snapshotBusy = true;
-  const btn = document.getElementById('snapshot-btn');
-  if (btn) btn.disabled = true;
-  try {
-    const target = document.body;
-    if (!target) return;
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const canvas = await html2canvas(target, {
-      backgroundColor: null,
-      scale: 2,
-      width,
-      height,
-      windowWidth: width,
-      windowHeight: height,
-      scrollX: window.scrollX,
-      scrollY: window.scrollY,
-      useCORS: true
-    });
-    const dataUrl = canvas.toDataURL('image/png');
-    const a = document.createElement('a');
-    const fromCode = selectedOriginAirport ? selectedOriginAirport.code : normalizeIata(getCodeValue(document.getElementById('ticket-from-code')));
-    const toCode = selectedDestinationAirport ? selectedDestinationAirport.code : normalizeIata(getCodeValue(document.getElementById('ticket-dest-code')));
-    a.href = dataUrl;
-    a.download = `travelogue-${fromCode || 'from'}-${toCode || 'to'}.png`;
-    a.click();
-  } catch (e) {
-    console.warn('snapshot failed', e);
-  } finally {
-    if (btn) btn.disabled = false;
-    snapshotBusy = false;
-  }
 }

@@ -56,7 +56,6 @@
     </div>
 
     <div id="passport-btn" onclick="togglePassport()"></div>
-    <button id="snapshot-btn" onclick="captureBoardingPass()" aria-label="Capture screen">SNAPSHOT</button>
 
     <div id="passport-overlay" onclick="togglePassport()">
         <button class="passport-nav prev" id="passport-prev" onclick="changePassportPage(-1); event.stopPropagation();" aria-label="Previous page">←</button>
@@ -69,9 +68,9 @@
         <div class="ticket-main">
             <div class="ticket-header">
                 <div class="brand-box"><div class="brand">TRAVELOGUE JOURNEY</div><div class="sub">ROK INTERNATIONAL</div></div>
-                <div style="text-align:right;">
-                    <div class="label" style="font-size:0.4rem; color:#bbb;">FLIGHT</div>
-                    <div class="val" style="font-size:0.75rem; font-weight:bold;">TRV-2026</div>
+                <div class="ticket-flight">
+                    <div class="ticket-flight-label">FLIGHT</div>
+                    <div class="ticket-flight-code">TRV-2026</div>
                 </div>
             </div>
             <div class="route" id="route-line">
@@ -96,12 +95,12 @@
             <div id="visit-history" class="visit-history">FIRST VISIT</div>
         </div>
         <div class="ticket-stub">
-            <div style="text-align:left;">
-                <div class="label" style="color:#bbb;">BOARDING PASS</div>
-                <div class="val" style="font-size:1.3rem; font-weight:800; margin-top:5px; color:var(--accent);">12A</div>
+            <div class="ticket-stub-header">
+                <div class="ticket-stub-label">BOARDING PASS</div>
+                <div class="ticket-stub-seat" id="ticket-seat-stub">12A</div>
             </div>
             <div class="barcode"></div>
-            <div style="font-size:0.45rem; color:#999; letter-spacing:1px; text-align:center;">#TRAVELOGUE_026</div>
+            <div class="ticket-stub-hash">#TRAVELOGUE_026</div>
         </div>
     </div>
 
