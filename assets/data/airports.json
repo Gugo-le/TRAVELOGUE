@@ -1,0 +1,336 @@
+{
+  "KOR": [
+    {"code": "ICN", "name": "Incheon", "lat": 37.4602, "lon": 126.4407},
+    {"code": "GMP", "name": "Gimpo", "lat": 37.5583, "lon": 126.7906},
+    {"code": "PUS", "name": "Gimhae", "lat": 35.1795, "lon": 128.9382},
+    {"code": "CJU", "name": "Jeju", "lat": 33.5113, "lon": 126.4930},
+    {"code": "TAE", "name": "Daegu", "lat": 35.8969, "lon": 128.6553},
+    {"code": "CJJ", "name": "Cheongju", "lat": 36.7170, "lon": 127.4987},
+    {"code": "KWJ", "name": "Gwangju", "lat": 35.1264, "lon": 126.8086},
+    {"code": "MWX", "name": "Muan", "lat": 34.9914, "lon": 126.3828},
+    {"code": "USN", "name": "Ulsan", "lat": 35.5935, "lon": 129.3522},
+    {"code": "RSU", "name": "Yeosu", "lat": 34.8423, "lon": 127.6168},
+    {"code": "HIN", "name": "Sacheon", "lat": 35.0886, "lon": 128.0700},
+    {"code": "YNY", "name": "Yangyang", "lat": 38.0613, "lon": 128.6692},
+    {"code": "KPO", "name": "Pohang", "lat": 35.9879, "lon": 129.4206},
+    {"code": "WJU", "name": "Wonju", "lat": 37.4381, "lon": 127.9604},
+    {"code": "KUV", "name": "Gunsan", "lat": 35.9038, "lon": 126.6159}
+  ],
+  "JPN": [
+    {"code": "NRT", "name": "Narita", "lat": 35.7720, "lon": 140.3929},
+    {"code": "HND", "name": "Haneda", "lat": 35.5494, "lon": 139.7798},
+    {"code": "KIX", "name": "Kansai", "lat": 34.4347, "lon": 135.2442},
+    {"code": "NGO", "name": "Chubu", "lat": 34.8584, "lon": 136.8052},
+    {"code": "FUK", "name": "Fukuoka", "lat": 33.5859, "lon": 130.4506},
+    {"code": "IBR", "name": "Ibaraki", "lat": 36.1811, "lon": 140.4156},
+    {"code": "CTS", "name": "New Chitose", "lat": 42.7752, "lon": 141.6923},
+    {"code": "OKA", "name": "Naha", "lat": 26.1958, "lon": 127.6469},
+    {"code": "ITM", "name": "Itami", "lat": 34.7855, "lon": 135.4382},
+    {"code": "SDJ", "name": "Sendai", "lat": 38.1397, "lon": 140.9176},
+    {"code": "KOJ", "name": "Kagoshima", "lat": 31.8034, "lon": 130.7194},
+    {"code": "HIJ", "name": "Hiroshima", "lat": 34.4361, "lon": 132.9195},
+    {"code": "KMQ", "name": "Komatsu", "lat": 36.3946, "lon": 136.4065},
+    {"code": "OKJ", "name": "Okayama", "lat": 34.7569, "lon": 133.8553},
+    {"code": "KMJ", "name": "Kumamoto", "lat": 32.8373, "lon": 130.8550},
+    {"code": "MYJ", "name": "Matsuyama", "lat": 33.8272, "lon": 132.6997}
+  ],
+  "USA": [
+    {"code": "LAX", "name": "Los Angeles", "lat": 33.9416, "lon": -118.4085},
+    {"code": "JFK", "name": "New York JFK", "lat": 40.6413, "lon": -73.7781},
+    {"code": "SFO", "name": "San Francisco", "lat": 37.6213, "lon": -122.3790},
+    {"code": "SEA", "name": "Seattle", "lat": 47.4502, "lon": -122.3088},
+    {"code": "ORD", "name": "Chicago O'Hare", "lat": 41.9742, "lon": -87.9073},
+    {"code": "ATL", "name": "Atlanta", "lat": 33.6407, "lon": -84.4277},
+    {"code": "DFW", "name": "Dallas/Fort Worth", "lat": 32.8998, "lon": -97.0403},
+    {"code": "IAD", "name": "Washington Dulles", "lat": 38.9531, "lon": -77.4565},
+    {"code": "MIA", "name": "Miami", "lat": 25.7959, "lon": -80.2870},
+    {"code": "BOS", "name": "Boston", "lat": 42.3656, "lon": -71.0096},
+    {"code": "LAS", "name": "Las Vegas", "lat": 36.0840, "lon": -115.1537},
+    {"code": "DEN", "name": "Denver", "lat": 39.8561, "lon": -104.6737},
+    {"code": "PHX", "name": "Phoenix", "lat": 33.4373, "lon": -112.0078},
+    {"code": "IAH", "name": "Houston IAH", "lat": 29.9902, "lon": -95.3368},
+    {"code": "MSP", "name": "Minneapolis", "lat": 44.8848, "lon": -93.2223},
+    {"code": "DTW", "name": "Detroit", "lat": 42.2162, "lon": -83.3554},
+    {"code": "EWR", "name": "Newark", "lat": 40.6895, "lon": -74.1745},
+    {"code": "MCO", "name": "Orlando", "lat": 28.4312, "lon": -81.3081}
+  ],
+  "CAN": [
+    {"code": "YYZ", "name": "Toronto Pearson", "lat": 43.6777, "lon": -79.6248},
+    {"code": "YVR", "name": "Vancouver", "lat": 49.1951, "lon": -123.1779},
+    {"code": "YUL", "name": "Montreal", "lat": 45.4706, "lon": -73.7408},
+    {"code": "YYC", "name": "Calgary", "lat": 51.1139, "lon": -114.0203},
+    {"code": "YOW", "name": "Ottawa", "lat": 45.3225, "lon": -75.6692}
+  ],
+  "MEX": [
+    {"code": "MEX", "name": "Mexico City", "lat": 19.4361, "lon": -99.0719},
+    {"code": "CUN", "name": "Cancun", "lat": 21.0365, "lon": -86.8771}
+  ],
+  "BRA": [
+    {"code": "GRU", "name": "Sao Paulo GRU", "lat": -23.4356, "lon": -46.4731},
+    {"code": "GIG", "name": "Rio de Janeiro", "lat": -22.8099, "lon": -43.2506}
+  ],
+  "ARG": [
+    {"code": "EZE", "name": "Buenos Aires", "lat": -34.8222, "lon": -58.5358}
+  ],
+  "GBR": [
+    {"code": "LHR", "name": "London Heathrow", "lat": 51.4700, "lon": -0.4543},
+    {"code": "LGW", "name": "London Gatwick", "lat": 51.1537, "lon": -0.1821},
+    {"code": "MAN", "name": "Manchester", "lat": 53.3537, "lon": -2.2749},
+    {"code": "EDI", "name": "Edinburgh", "lat": 55.9500, "lon": -3.3725}
+  ],
+  "FRA": [
+    {"code": "CDG", "name": "Paris CDG", "lat": 49.0097, "lon": 2.5479},
+    {"code": "ORY", "name": "Paris Orly", "lat": 48.7262, "lon": 2.3652},
+    {"code": "NCE", "name": "Nice", "lat": 43.6653, "lon": 7.2150},
+    {"code": "LYS", "name": "Lyon", "lat": 45.7256, "lon": 5.0811}
+  ],
+  "DEU": [
+    {"code": "FRA", "name": "Frankfurt", "lat": 50.0379, "lon": 8.5622},
+    {"code": "MUC", "name": "Munich", "lat": 48.3538, "lon": 11.7861},
+    {"code": "BER", "name": "Berlin", "lat": 52.3667, "lon": 13.5033},
+    {"code": "HAM", "name": "Hamburg", "lat": 53.6304, "lon": 9.9882}
+  ],
+  "NLD": [
+    {"code": "AMS", "name": "Amsterdam", "lat": 52.3105, "lon": 4.7683}
+  ],
+  "CHE": [
+    {"code": "ZRH", "name": "Zurich", "lat": 47.4647, "lon": 8.5492},
+    {"code": "GVA", "name": "Geneva", "lat": 46.2381, "lon": 6.1089}
+  ],
+  "ESP": [
+    {"code": "MAD", "name": "Madrid", "lat": 40.4983, "lon": -3.5676},
+    {"code": "BCN", "name": "Barcelona", "lat": 41.2974, "lon": 2.0833},
+    {"code": "AGP", "name": "Malaga", "lat": 36.6749, "lon": -4.4991},
+    {"code": "VLC", "name": "Valencia", "lat": 39.4893, "lon": -0.4816},
+    {"code": "PMI", "name": "Palma de Mallorca", "lat": 39.5517, "lon": 2.7388}
+  ],
+  "ITA": [
+    {"code": "FCO", "name": "Rome Fiumicino", "lat": 41.8003, "lon": 12.2389},
+    {"code": "MXP", "name": "Milan Malpensa", "lat": 45.6301, "lon": 8.7281},
+    {"code": "VCE", "name": "Venice", "lat": 45.5053, "lon": 12.3519},
+    {"code": "LIN", "name": "Milan Linate", "lat": 45.4451, "lon": 9.2767}
+  ],
+  "TUR": [
+    {"code": "IST", "name": "Istanbul", "lat": 41.2753, "lon": 28.7519},
+    {"code": "SAW", "name": "Sabiha Gokcen", "lat": 40.8986, "lon": 29.3092}
+  ],
+  "ARE": [
+    {"code": "DXB", "name": "Dubai", "lat": 25.2532, "lon": 55.3657},
+    {"code": "AUH", "name": "Abu Dhabi", "lat": 24.4539, "lon": 54.3773}
+  ],
+  "QAT": [
+    {"code": "DOH", "name": "Doha", "lat": 25.2736, "lon": 51.6081}
+  ],
+  "IND": [
+    {"code": "DEL", "name": "Delhi", "lat": 28.5562, "lon": 77.1000},
+    {"code": "BOM", "name": "Mumbai", "lat": 19.0896, "lon": 72.8656},
+    {"code": "BLR", "name": "Bengaluru", "lat": 13.1986, "lon": 77.7066}
+  ],
+  "CHN": [
+    {"code": "PEK", "name": "Beijing", "lat": 40.0801, "lon": 116.5846},
+    {"code": "PKX", "name": "Beijing Daxing", "lat": 39.5099, "lon": 116.4109},
+    {"code": "PVG", "name": "Shanghai Pudong", "lat": 31.1443, "lon": 121.8083},
+    {"code": "SHA", "name": "Shanghai Hongqiao", "lat": 31.1979, "lon": 121.3364},
+    {"code": "CAN", "name": "Guangzhou", "lat": 23.3924, "lon": 113.2988},
+    {"code": "SZX", "name": "Shenzhen", "lat": 22.6393, "lon": 113.8107},
+    {"code": "CTU", "name": "Chengdu", "lat": 30.5785, "lon": 103.9469},
+    {"code": "XMN", "name": "Xiamen", "lat": 24.5440, "lon": 118.1277},
+    {"code": "XIY", "name": "Xian", "lat": 34.4471, "lon": 108.7516}
+  ],
+  "HKG": [
+    {"code": "HKG", "name": "Hong Kong", "lat": 22.3080, "lon": 113.9185}
+  ],
+  "TWN": [
+    {"code": "TPE", "name": "Taipei Taoyuan", "lat": 25.0797, "lon": 121.2342},
+    {"code": "KHH", "name": "Kaohsiung", "lat": 22.5771, "lon": 120.3500}
+  ],
+  "SGP": [
+    {"code": "SIN", "name": "Singapore", "lat": 1.3644, "lon": 103.9915}
+  ],
+  "THA": [
+    {"code": "BKK", "name": "Bangkok", "lat": 13.6900, "lon": 100.7501},
+    {"code": "DMK", "name": "Don Mueang", "lat": 13.9126, "lon": 100.6068}
+  ],
+  "VNM": [
+    {"code": "HAN", "name": "Hanoi", "lat": 21.2187, "lon": 105.8042},
+    {"code": "SGN", "name": "Ho Chi Minh", "lat": 10.8188, "lon": 106.6519}
+  ],
+  "PHL": [
+    {"code": "MNL", "name": "Manila", "lat": 14.5086, "lon": 121.0198},
+    {"code": "CEB", "name": "Cebu", "lat": 10.3075, "lon": 123.9794}
+  ],
+  "MYS": [
+    {"code": "KUL", "name": "Kuala Lumpur", "lat": 2.7456, "lon": 101.7090},
+    {"code": "PEN", "name": "Penang", "lat": 5.2971, "lon": 100.2770}
+  ],
+  "IDN": [
+    {"code": "CGK", "name": "Jakarta", "lat": -6.1256, "lon": 106.6559},
+    {"code": "DPS", "name": "Bali", "lat": -8.7482, "lon": 115.1670}
+  ],
+  "AUS": [
+    {"code": "SYD", "name": "Sydney", "lat": -33.9399, "lon": 151.1753},
+    {"code": "MEL", "name": "Melbourne", "lat": -37.6733, "lon": 144.8433},
+    {"code": "BNE", "name": "Brisbane", "lat": -27.3842, "lon": 153.1175},
+    {"code": "PER", "name": "Perth", "lat": -31.9403, "lon": 115.9672},
+    {"code": "ADL", "name": "Adelaide", "lat": -34.9450, "lon": 138.5306}
+  ],
+  "NZL": [
+    {"code": "AKL", "name": "Auckland", "lat": -37.0082, "lon": 174.7850},
+    {"code": "CHC", "name": "Christchurch", "lat": -43.4894, "lon": 172.5322},
+    {"code": "WLG", "name": "Wellington", "lat": -41.3272, "lon": 174.8054}
+  ],
+  "ZAF": [
+    {"code": "JNB", "name": "Johannesburg", "lat": -26.1337, "lon": 28.2420},
+    {"code": "CPT", "name": "Cape Town", "lat": -33.9693, "lon": 18.5972}
+  ],
+  "RUS": [
+    {"code": "SVO", "name": "Moscow Sheremetyevo", "lat": 55.9726, "lon": 37.4146},
+    {"code": "DME", "name": "Moscow Domodedovo", "lat": 55.4088, "lon": 37.9063}
+  ],
+  "SWE": [
+    {"code": "ARN", "name": "Stockholm Arlanda", "lat": 59.6519, "lon": 17.9186},
+    {"code": "GOT", "name": "Gothenburg", "lat": 57.6628, "lon": 12.2798}
+  ],
+  "NOR": [
+    {"code": "OSL", "name": "Oslo", "lat": 60.1939, "lon": 11.1004},
+    {"code": "BGO", "name": "Bergen", "lat": 60.2934, "lon": 5.2181}
+  ],
+  "DNK": [
+    {"code": "CPH", "name": "Copenhagen", "lat": 55.6181, "lon": 12.6560},
+    {"code": "AAL", "name": "Aalborg", "lat": 57.0928, "lon": 9.8492}
+  ],
+  "IRL": [
+    {"code": "DUB", "name": "Dublin", "lat": 53.4213, "lon": -6.2701},
+    {"code": "SNN", "name": "Shannon", "lat": 52.7019, "lon": -8.9248}
+  ],
+  "PRT": [
+    {"code": "LIS", "name": "Lisbon", "lat": 38.7742, "lon": -9.1342},
+    {"code": "OPO", "name": "Porto", "lat": 41.2356, "lon": -8.6781},
+    {"code": "FAO", "name": "Faro", "lat": 37.0144, "lon": -7.9659}
+  ],
+  "BEL": [
+    {"code": "BRU", "name": "Brussels", "lat": 50.9010, "lon": 4.4844}
+  ],
+  "AUT": [
+    {"code": "VIE", "name": "Vienna", "lat": 48.1103, "lon": 16.5697}
+  ],
+  "POL": [
+    {"code": "WAW", "name": "Warsaw", "lat": 52.1657, "lon": 20.9671},
+    {"code": "KRK", "name": "Krakow", "lat": 50.0777, "lon": 19.7848}
+  ],
+  "CZE": [
+    {"code": "PRG", "name": "Prague", "lat": 50.1008, "lon": 14.2600}
+  ],
+  "HUN": [
+    {"code": "BUD", "name": "Budapest", "lat": 47.4399, "lon": 19.2611}
+  ],
+  "GRC": [
+    {"code": "ATH", "name": "Athens", "lat": 37.9364, "lon": 23.9445}
+  ],
+  "ISL": [
+    {"code": "KEF", "name": "Keflavik", "lat": 63.9850, "lon": -22.6056}
+  ],
+  "FIN": [
+    {"code": "HEL", "name": "Helsinki", "lat": 60.3172, "lon": 24.9633}
+  ],
+  "ROU": [
+    {"code": "OTP", "name": "Bucharest", "lat": 44.5711, "lon": 26.0850}
+  ],
+  "UKR": [
+    {"code": "KBP", "name": "Kyiv Boryspil", "lat": 50.3450, "lon": 30.8942}
+  ],
+  "ISR": [
+    {"code": "TLV", "name": "Tel Aviv", "lat": 32.0114, "lon": 34.8867}
+  ],
+  "SAU": [
+    {"code": "JED", "name": "Jeddah", "lat": 21.6796, "lon": 39.1565},
+    {"code": "RUH", "name": "Riyadh", "lat": 24.9576, "lon": 46.6988}
+  ],
+  "KWT": [
+    {"code": "KWI", "name": "Kuwait", "lat": 29.2266, "lon": 47.9689}
+  ],
+  "BHR": [
+    {"code": "BAH", "name": "Bahrain", "lat": 26.2708, "lon": 50.6336}
+  ],
+  "OMN": [
+    {"code": "MCT", "name": "Muscat", "lat": 23.5933, "lon": 58.2844}
+  ],
+  "JOR": [
+    {"code": "AMM", "name": "Amman", "lat": 31.7226, "lon": 35.9932}
+  ],
+  "LBN": [
+    {"code": "BEY", "name": "Beirut", "lat": 33.8209, "lon": 35.4884}
+  ],
+  "EGY": [
+    {"code": "CAI", "name": "Cairo", "lat": 30.1219, "lon": 31.4056}
+  ],
+  "MAR": [
+    {"code": "CMN", "name": "Casablanca", "lat": 33.3675, "lon": -7.5899}
+  ],
+  "ETH": [
+    {"code": "ADD", "name": "Addis Ababa", "lat": 8.9779, "lon": 38.7993}
+  ],
+  "KEN": [
+    {"code": "NBO", "name": "Nairobi", "lat": -1.3192, "lon": 36.9278}
+  ],
+  "NGA": [
+    {"code": "LOS", "name": "Lagos", "lat": 6.5774, "lon": 3.3212}
+  ],
+  "GHA": [
+    {"code": "ACC", "name": "Accra", "lat": 5.6052, "lon": -0.1668}
+  ],
+  "SEN": [
+    {"code": "DKR", "name": "Dakar", "lat": 14.7397, "lon": -17.4902}
+  ],
+  "TZA": [
+    {"code": "DAR", "name": "Dar es Salaam", "lat": -6.8781, "lon": 39.2026}
+  ],
+  "COL": [
+    {"code": "BOG", "name": "Bogota", "lat": 4.7016, "lon": -74.1469}
+  ],
+  "PER": [
+    {"code": "LIM", "name": "Lima", "lat": -12.0219, "lon": -77.1143}
+  ],
+  "CHL": [
+    {"code": "SCL", "name": "Santiago", "lat": -33.3929, "lon": -70.7858}
+  ],
+  "ECU": [
+    {"code": "UIO", "name": "Quito", "lat": -0.1292, "lon": -78.3575}
+  ],
+  "PAN": [
+    {"code": "PTY", "name": "Panama City", "lat": 9.0714, "lon": -79.3835}
+  ],
+  "URY": [
+    {"code": "MVD", "name": "Montevideo", "lat": -34.8384, "lon": -56.0308}
+  ],
+  "LKA": [
+    {"code": "CMB", "name": "Colombo", "lat": 7.1808, "lon": 79.8841}
+  ],
+  "BGD": [
+    {"code": "DAC", "name": "Dhaka", "lat": 23.8433, "lon": 90.3978}
+  ],
+  "NPL": [
+    {"code": "KTM", "name": "Kathmandu", "lat": 27.6966, "lon": 85.3591}
+  ],
+  "PAK": [
+    {"code": "ISB", "name": "Islamabad", "lat": 33.6167, "lon": 73.0992}
+  ],
+  "KAZ": [
+    {"code": "ALA", "name": "Almaty", "lat": 43.3521, "lon": 77.0405}
+  ],
+  "UZB": [
+    {"code": "TAS", "name": "Tashkent", "lat": 41.2579, "lon": 69.2812}
+  ],
+  "MMR": [
+    {"code": "RGN", "name": "Yangon", "lat": 16.9073, "lon": 96.1332}
+  ],
+  "KHM": [
+    {"code": "PNH", "name": "Phnom Penh", "lat": 11.5466, "lon": 104.8442}
+  ],
+  "LAO": [
+    {"code": "VTE", "name": "Vientiane", "lat": 17.9883, "lon": 102.5633}
+  ],
+  "MNG": [
+    {"code": "UBN", "name": "Ulaanbaatar", "lat": 47.8431, "lon": 106.7666}
+  ]
+}

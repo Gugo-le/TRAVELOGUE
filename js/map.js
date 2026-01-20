@@ -1,1169 +1,82 @@
-function loadJSON(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch (e) {
-    return fallback;
-  }
-}
-
-const ACCENT_STORAGE_KEY = 'travelogue_accent';
-
-function getStoredAccentColor() {
-  const raw = localStorage.getItem(ACCENT_STORAGE_KEY);
-  return raw ? raw.trim() : '';
-}
-
-function applyAccentColor(color, persist = true) {
-  const value = String(color || '').trim();
-  if (!value) return;
-  document.documentElement.style.setProperty('--accent', value);
-  if (persist) localStorage.setItem(ACCENT_STORAGE_KEY, value);
-}
-
-function normalizeJourneyPathCoords(coords) {
-  if (!Array.isArray(coords)) return null;
-  const normalized = coords.map((coord) => {
-    if (Array.isArray(coord)) {
-      const lon = Number(coord[0]);
-      const lat = Number(coord[1]);
-      if (Number.isFinite(lon) && Number.isFinite(lat)) return [lon, lat];
-      return null;
-    }
-    if (coord && typeof coord === 'object') {
-      const lon = Number(coord.lon ?? coord.lng);
-      const lat = Number(coord.lat);
-      if (Number.isFinite(lon) && Number.isFinite(lat)) return [lon, lat];
-    }
-    return null;
-  }).filter(Boolean);
-  return normalized.length >= 2 ? normalized : null;
-}
-
-function resolveJourneyAirportCoord(airport) {
-  if (!airport) return null;
-  if (typeof airport === 'string') {
-    const code = normalizeIata(airport);
-    const ref = code ? airportIndex[code] : null;
-    if (ref && Number.isFinite(ref.lon) && Number.isFinite(ref.lat)) {
-      return [ref.lon, ref.lat];
-    }
-    return null;
-  }
-  const lat = Number(airport.lat);
-  const lon = Number(airport.lon);
-  if (Number.isFinite(lon) && Number.isFinite(lat)) return [lon, lat];
+/*
+  map.js
+  Map rendering, routing, journey network, and flight animation logic.
+*/
+function resolveAirportCountry(airport) {
+  if (!airport) return '';
+  if (airport.country) return airport.country;
   const code = normalizeIata(airport.code);
-  const ref = code ? airportIndex[code] : null;
-  if (ref && Number.isFinite(ref.lon) && Number.isFinite(ref.lat)) {
-    airport.lat = ref.lat;
-    airport.lon = ref.lon;
-    if (!airport.country && ref.country) airport.country = ref.country;
-    return [ref.lon, ref.lat];
+  const ref = getAirportByCode(code);
+  return ref && ref.country ? ref.country : '';
+}
+
+function unwrapPathLongitudes(coords) {
+  if (!coords || coords.length < 2) return coords;
+  const result = [coords[0].slice()];
+  let prevLon = coords[0][0];
+  for (let i = 1; i < coords.length; i++) {
+    const lon = coords[i][0];
+    let adjusted = lon;
+    while (adjusted - prevLon > 180) adjusted -= 360;
+    while (adjusted - prevLon < -180) adjusted += 360;
+    result.push([adjusted, coords[i][1]]);
+    prevLon = adjusted;
   }
-  return null;
+  return result;
 }
 
-function hydrateJourneyRoutes(routes) {
-  if (!Array.isArray(routes)) return [];
-  let updated = false;
-  const fallbackColor = getStoredAccentColor();
-  const normalized = routes.map(route => {
-    if (!route || typeof route !== 'object') return route;
-    if (!route.color && fallbackColor) {
-      route.color = fallbackColor;
-      updated = true;
-    }
-    const coords = normalizeJourneyPathCoords(route.pathCoords);
-    if (coords) {
-      if (coords !== route.pathCoords) {
-        route.pathCoords = coords;
-        updated = true;
-      }
-      return route;
-    }
-    const originCoord = resolveJourneyAirportCoord(route.origin);
-    const destinationCoord = resolveJourneyAirportCoord(route.destination);
-    if (originCoord && destinationCoord) {
-      route.pathCoords = [originCoord, destinationCoord];
-      updated = true;
-    }
-    return route;
-  });
-  if (updated) {
-    localStorage.setItem('travelogue_routes', JSON.stringify(normalized));
-  }
-  return normalized;
-}
-
-let travelData = loadJSON('travelogue_data', {});
-let userConfig = loadJSON('travelogue_config', { name: '', from: '' });
-let visitedCountries = loadJSON('visited_countries', {});
-if (Array.isArray(visitedCountries)) {
-  const migrated = {};
-  visitedCountries.forEach(code => {
-    if (!migrated[code]) migrated[code] = [];
-  });
-  visitedCountries = migrated;
-  localStorage.setItem('visited_countries', JSON.stringify(visitedCountries));
-}
-let selectedCountry = null;
-let isAnimating = false;
-let isMobileView = window.innerWidth <= 768;
-let globeMode = isMobileView; // true = 지구본(3D), false = 평면지도(2D)
-let globeRotation = [100, -30];
-let globeMap = null;
-let globeProjection = null;
-let globePath = null;
-let flatProjection = null;
-let flatPath = null;
-let inertiaFrame = null;
-let velocity = [0, 0];
-let isDragging = false;
-let dragStart = [0, 0];
-let countdownTimer = null;
-let passportPage = 0;
-let passportSwipeStart = null;
-let autoRotateFrame = null;
-let autoRotatePausedUntil = 0;
-let albumCountry = null;
-let albumPages = [];
-let albumPhotoCount = 0;
-let albumCurrentPage = 0;
-let albumLastPage = 0;
-let albumFlipLocked = false;
-let albumFlipTimer = null;
-const themeColors = [
-  '#e67e22',
-  '#2980b9',
-  '#27ae60',
-  '#8e44ad',
-  '#c0392b',
-  '#1abc9c',
-  '#d35400',
-  '#16a085',
-  '#2ecc71',
-  '#e74c3c',
-  '#f39c12',
-  '#e84393',
-  '#00b894',
-  '#0984e3',
-  '#6c5ce7',
-  '#fdcb6e',
-  '#00cec9',
-  '#ff7675',
-  '#55efc4',
-  '#b2bec3'
-];
-const allowConnectingRoutes = false;
-const airportsByCountry = {
-  KOR: [
-    { code: 'ICN', name: 'Incheon', lat: 37.4602, lon: 126.4407 },
-    { code: 'GMP', name: 'Gimpo', lat: 37.5583, lon: 126.7906 },
-    { code: 'PUS', name: 'Gimhae', lat: 35.1795, lon: 128.9382 },
-    { code: 'CJU', name: 'Jeju', lat: 33.5113, lon: 126.4930 },
-    { code: 'TAE', name: 'Daegu', lat: 35.8969, lon: 128.6553 },
-    { code: 'CJJ', name: 'Cheongju', lat: 36.7170, lon: 127.4987 },
-    { code: 'KWJ', name: 'Gwangju', lat: 35.1264, lon: 126.8086 },
-    { code: 'MWX', name: 'Muan', lat: 34.9914, lon: 126.3828 },
-    { code: 'USN', name: 'Ulsan', lat: 35.5935, lon: 129.3522 },
-    { code: 'RSU', name: 'Yeosu', lat: 34.8423, lon: 127.6168 },
-    { code: 'HIN', name: 'Sacheon', lat: 35.0886, lon: 128.0700 },
-    { code: 'YNY', name: 'Yangyang', lat: 38.0613, lon: 128.6692 },
-    { code: 'KPO', name: 'Pohang', lat: 35.9879, lon: 129.4206 },
-    { code: 'WJU', name: 'Wonju', lat: 37.4381, lon: 127.9604 },
-    { code: 'KUV', name: 'Gunsan', lat: 35.9038, lon: 126.6159 }
-  ],
-  JPN: [
-    { code: 'NRT', name: 'Narita', lat: 35.7720, lon: 140.3929 },
-    { code: 'HND', name: 'Haneda', lat: 35.5494, lon: 139.7798 },
-    { code: 'KIX', name: 'Kansai', lat: 34.4347, lon: 135.2442 },
-    { code: 'NGO', name: 'Chubu', lat: 34.8584, lon: 136.8052 },
-    { code: 'FUK', name: 'Fukuoka', lat: 33.5859, lon: 130.4506 },
-    { code: 'IBR', name: 'Ibaraki', lat: 36.1811, lon: 140.4156 },
-    { code: 'CTS', name: 'New Chitose', lat: 42.7752, lon: 141.6923 },
-    { code: 'OKA', name: 'Naha', lat: 26.1958, lon: 127.6469 },
-    { code: 'ITM', name: 'Itami', lat: 34.7855, lon: 135.4382 },
-    { code: 'SDJ', name: 'Sendai', lat: 38.1397, lon: 140.9176 },
-    { code: 'KOJ', name: 'Kagoshima', lat: 31.8034, lon: 130.7194 },
-    { code: 'HIJ', name: 'Hiroshima', lat: 34.4361, lon: 132.9195 },
-    { code: 'KMQ', name: 'Komatsu', lat: 36.3946, lon: 136.4065 },
-    { code: 'OKJ', name: 'Okayama', lat: 34.7569, lon: 133.8553 },
-    { code: 'KMJ', name: 'Kumamoto', lat: 32.8373, lon: 130.8550 },
-    { code: 'MYJ', name: 'Matsuyama', lat: 33.8272, lon: 132.6997 }
-  ],
-  USA: [
-    { code: 'LAX', name: 'Los Angeles', lat: 33.9416, lon: -118.4085 },
-    { code: 'JFK', name: 'New York JFK', lat: 40.6413, lon: -73.7781 },
-    { code: 'SFO', name: 'San Francisco', lat: 37.6213, lon: -122.3790 },
-    { code: 'SEA', name: 'Seattle', lat: 47.4502, lon: -122.3088 },
-    { code: 'ORD', name: 'Chicago O\'Hare', lat: 41.9742, lon: -87.9073 },
-    { code: 'ATL', name: 'Atlanta', lat: 33.6407, lon: -84.4277 },
-    { code: 'DFW', name: 'Dallas/Fort Worth', lat: 32.8998, lon: -97.0403 },
-    { code: 'IAD', name: 'Washington Dulles', lat: 38.9531, lon: -77.4565 },
-    { code: 'MIA', name: 'Miami', lat: 25.7959, lon: -80.2870 },
-    { code: 'BOS', name: 'Boston', lat: 42.3656, lon: -71.0096 },
-    { code: 'LAS', name: 'Las Vegas', lat: 36.0840, lon: -115.1537 },
-    { code: 'DEN', name: 'Denver', lat: 39.8561, lon: -104.6737 },
-    { code: 'PHX', name: 'Phoenix', lat: 33.4373, lon: -112.0078 },
-    { code: 'IAH', name: 'Houston IAH', lat: 29.9902, lon: -95.3368 },
-    { code: 'MSP', name: 'Minneapolis', lat: 44.8848, lon: -93.2223 },
-    { code: 'DTW', name: 'Detroit', lat: 42.2162, lon: -83.3554 },
-    { code: 'EWR', name: 'Newark', lat: 40.6895, lon: -74.1745 },
-    { code: 'MCO', name: 'Orlando', lat: 28.4312, lon: -81.3081 }
-  ],
-  CAN: [
-    { code: 'YYZ', name: 'Toronto Pearson', lat: 43.6777, lon: -79.6248 },
-    { code: 'YVR', name: 'Vancouver', lat: 49.1951, lon: -123.1779 },
-    { code: 'YUL', name: 'Montreal', lat: 45.4706, lon: -73.7408 },
-    { code: 'YYC', name: 'Calgary', lat: 51.1139, lon: -114.0203 },
-    { code: 'YOW', name: 'Ottawa', lat: 45.3225, lon: -75.6692 }
-  ],
-  MEX: [
-    { code: 'MEX', name: 'Mexico City', lat: 19.4361, lon: -99.0719 },
-    { code: 'CUN', name: 'Cancun', lat: 21.0365, lon: -86.8771 }
-  ],
-  BRA: [
-    { code: 'GRU', name: 'Sao Paulo GRU', lat: -23.4356, lon: -46.4731 },
-    { code: 'GIG', name: 'Rio de Janeiro', lat: -22.8099, lon: -43.2506 }
-  ],
-  ARG: [
-    { code: 'EZE', name: 'Buenos Aires', lat: -34.8222, lon: -58.5358 }
-  ],
-  GBR: [
-    { code: 'LHR', name: 'London Heathrow', lat: 51.4700, lon: -0.4543 },
-    { code: 'LGW', name: 'London Gatwick', lat: 51.1537, lon: -0.1821 },
-    { code: 'MAN', name: 'Manchester', lat: 53.3537, lon: -2.2749 },
-    { code: 'EDI', name: 'Edinburgh', lat: 55.9500, lon: -3.3725 }
-  ],
-  FRA: [
-    { code: 'CDG', name: 'Paris CDG', lat: 49.0097, lon: 2.5479 },
-    { code: 'ORY', name: 'Paris Orly', lat: 48.7262, lon: 2.3652 },
-    { code: 'NCE', name: 'Nice', lat: 43.6653, lon: 7.2150 },
-    { code: 'LYS', name: 'Lyon', lat: 45.7256, lon: 5.0811 }
-  ],
-  DEU: [
-    { code: 'FRA', name: 'Frankfurt', lat: 50.0379, lon: 8.5622 },
-    { code: 'MUC', name: 'Munich', lat: 48.3538, lon: 11.7861 },
-    { code: 'BER', name: 'Berlin', lat: 52.3667, lon: 13.5033 },
-    { code: 'HAM', name: 'Hamburg', lat: 53.6304, lon: 9.9882 }
-  ],
-  NLD: [
-    { code: 'AMS', name: 'Amsterdam', lat: 52.3105, lon: 4.7683 }
-  ],
-  CHE: [
-    { code: 'ZRH', name: 'Zurich', lat: 47.4647, lon: 8.5492 },
-    { code: 'GVA', name: 'Geneva', lat: 46.2381, lon: 6.1089 }
-  ],
-  ESP: [
-    { code: 'MAD', name: 'Madrid', lat: 40.4983, lon: -3.5676 },
-    { code: 'BCN', name: 'Barcelona', lat: 41.2974, lon: 2.0833 },
-    { code: 'AGP', name: 'Malaga', lat: 36.6749, lon: -4.4991 },
-    { code: 'VLC', name: 'Valencia', lat: 39.4893, lon: -0.4816 },
-    { code: 'PMI', name: 'Palma de Mallorca', lat: 39.5517, lon: 2.7388 }
-  ],
-  ITA: [
-    { code: 'FCO', name: 'Rome Fiumicino', lat: 41.8003, lon: 12.2389 },
-    { code: 'MXP', name: 'Milan Malpensa', lat: 45.6301, lon: 8.7281 },
-    { code: 'VCE', name: 'Venice', lat: 45.5053, lon: 12.3519 },
-    { code: 'LIN', name: 'Milan Linate', lat: 45.4451, lon: 9.2767 }
-  ],
-  TUR: [
-    { code: 'IST', name: 'Istanbul', lat: 41.2753, lon: 28.7519 },
-    { code: 'SAW', name: 'Sabiha Gokcen', lat: 40.8986, lon: 29.3092 }
-  ],
-  ARE: [
-    { code: 'DXB', name: 'Dubai', lat: 25.2532, lon: 55.3657 },
-    { code: 'AUH', name: 'Abu Dhabi', lat: 24.4539, lon: 54.3773 }
-  ],
-  QAT: [
-    { code: 'DOH', name: 'Doha', lat: 25.2736, lon: 51.6081 }
-  ],
-  IND: [
-    { code: 'DEL', name: 'Delhi', lat: 28.5562, lon: 77.1000 },
-    { code: 'BOM', name: 'Mumbai', lat: 19.0896, lon: 72.8656 },
-    { code: 'BLR', name: 'Bengaluru', lat: 13.1986, lon: 77.7066 }
-  ],
-  CHN: [
-    { code: 'PEK', name: 'Beijing', lat: 40.0801, lon: 116.5846 },
-    { code: 'PKX', name: 'Beijing Daxing', lat: 39.5099, lon: 116.4109 },
-    { code: 'PVG', name: 'Shanghai Pudong', lat: 31.1443, lon: 121.8083 },
-    { code: 'SHA', name: 'Shanghai Hongqiao', lat: 31.1979, lon: 121.3364 },
-    { code: 'CAN', name: 'Guangzhou', lat: 23.3924, lon: 113.2988 },
-    { code: 'SZX', name: 'Shenzhen', lat: 22.6393, lon: 113.8107 },
-    { code: 'CTU', name: 'Chengdu', lat: 30.5785, lon: 103.9469 },
-    { code: 'XMN', name: 'Xiamen', lat: 24.5440, lon: 118.1277 },
-    { code: 'XIY', name: 'Xian', lat: 34.4471, lon: 108.7516 }
-  ],
-  HKG: [
-    { code: 'HKG', name: 'Hong Kong', lat: 22.3080, lon: 113.9185 }
-  ],
-  TWN: [
-    { code: 'TPE', name: 'Taipei Taoyuan', lat: 25.0797, lon: 121.2342 },
-    { code: 'KHH', name: 'Kaohsiung', lat: 22.5771, lon: 120.3500 }
-  ],
-  SGP: [
-    { code: 'SIN', name: 'Singapore', lat: 1.3644, lon: 103.9915 }
-  ],
-  THA: [
-    { code: 'BKK', name: 'Bangkok', lat: 13.6900, lon: 100.7501 },
-    { code: 'DMK', name: 'Don Mueang', lat: 13.9126, lon: 100.6068 }
-  ],
-  VNM: [
-    { code: 'HAN', name: 'Hanoi', lat: 21.2187, lon: 105.8042 },
-    { code: 'SGN', name: 'Ho Chi Minh', lat: 10.8188, lon: 106.6519 }
-  ],
-  PHL: [
-    { code: 'MNL', name: 'Manila', lat: 14.5086, lon: 121.0198 },
-    { code: 'CEB', name: 'Cebu', lat: 10.3075, lon: 123.9794 }
-  ],
-  MYS: [
-    { code: 'KUL', name: 'Kuala Lumpur', lat: 2.7456, lon: 101.7090 },
-    { code: 'PEN', name: 'Penang', lat: 5.2971, lon: 100.2770 }
-  ],
-  IDN: [
-    { code: 'CGK', name: 'Jakarta', lat: -6.1256, lon: 106.6559 },
-    { code: 'DPS', name: 'Bali', lat: -8.7482, lon: 115.1670 }
-  ],
-  AUS: [
-    { code: 'SYD', name: 'Sydney', lat: -33.9399, lon: 151.1753 },
-    { code: 'MEL', name: 'Melbourne', lat: -37.6733, lon: 144.8433 },
-    { code: 'BNE', name: 'Brisbane', lat: -27.3842, lon: 153.1175 },
-    { code: 'PER', name: 'Perth', lat: -31.9403, lon: 115.9672 },
-    { code: 'ADL', name: 'Adelaide', lat: -34.9450, lon: 138.5306 }
-  ],
-  NZL: [
-    { code: 'AKL', name: 'Auckland', lat: -37.0082, lon: 174.7850 },
-    { code: 'CHC', name: 'Christchurch', lat: -43.4894, lon: 172.5322 },
-    { code: 'WLG', name: 'Wellington', lat: -41.3272, lon: 174.8054 }
-  ],
-  ZAF: [
-    { code: 'JNB', name: 'Johannesburg', lat: -26.1337, lon: 28.2420 },
-    { code: 'CPT', name: 'Cape Town', lat: -33.9693, lon: 18.5972 }
-  ],
-  RUS: [
-    { code: 'SVO', name: 'Moscow Sheremetyevo', lat: 55.9726, lon: 37.4146 },
-    { code: 'DME', name: 'Moscow Domodedovo', lat: 55.4088, lon: 37.9063 }
-  ],
-  SWE: [
-    { code: 'ARN', name: 'Stockholm Arlanda', lat: 59.6519, lon: 17.9186 },
-    { code: 'GOT', name: 'Gothenburg', lat: 57.6628, lon: 12.2798 }
-  ],
-  NOR: [
-    { code: 'OSL', name: 'Oslo', lat: 60.1939, lon: 11.1004 },
-    { code: 'BGO', name: 'Bergen', lat: 60.2934, lon: 5.2181 }
-  ],
-  DNK: [
-    { code: 'CPH', name: 'Copenhagen', lat: 55.6181, lon: 12.6560 },
-    { code: 'AAL', name: 'Aalborg', lat: 57.0928, lon: 9.8492 }
-  ],
-  IRL: [
-    { code: 'DUB', name: 'Dublin', lat: 53.4213, lon: -6.2701 },
-    { code: 'SNN', name: 'Shannon', lat: 52.7019, lon: -8.9248 }
-  ],
-  PRT: [
-    { code: 'LIS', name: 'Lisbon', lat: 38.7742, lon: -9.1342 },
-    { code: 'OPO', name: 'Porto', lat: 41.2356, lon: -8.6781 },
-    { code: 'FAO', name: 'Faro', lat: 37.0144, lon: -7.9659 }
-  ],
-  BEL: [
-    { code: 'BRU', name: 'Brussels', lat: 50.9010, lon: 4.4844 }
-  ],
-  AUT: [
-    { code: 'VIE', name: 'Vienna', lat: 48.1103, lon: 16.5697 }
-  ],
-  POL: [
-    { code: 'WAW', name: 'Warsaw', lat: 52.1657, lon: 20.9671 },
-    { code: 'KRK', name: 'Krakow', lat: 50.0777, lon: 19.7848 }
-  ],
-  CZE: [
-    { code: 'PRG', name: 'Prague', lat: 50.1008, lon: 14.2600 }
-  ],
-  HUN: [
-    { code: 'BUD', name: 'Budapest', lat: 47.4399, lon: 19.2611 }
-  ],
-  GRC: [
-    { code: 'ATH', name: 'Athens', lat: 37.9364, lon: 23.9445 }
-  ],
-  ISL: [
-    { code: 'KEF', name: 'Keflavik', lat: 63.9850, lon: -22.6056 }
-  ],
-  FIN: [
-    { code: 'HEL', name: 'Helsinki', lat: 60.3172, lon: 24.9633 }
-  ],
-  ROU: [
-    { code: 'OTP', name: 'Bucharest', lat: 44.5711, lon: 26.0850 }
-  ],
-  UKR: [
-    { code: 'KBP', name: 'Kyiv Boryspil', lat: 50.3450, lon: 30.8942 }
-  ],
-  ISR: [
-    { code: 'TLV', name: 'Tel Aviv', lat: 32.0114, lon: 34.8867 }
-  ],
-  SAU: [
-    { code: 'JED', name: 'Jeddah', lat: 21.6796, lon: 39.1565 },
-    { code: 'RUH', name: 'Riyadh', lat: 24.9576, lon: 46.6988 }
-  ],
-  KWT: [
-    { code: 'KWI', name: 'Kuwait', lat: 29.2266, lon: 47.9689 }
-  ],
-  BHR: [
-    { code: 'BAH', name: 'Bahrain', lat: 26.2708, lon: 50.6336 }
-  ],
-  OMN: [
-    { code: 'MCT', name: 'Muscat', lat: 23.5933, lon: 58.2844 }
-  ],
-  JOR: [
-    { code: 'AMM', name: 'Amman', lat: 31.7226, lon: 35.9932 }
-  ],
-  LBN: [
-    { code: 'BEY', name: 'Beirut', lat: 33.8209, lon: 35.4884 }
-  ],
-  EGY: [
-    { code: 'CAI', name: 'Cairo', lat: 30.1219, lon: 31.4056 }
-  ],
-  MAR: [
-    { code: 'CMN', name: 'Casablanca', lat: 33.3675, lon: -7.5899 }
-  ],
-  ETH: [
-    { code: 'ADD', name: 'Addis Ababa', lat: 8.9779, lon: 38.7993 }
-  ],
-  KEN: [
-    { code: 'NBO', name: 'Nairobi', lat: -1.3192, lon: 36.9278 }
-  ],
-  NGA: [
-    { code: 'LOS', name: 'Lagos', lat: 6.5774, lon: 3.3212 }
-  ],
-  GHA: [
-    { code: 'ACC', name: 'Accra', lat: 5.6052, lon: -0.1668 }
-  ],
-  SEN: [
-    { code: 'DKR', name: 'Dakar', lat: 14.7397, lon: -17.4902 }
-  ],
-  TZA: [
-    { code: 'DAR', name: 'Dar es Salaam', lat: -6.8781, lon: 39.2026 }
-  ],
-  COL: [
-    { code: 'BOG', name: 'Bogota', lat: 4.7016, lon: -74.1469 }
-  ],
-  PER: [
-    { code: 'LIM', name: 'Lima', lat: -12.0219, lon: -77.1143 }
-  ],
-  CHL: [
-    { code: 'SCL', name: 'Santiago', lat: -33.3929, lon: -70.7858 }
-  ],
-  ECU: [
-    { code: 'UIO', name: 'Quito', lat: -0.1292, lon: -78.3575 }
-  ],
-  PAN: [
-    { code: 'PTY', name: 'Panama City', lat: 9.0714, lon: -79.3835 }
-  ],
-  URY: [
-    { code: 'MVD', name: 'Montevideo', lat: -34.8384, lon: -56.0308 }
-  ],
-  LKA: [
-    { code: 'CMB', name: 'Colombo', lat: 7.1808, lon: 79.8841 }
-  ],
-  BGD: [
-    { code: 'DAC', name: 'Dhaka', lat: 23.8433, lon: 90.3978 }
-  ],
-  NPL: [
-    { code: 'KTM', name: 'Kathmandu', lat: 27.6966, lon: 85.3591 }
-  ],
-  PAK: [
-    { code: 'ISB', name: 'Islamabad', lat: 33.6167, lon: 73.0992 }
-  ],
-  KAZ: [
-    { code: 'ALA', name: 'Almaty', lat: 43.3521, lon: 77.0405 }
-  ],
-  UZB: [
-    { code: 'TAS', name: 'Tashkent', lat: 41.2579, lon: 69.2812 }
-  ],
-  MMR: [
-    { code: 'RGN', name: 'Yangon', lat: 16.9073, lon: 96.1332 }
-  ],
-  KHM: [
-    { code: 'PNH', name: 'Phnom Penh', lat: 11.5466, lon: 104.8442 }
-  ],
-  LAO: [
-    { code: 'VTE', name: 'Vientiane', lat: 17.9883, lon: 102.5633 }
-  ],
-  MNG: [
-    { code: 'UBN', name: 'Ulaanbaatar', lat: 47.8431, lon: 106.7666 }
-  ]
-};
-const airportIndex = {};
-Object.keys(airportsByCountry).forEach(country => {
-  airportsByCountry[country].forEach(airport => {
-    airport.country = country;
-    airportIndex[airport.code] = airport;
-  });
-});
-let selectedOriginAirport = null;
-let selectedDestinationAirport = null;
-let forceGlobeMode = false;
-let flightMode = false;
-let pendingRoute = null;
-let routeLayer = null;
-let routePlane = null;
-let routePath = null;
-let routeHalo = null;
-let routeMarkers = null;
-let routeProgress = 0;
-let activeRoute = null;
-let lastRouteInfo = null;
-let flipMessageIndex = 0;
-let routePlaneOverlay = null;
-let lastPlaneProjected = null;
-let routePlaneIcon = null;
-let airportSelectionLayer = null;
-let airportSelectionMarkers = null;
-let flightCountdownTimer = null;
-let flightStartTime = 0;
-let flightDurationMs = 0;
-let userGlobeControlUntil = 0;
-let globeBaseScale = null;
-let flatZoomScale = 1;
-let openFlightsReady = false;
-let openFlightsAirports = new Map();
-let openFlightsRoutes = new Map();
-let openFlightsRouteCache = new Map();
-let landingTransitionPending = false;
-let landingReturnTimer = null;
-let landingOnEnded = null;
-let landingTapStart = null;
-let audioUnlocked = false;
-let journeyRoutes = hydrateJourneyRoutes(loadJSON('travelogue_routes', []));
-let journeyLayer = null;
-let journeyNetworkTimer = null;
-let journeyNetworkVisible = false;
-let journeyTotalsTimer = null;
-const JOURNEY_NETWORK_DELAY_MS = 15000;
-const JOURNEY_GLOBE_ROTATION = [100, -30];
-const noFlyZones = [
-  {
-    code: 'PRK',
-    bounds: {
-      minLon: 124.0,
-      maxLon: 131.6,
-      minLat: 37.0,
-      maxLat: 43.2
-    },
-    polygon: [
-      [124.2, 37.6],
-      [125.3, 39.2],
-      [126.6, 41.1],
-      [128.6, 42.5],
-      [130.9, 42.3],
-      [130.4, 39.2],
-      [129.6, 37.9],
-      [127.2, 37.5],
-      [124.8, 37.6]
-    ]
-  }
-];
-
-function playAudio(id, options = {}) {
-  const el = document.getElementById(id);
-  if (!el) return null;
-  const { restart = true } = options;
-  if (restart) el.currentTime = 0;
-  const p = el.play();
-  if (p && typeof p.catch === 'function') p.catch(() => {});
-  return el;
-}
-
-function pauseAudio(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.pause();
-}
-
-function unlockAudio() {
-  if (audioUnlocked) return;
-  audioUnlocked = true;
-  const ids = ['airplane-bp', 'airplane-loop', 'landing-sound', 'stamp-sound'];
-  ids.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const wasMuted = el.muted;
-    el.muted = true;
-    const p = el.play();
-    if (p && typeof p.then === 'function') {
-      p.then(() => {
-        el.pause();
-        el.currentTime = 0;
-        el.muted = wasMuted;
-      }).catch(() => {
-        el.muted = wasMuted;
-      });
-    } else {
-      el.pause();
-      el.currentTime = 0;
-      el.muted = wasMuted;
-    }
-  });
-}
-
-function playLandingThenResume() {
-  const loop = document.getElementById('airplane-loop');
-  const landing = document.getElementById('landing-sound');
-  if (loop) loop.pause();
-  if (!landing) return;
-  landing.currentTime = 0;
-  landing.onended = () => {
-    landing.onended = null;
-    if (loop) playAudio('airplane-loop', { restart: false });
+function smoothPathCoords(coords, samplesPerSegment = 24, tension = 0.9) {
+  if (!coords || coords.length < 3) return coords || [];
+  const unwrapped = unwrapPathLongitudes(coords);
+  const points = [];
+  const total = unwrapped.length;
+  const getPoint = (idx) => {
+    if (idx < 0) return unwrapped[0];
+    if (idx >= total) return unwrapped[total - 1];
+    return unwrapped[idx];
   };
-  playAudio('landing-sound');
-}
-
-function getAccentColor() {
-  const color = getComputedStyle(document.documentElement).getPropertyValue('--accent');
-  return color ? color.trim() : '#ffcccc';
-}
-
-function getTodayString() {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function updateVisitHistory(code) {
-  const historyEl = document.getElementById('visit-history');
-  if (!historyEl) return;
-  const dates = (visitedCountries[code] || []).slice().sort().slice(-3).reverse();
-  historyEl.textContent = dates.length ? `${dates.join(' · ')}` : 'FIRST VISIT';
-}
-
-function normalizeIata(value) {
-  return String(value || '').trim().toUpperCase().substring(0, 3);
-}
-
-function isValidIata(code) {
-  return /^[A-Z0-9]{3}$/.test(code || '');
-}
-
-function getAirportByCode(code) {
-  if (!code) return null;
-  const normalized = normalizeIata(code);
-  if (!isValidIata(normalized)) return null;
-  return airportIndex[normalized] || null;
-}
-
-function getAllAirportsForList() {
-  const result = [];
-  const seen = new Set();
-  Object.keys(airportsByCountry).forEach(country => {
-    airportsByCountry[country].forEach(airport => {
-      const code = airport.code;
-      if (!code || seen.has(code)) return;
-      seen.add(code);
-      result.push({
-        code,
-        name: airport.name || code,
-        labelCountry: country
-      });
-    });
-  });
-  if (openFlightsAirports.size) {
-    openFlightsAirports.forEach((airport, code) => {
-      if (!code || seen.has(code)) return;
-      seen.add(code);
-      result.push({
-        code,
-        name: airport.name || code,
-        labelCountry: airport.countryName || 'INTL'
-      });
-    });
-  }
-  return result.sort((a, b) => a.code.localeCompare(b.code));
-}
-
-function getCodeValue(el) {
-  if (!el) return '';
-  if ('value' in el) return el.value || '';
-  return el.textContent || '';
-}
-
-function setCodeValue(el, value) {
-  if (!el) return;
-  if ('value' in el) {
-    el.value = value || '';
-  } else {
-    el.textContent = value || '';
-  }
-}
-
-function updateTicketAirportCodes() {
-  const fromEl = document.getElementById('ticket-from-code');
-  const toEl = document.getElementById('ticket-dest-code');
-  const routeLine = document.getElementById('route-line');
-  const fromInput = document.getElementById('input-from');
-  const rawFrom = normalizeIata(fromInput ? fromInput.value : '');
-  const currentFrom = normalizeIata(getCodeValue(fromEl));
-  const fromCode = selectedOriginAirport ? selectedOriginAirport.code : (currentFrom || rawFrom || '');
-  setCodeValue(fromEl, fromCode);
-  const currentTo = normalizeIata(getCodeValue(toEl));
-  if (selectedCountry && selectedDestinationAirport) {
-    setCodeValue(toEl, selectedDestinationAirport.code);
-  } else if (currentTo) {
-    setCodeValue(toEl, currentTo);
-  } else {
-    setCodeValue(toEl, '');
-  }
-  if (routeLine) {
-    const toCode = normalizeIata(getCodeValue(toEl));
-    routeLine.classList.toggle('route-ready', fromCode.length === 3 && toCode.length === 3);
-    const origin = getAirportByCode(fromCode);
-    const destination = getAirportByCode(toCode);
-    if (origin && destination) {
-      const routePath = getOpenFlightsRoutePath(origin.code, destination.code);
-      const pathAirports = routePath || [origin, destination];
-      let distanceKm = 0;
-      for (let i = 0; i < pathAirports.length - 1; i++) {
-        distanceKm += estimateDistanceKm(pathAirports[i], pathAirports[i + 1]);
-      }
-      lastRouteInfo = {
-        origin,
-        destination,
-        distanceKm,
-        durationMs: getRouteDurationMs(distanceKm)
-      };
-      flipMessageIndex = 0;
-      if (!flightMode) {
-        updateFlipBoard(`${origin.code} TO ${destination.code}`);
-      }
+  const tight = Math.max(0, Math.min(1, tension));
+  const scale = (1 - tight) / 2;
+  for (let i = 0; i < total - 1; i++) {
+    const p0 = getPoint(i - 1);
+    const p1 = getPoint(i);
+    const p2 = getPoint(i + 1);
+    const p3 = getPoint(i + 2);
+    const steps = Math.max(6, Math.round(samplesPerSegment * 0.8));
+    const m1x = (p2[0] - p0[0]) * scale;
+    const m1y = (p2[1] - p0[1]) * scale;
+    const m2x = (p3[0] - p1[0]) * scale;
+    const m2y = (p3[1] - p1[1]) * scale;
+    for (let s = 0; s <= steps; s++) {
+      if (i > 0 && s === 0) continue;
+      const t = s / steps;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const h00 = 2 * t3 - 3 * t2 + 1;
+      const h10 = t3 - 2 * t2 + t;
+      const h01 = -2 * t3 + 3 * t2;
+      const h11 = t3 - t2;
+      const x = h00 * p1[0] + h10 * m1x + h01 * p2[0] + h11 * m2x;
+      const y = h00 * p1[1] + h10 * m1y + h01 * p2[1] + h11 * m2y;
+      points.push([normalizeLon(x), clampLat(y)]);
     }
   }
+  return points;
 }
 
-function populateOriginAirports(preferredCode) {
-  const list = document.getElementById('airport-list-all');
-  if (!list) return;
-  list.innerHTML = '';
-  getAllAirportsForList().forEach(entry => {
-    const option = document.createElement('option');
-    option.value = entry.code;
-    option.label = `${entry.code} · ${entry.name} (${entry.labelCountry})`;
-    option.textContent = option.label;
-    list.appendChild(option);
-  });
-
-  const fallback = getAirportByCode(preferredCode) || getAirportByCode('ICN');
-  if (fallback) selectedOriginAirport = fallback;
-  updateTicketAirportCodes();
-}
-
-function populateDestinationAirports(countryCode, preferredCode) {
-  const list = document.getElementById('airport-list-dest');
-  if (!list) return;
-  list.innerHTML = '';
-  getAllAirportsForList().forEach(entry => {
-    const option = document.createElement('option');
-    option.value = entry.code;
-    option.label = `${entry.code} · ${entry.name} (${entry.labelCountry})`;
-    option.textContent = option.label;
-    list.appendChild(option);
-  });
-
-  const airports = airportsByCountry[countryCode] || [];
-  if (!airports.length) {
-    selectedDestinationAirport = null;
-    updateTicketAirportCodes();
-    return;
+function buildDirectDisplayCoords(start, end, steps = 64) {
+  const display = [];
+  const interpolator = d3.geo.interpolate(start, end);
+  const total = Math.max(12, steps);
+  for (let i = 0; i <= total; i++) {
+    display.push(interpolator(i / total));
   }
-
-  const fallback = getAirportByCode(preferredCode);
-  const next = fallback && fallback.country === countryCode ? fallback : airports[0];
-  selectedDestinationAirport = next;
-  updateTicketAirportCodes();
-}
-
-function attachAirportSuggest(input, onSelect, options = {}) {
-  if (!input) return;
-  let panel = null;
-  let searchInput = null;
-  let listBox = null;
-  let backdrop = null;
-  let isOpen = false;
-  const { listProvider, title } = options;
-
-  const buildItems = (query) => {
-    const entries = typeof listProvider === 'function'
-      ? listProvider()
-      : getAllAirportsForList();
-    if (!query) return entries;
-    const q = String(query || '').trim().toUpperCase();
-    return entries.filter(entry => {
-      const name = String(entry.name || '').toUpperCase();
-      return entry.code.includes(q) || name.includes(q);
-    });
-  };
-
-  const ensurePanel = () => {
-    if (panel) return panel;
-    backdrop = document.createElement('div');
-    backdrop.className = 'airport-suggest-backdrop';
-    backdrop.style.display = 'none';
-    backdrop.addEventListener('click', () => close());
-    document.body.appendChild(backdrop);
-
-    panel = document.createElement('div');
-    panel.className = 'airport-suggest';
-    panel.style.display = 'none';
-    const header = document.createElement('div');
-    header.className = 'airport-suggest-header';
-    header.innerHTML = `<span class="airport-suggest-icon">✈</span><span class="airport-suggest-title">${title || 'SELECT AIRPORT'}</span>`;
-    searchInput = document.createElement('input');
-    searchInput.className = 'airport-suggest-search';
-    searchInput.type = 'search';
-    searchInput.placeholder = 'SEARCH AIRPORT';
-    searchInput.addEventListener('input', render);
-    searchInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        close();
-        input.blur();
-      }
-    });
-    if (isMobileView) {
-      searchInput.readOnly = true;
-      searchInput.setAttribute('inputmode', 'none');
-      searchInput.classList.add('is-disabled');
-      searchInput.placeholder = 'SCROLL TO SELECT';
-    }
-    listBox = document.createElement('div');
-    listBox.className = 'airport-suggest-list';
-    panel.appendChild(header);
-    panel.appendChild(searchInput);
-    panel.appendChild(listBox);
-    document.body.appendChild(panel);
-    return panel;
-  };
-
-  const positionPanel = () => {
-    if (!panel) return;
-    const width = Math.min(360, Math.max(240, window.innerWidth * 0.88));
-    panel.style.width = `${width}px`;
-    panel.style.left = '50%';
-    panel.style.top = '50%';
-    panel.style.transform = 'translate(-50%, -50%)';
-  };
-
-  const render = () => {
-    const query = searchInput ? searchInput.value : '';
-    const items = buildItems(query).slice(0, 80);
-    const list = ensurePanel();
-    listBox.innerHTML = '';
-    if (searchInput) searchInput.value = query || '';
-    if (!items.length) {
-      const empty = document.createElement('div');
-      empty.className = 'airport-suggest-empty';
-      empty.textContent = 'NO RESULTS';
-      listBox.appendChild(empty);
-    } else {
-      items.forEach(entry => {
-        const item = document.createElement('div');
-        item.className = 'airport-suggest-item';
-        item.textContent = `${entry.code} · ${entry.name}`;
-        item.addEventListener('pointerdown', (e) => {
-          e.preventDefault();
-          const code = normalizeIata(entry.code);
-          input.value = code;
-          if (typeof onSelect === 'function') onSelect(code);
-          close();
-          input.blur();
-        });
-        listBox.appendChild(item);
-      });
-    }
-    positionPanel();
-    if (backdrop) backdrop.style.display = 'block';
-    list.style.display = 'block';
-    isOpen = true;
-    if (searchInput && !isMobileView) searchInput.focus();
-  };
-
-  const close = () => {
-    if (!panel) return;
-    panel.style.display = 'none';
-    if (backdrop) backdrop.style.display = 'none';
-    isOpen = false;
-  };
-
-  input.setAttribute('readonly', 'readonly');
-  input.setAttribute('inputmode', 'none');
-  input.addEventListener('focus', render);
-  input.addEventListener('click', render);
-  document.addEventListener('pointerdown', (e) => {
-    if (!isOpen || !panel) return;
-    if (panel.contains(e.target) || e.target === input) return;
-    close();
-  });
-  window.addEventListener('resize', () => {
-    if (isOpen) positionPanel();
-  });
-  window.addEventListener('scroll', () => {
-    if (isOpen) positionPanel();
-  }, true);
-}
-
-let datePickerPanel = null;
-let datePickerBackdrop = null;
-let datePickerTitle = null;
-let datePickerGrid = null;
-let datePickerInput = null;
-let datePickerOpen = false;
-let datePickerYear = null;
-let datePickerMonth = null;
-let datePickerSelected = null;
-
-function parseDateString(value) {
-  if (!value) return null;
-  const parts = String(value).split('-');
-  if (parts.length !== 3) return null;
-  const year = Number(parts[0]);
-  const month = Number(parts[1]);
-  const day = Number(parts[2]);
-  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
-  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-  const date = new Date(year, month - 1, day);
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
-  return { year, month: month - 1, day };
-}
-
-function formatDateValue(year, month, day) {
-  const yyyy = String(year).padStart(4, '0');
-  const mm = String(month + 1).padStart(2, '0');
-  const dd = String(day).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function ensureDatePicker() {
-  if (datePickerPanel) return;
-  datePickerBackdrop = document.createElement('div');
-  datePickerBackdrop.className = 'date-picker-backdrop';
-  datePickerBackdrop.style.display = 'none';
-  datePickerBackdrop.addEventListener('click', closeDatePicker);
-  document.body.appendChild(datePickerBackdrop);
-
-  datePickerPanel = document.createElement('div');
-  datePickerPanel.className = 'date-picker';
-  datePickerPanel.style.display = 'none';
-
-  const header = document.createElement('div');
-  header.className = 'date-picker-header';
-  const prev = document.createElement('button');
-  prev.type = 'button';
-  prev.className = 'date-picker-nav';
-  prev.textContent = '<';
-  prev.addEventListener('click', () => shiftDatePickerMonth(-1));
-  const titleWrap = document.createElement('div');
-  titleWrap.className = 'date-picker-title-wrap';
-  const icon = document.createElement('span');
-  icon.className = 'date-picker-icon';
-  icon.textContent = '✈';
-  datePickerTitle = document.createElement('span');
-  datePickerTitle.className = 'date-picker-title';
-  const next = document.createElement('button');
-  next.type = 'button';
-  next.className = 'date-picker-nav';
-  next.textContent = '>';
-  next.addEventListener('click', () => shiftDatePickerMonth(1));
-
-  header.appendChild(prev);
-  titleWrap.appendChild(icon);
-  titleWrap.appendChild(datePickerTitle);
-  header.appendChild(titleWrap);
-  header.appendChild(next);
-
-  const week = document.createElement('div');
-  week.className = 'date-picker-week';
-  ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].forEach(label => {
-    const span = document.createElement('span');
-    span.textContent = label;
-    week.appendChild(span);
-  });
-
-  datePickerGrid = document.createElement('div');
-  datePickerGrid.className = 'date-picker-grid';
-
-  datePickerPanel.appendChild(header);
-  datePickerPanel.appendChild(week);
-  datePickerPanel.appendChild(datePickerGrid);
-  document.body.appendChild(datePickerPanel);
-}
-
-function positionDatePicker() {
-  if (!datePickerPanel) return;
-  const width = Math.min(360, Math.max(260, window.innerWidth * 0.88));
-  datePickerPanel.style.width = `${width}px`;
-  datePickerPanel.style.left = '50%';
-  datePickerPanel.style.top = '50%';
-  datePickerPanel.style.transform = 'translate(-50%, -50%)';
-}
-
-function renderDatePicker() {
-  if (!datePickerGrid || datePickerYear === null || datePickerMonth === null) return;
-  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-  datePickerTitle.textContent = `${monthNames[datePickerMonth]} ${datePickerYear}`;
-  datePickerGrid.innerHTML = '';
-
-  const firstDay = new Date(datePickerYear, datePickerMonth, 1).getDay();
-  const daysInMonth = new Date(datePickerYear, datePickerMonth + 1, 0).getDate();
-  const daysInPrevMonth = new Date(datePickerYear, datePickerMonth, 0).getDate();
-  const today = new Date();
-  const todayMatch = { year: today.getFullYear(), month: today.getMonth(), day: today.getDate() };
-
-  for (let i = 0; i < 42; i += 1) {
-    let day = i - firstDay + 1;
-    let month = datePickerMonth;
-    let year = datePickerYear;
-    let isOther = false;
-    if (day <= 0) {
-      isOther = true;
-      day = daysInPrevMonth + day;
-      month = datePickerMonth - 1;
-      if (month < 0) {
-        month = 11;
-        year -= 1;
-      }
-    } else if (day > daysInMonth) {
-      isOther = true;
-      day = day - daysInMonth;
-      month = datePickerMonth + 1;
-      if (month > 11) {
-        month = 0;
-        year += 1;
-      }
-    }
-
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'date-picker-day';
-    if (isOther) button.classList.add('is-other');
-    if (datePickerSelected &&
-      datePickerSelected.year === year &&
-      datePickerSelected.month === month &&
-      datePickerSelected.day === day) {
-      button.classList.add('is-selected');
-    }
-    if (todayMatch.year === year && todayMatch.month === month && todayMatch.day === day) {
-      button.classList.add('is-today');
-    }
-    button.textContent = String(day);
-    button.addEventListener('click', () => {
-      datePickerSelected = { year, month, day };
-      if (datePickerInput) {
-        datePickerInput.value = formatDateValue(year, month, day);
-        datePickerInput.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-      closeDatePicker();
-    });
-    datePickerGrid.appendChild(button);
-  }
-}
-
-function shiftDatePickerMonth(delta) {
-  if (datePickerYear === null || datePickerMonth === null) return;
-  const next = new Date(datePickerYear, datePickerMonth + delta, 1);
-  datePickerYear = next.getFullYear();
-  datePickerMonth = next.getMonth();
-  renderDatePicker();
-}
-
-function openDatePicker(input) {
-  if (!input) return;
-  ensureDatePicker();
-  datePickerInput = input;
-  const parsed = parseDateString(input.value) || parseDateString(getTodayString());
-  datePickerSelected = parsed ? { ...parsed } : null;
-  datePickerYear = parsed ? parsed.year : new Date().getFullYear();
-  datePickerMonth = parsed ? parsed.month : new Date().getMonth();
-  renderDatePicker();
-  positionDatePicker();
-  if (datePickerBackdrop) datePickerBackdrop.style.display = 'block';
-  if (datePickerPanel) datePickerPanel.style.display = 'flex';
-  datePickerOpen = true;
-}
-
-function closeDatePicker() {
-  if (datePickerPanel) datePickerPanel.style.display = 'none';
-  if (datePickerBackdrop) datePickerBackdrop.style.display = 'none';
-  datePickerOpen = false;
-  datePickerInput = null;
-}
-
-function attachDatePicker(input) {
-  if (!input) return;
-  input.setAttribute('readonly', 'readonly');
-  input.setAttribute('inputmode', 'none');
-  input.addEventListener('focus', (e) => {
-    e.preventDefault();
-    openDatePicker(input);
-  });
-  input.addEventListener('click', (e) => {
-    e.preventDefault();
-    openDatePicker(input);
-  });
-  document.addEventListener('pointerdown', (e) => {
-    if (!datePickerOpen || !datePickerPanel) return;
-    if (datePickerPanel.contains(e.target) || e.target === input) return;
-    closeDatePicker();
-  });
-  window.addEventListener('resize', () => {
-    if (datePickerOpen) positionDatePicker();
-  });
-  window.addEventListener('scroll', () => {
-    if (datePickerOpen) positionDatePicker();
-  }, true);
-}
-
-function setOriginAirport(code, options = {}) {
-  const { syncInput = false } = options;
-  const normalized = normalizeIata(code);
-  const airport = getAirportByCode(normalized);
-  if (!airport) return;
-  selectedOriginAirport = airport;
-  const input = document.getElementById('ticket-from-code');
-  setCodeValue(input, airport.code);
-  if (syncInput) {
-    const introInput = document.getElementById('input-from');
-    if (introInput) introInput.value = airport.code;
-  }
-  updateTicketAirportCodes();
-  userConfig.from = airport.code;
-  localStorage.setItem('travelogue_config', JSON.stringify(userConfig));
-  focusAirportSelection(airport);
-  updateAirportSelectionMarkers();
-}
-
-function setDestinationCountry(countryCode) {
-  selectedCountry = countryCode;
-  populateDestinationAirports(countryCode, selectedDestinationAirport && selectedDestinationAirport.code);
-  showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : countryCode);
-}
-
-function setDestinationAirport(code) {
-  const normalized = normalizeIata(code);
-  const airport = getAirportByCode(normalized);
-  if (!airport) return;
-  selectedCountry = airport.country || selectedCountry;
-  populateDestinationAirports(selectedCountry, airport.code);
-  const input = document.getElementById('ticket-dest-code');
-  setCodeValue(input, airport.code);
-  updateTicketAirportCodes();
-  focusAirportSelection(airport);
-  highlightSelectedCountry();
-  updateAirportSelectionMarkers();
+  return display;
 }
 
 function buildRouteFromSelection() {
   const originCode = normalizeIata(getCodeValue(document.getElementById('ticket-from-code')));
-  const origin = selectedOriginAirport || getAirportByCode(originCode);
+  let origin = selectedOriginAirport || getAirportByCode(originCode);
   let destination = selectedDestinationAirport;
   if (!destination) {
     const destCode = normalizeIata(getCodeValue(document.getElementById('ticket-dest-code')));
@@ -1173,7 +86,12 @@ function buildRouteFromSelection() {
     destination = airportsByCountry[selectedCountry][0];
   }
   if (!origin || !destination) return null;
-  const routePath = getOpenFlightsRoutePath(origin.code, destination.code);
+  const originCountry = resolveAirportCountry(origin);
+  const destinationCountry = resolveAirportCountry(destination);
+  if (!origin.country && originCountry) origin.country = originCountry;
+  if (!destination.country && destinationCountry) destination.country = destinationCountry;
+  const sameCountry = originCountry && destinationCountry && originCountry === destinationCountry;
+  const routePath = sameCountry ? null : getOpenFlightsRoutePath(origin.code, destination.code);
   const pathAirports = routePath || [origin, destination];
   const pathCoords = pathAirports.map(airport => [airport.lon, airport.lat]);
   let distanceKm = 0;
@@ -1190,7 +108,6 @@ function buildRouteFromSelection() {
   return applyNoFlyZones(applyTransitRoute(route));
 }
 
-// --- 0. 디바이스 체크 및 맵 초기화 ---
 function checkDeviceAndInitMap() {
   isMobileView = window.innerWidth <= 768;
   globeMode = forceGlobeMode || isMobileView || flightMode;
@@ -1217,308 +134,6 @@ function checkDeviceAndInitMap() {
   } else {
     initFlatMap();
   }
-}
-
-// --- 1. 초기 설정 및 동기화 ---
-function syncCustom() {
-  const name = document.getElementById('input-name').value || '';
-  const from = document.getElementById('input-from').value || '';
-  document.getElementById('ticket-name').innerText = name.toUpperCase();
-  const seatInput = document.getElementById('ticket-seat');
-  const seatStub = document.getElementById('ticket-seat-stub');
-  if (seatInput && seatStub) seatStub.textContent = (seatInput.value || '').toUpperCase();
-  const fromCode = normalizeIata(from);
-  const matched = getAirportByCode(fromCode);
-  if (matched) {
-    setOriginAirport(matched.code);
-  } else if (fromCode) {
-    selectedOriginAirport = null;
-    const fromEl = document.getElementById('ticket-from-code');
-    setCodeValue(fromEl, fromCode);
-  }
-  userConfig = { name, from };
-  localStorage.setItem('travelogue_config', JSON.stringify(userConfig));
-  updateTicketAirportCodes();
-}
-
-function syncSeatStub(value) {
-  const seatStub = document.getElementById('ticket-seat-stub');
-  if (seatStub) seatStub.textContent = (value || '').toUpperCase();
-}
-
-// --- 2. 여정 시작 (Intro -> Takeoff -> Main) ---
-function startJourney() {
-  if (isAnimating) return;
-  isAnimating = true;
-  playAudio('airplane-bp');
-
-  // 1단계: 인트로 창문 치우기
-  document.getElementById('intro-window').style.transform = 'translateY(-100%)';
-  
-  // 2단계: 이륙 시뮬레이션 (Loading Overlay)
-  setTimeout(() => {
-    const loading = document.getElementById('loading-overlay');
-    loading.classList.add('active');
-    updateFlipBoard("TAKING OFF");
-    
-    // 3단계: 실제 메인 화면 진입
-    setTimeout(() => {
-      loading.classList.remove('active');
-      document.getElementById('main-content').classList.add('active');
-      updateFlipBoard("WELCOME ABOARD");
-      
-      // 맵 초기화 (디바이스에 따라 다르게)
-      checkDeviceAndInitMap();
-      
-      isAnimating = false;
-    }, 3000);
-  }, 1000);
-}
-
-// --- 3. 플립 보드 애니메이션 (공항 전광판 감성) ---
-function updateFlipBoard(text) {
-  const board = document.getElementById('flip-board');
-  if (!board) return;
-  board.innerHTML = "";
-  if(!text) return;
-
-  // 최대 14자 제한 및 대문자 변환
-  const target = text.toUpperCase().substring(0, 14).padEnd(10, " ");
-  [...target].forEach((char, i) => {
-    const el = document.createElement('div');
-    el.className = 'flip-char';
-    board.appendChild(el);
-
-    let cycles = 0;
-    const interval = setInterval(() => {
-      // 랜덤 알파벳 돌리기
-      el.innerText = String.fromCharCode(65 + Math.floor(Math.random() * 26));
-      if (++cycles > 6 + i) { 
-        clearInterval(interval); 
-        el.innerText = char === " " ? "" : char; 
-      }
-    }, 40);
-  });
-}
-
-function updateFlipBoardInstant(text) {
-  const board = document.getElementById('flip-board');
-  if (!board) return;
-  board.innerHTML = "";
-  if (!text) return;
-  const target = text.toUpperCase().substring(0, 14).padEnd(10, " ");
-  [...target].forEach((char) => {
-    const el = document.createElement('div');
-    el.className = 'flip-char';
-    el.innerText = char === " " ? "" : char;
-    board.appendChild(el);
-  });
-}
-
-function shouldAllowCountryHover() {
-  return !selectedCountry && !flightMode && !landingTransitionPending && !journeyNetworkVisible;
-}
-
-// --- 4. 여권 시스템 (기록 확인) ---
-function togglePassport() {
-  const overlay = document.getElementById('passport-overlay');
-  if (overlay.style.display === 'flex') {
-    overlay.style.opacity = '0';
-    setTimeout(() => overlay.style.display = 'none', 500);
-  } else {
-    passportPage = 0;
-    renderPassport();
-    overlay.style.display = 'flex';
-    setTimeout(() => overlay.style.opacity = '1', 10);
-  }
-}
-
-function renderPassport() {
-  const page = document.getElementById('passport-page');
-  const stampsPerPage = isMobileView ? 6 : 8;
-  const codes = Object.keys(visitedCountries).sort();
-  const entries = codes.flatMap(code => {
-    return (visitedCountries[code] || []).map(date => ({ code, date }));
-  }).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-  const summary = document.getElementById('passport-summary');
-  if (summary) {
-    const parts = codes.map(code => `${code} x${(visitedCountries[code] || []).length}`);
-    summary.textContent = parts.length ? parts.join(' · ') : 'NO VISITS YET';
-  }
-  const totalPages = Math.max(1, Math.ceil(entries.length / stampsPerPage));
-  passportPage = Math.min(passportPage, totalPages - 1);
-  page.innerHTML = entries.length ? "" : "<div style='grid-column:1/-1; text-align:center; color:#1a3666; opacity:0.3; padding-top:150px; font-family:var(--font-ticket); letter-spacing:5px;'>NO RECORDS FOUND</div>";
-
-  const prevBtn = document.getElementById('passport-prev');
-  const nextBtn = document.getElementById('passport-next');
-  if (prevBtn && nextBtn) {
-    const shouldShow = !isMobileView && totalPages > 1;
-    prevBtn.style.display = shouldShow ? 'flex' : 'none';
-    nextBtn.style.display = shouldShow ? 'flex' : 'none';
-    prevBtn.disabled = passportPage === 0;
-    nextBtn.disabled = passportPage >= totalPages - 1;
-  }
-  
-  const start = passportPage * stampsPerPage;
-  const pageItems = entries.slice(start, start + stampsPerPage);
-  pageItems.forEach(({ code, date }) => {
-    const stamp = document.createElement('div');
-    const color = themeColors[Math.floor(Math.random()*themeColors.length)];
-    const randomRot = Math.random() * 20 - 10;
-    
-    stamp.className = "passport-stamp";
-    stamp.style = `border:4px double ${color}; color:${color}; transform:rotate(${randomRot}deg); box-shadow: inset 0 0 5px ${color}33;`;
-    stamp.innerHTML = `
-      <div style="font-size:0.5rem; margin-bottom:5px; border-bottom:1px solid">IMMIGRATION</div>
-      <div style="font-size:1.8rem; margin:2px 0;">${code}</div>
-      <div style="font-size:0.4rem;">${date || ''}</div>
-      <div style="font-size:0.4rem; margin-top:5px;">ADMITTED</div>
-    `;
-    stamp.style.cursor = 'pointer';
-    stamp.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openAlbum(code);
-    });
-    page.appendChild(stamp);
-  });
-
-  if (entries.length > stampsPerPage) {
-    const indicator = document.createElement('div');
-    indicator.className = 'passport-pagination';
-    indicator.textContent = `PAGE ${passportPage + 1} / ${totalPages}`;
-    page.appendChild(indicator);
-  }
-}
-
-function changePassportPage(delta) {
-  const stampsPerPage = isMobileView ? 6 : 8;
-  const totalPages = Math.max(1, Math.ceil(
-    Object.keys(visitedCountries).reduce((sum, code) => sum + (visitedCountries[code] || []).length, 0) / stampsPerPage
-  ));
-  if (totalPages <= 1) return;
-  passportPage = Math.max(0, Math.min(totalPages - 1, passportPage + delta));
-  renderPassport();
-}
-
-// --- 5. 보딩 패스 인터랙션 (도장 찍고 찢기) ---
-function handleTicketClick(e) {
-  if (isAnimating) return;
-  if (e.target && e.target.closest && e.target.closest('input, select')) return;
-  isAnimating = true;
-
-  const ticket = document.getElementById('boarding-pass-ui');
-  const route = buildRouteFromSelection();
-  if (!route) {
-    updateFlipBoard("ENTER IATA");
-    isAnimating = false;
-    return;
-  }
-  setTimelineStep("takeoff");
-  if (!selectedCountry && route.destination && route.destination.country) {
-    selectedCountry = route.destination.country;
-  }
-
-  // 도장 효과 (VERIFIED)
-  const accent = getAccentColor();
-  const stamp = document.createElement('div');
-  stamp.className = 'dynamic-stamp stamped';
-  stamp.innerText = 'VERIFIED';
-  const rect = ticket.getBoundingClientRect();
-  const clickX = Number.isFinite(e.clientX) ? (e.clientX - rect.left) : rect.width * 0.6;
-  const clickY = Number.isFinite(e.clientY) ? (e.clientY - rect.top) : rect.height * 0.3;
-  stamp.style.left = `${clickX}px`;
-  stamp.style.top = `${clickY}px`;
-  stamp.style.borderColor = accent;
-  stamp.style.color = accent;
-  ticket.appendChild(stamp);
-
-  // 기록 저장
-  const dateInput = document.getElementById('ticket-date');
-  const visitDate = dateInput && dateInput.value ? dateInput.value : getTodayString();
-  if (dateInput && !dateInput.value) dateInput.value = visitDate;
-  if (!visitedCountries[selectedCountry]) visitedCountries[selectedCountry] = [];
-  visitedCountries[selectedCountry].push(visitDate);
-  localStorage.setItem('visited_countries', JSON.stringify(visitedCountries));
-  updateVisitHistory(selectedCountry);
-
-  // 찢기 애니메이션 시퀀스
-  setTimeout(() => {
-    ticket.classList.add('tearing');
-    updateFlipBoard("LANDING NOW");
-    setTimeout(() => {
-      ticket.classList.remove('active', 'tearing');
-      ticket.querySelectorAll('.dynamic-stamp').forEach(s => s.remove());
-      startFlightSequence(route);
-    }, 1400);
-  }, 300);
-}
-
-function formatCountdown(totalSeconds) {
-  const minutes = Math.max(0, Math.floor(totalSeconds / 60));
-  const seconds = Math.max(0, totalSeconds % 60);
-  return `T-${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-function startCountdown(totalSeconds) {
-  stopCountdown();
-  let remaining = totalSeconds;
-  const el = document.getElementById('countdown');
-  if (el) el.textContent = formatCountdown(remaining);
-  countdownTimer = setInterval(() => {
-    remaining -= 1;
-    if (remaining <= 0) {
-      remaining = 0;
-      stopCountdown();
-    }
-    if (el) el.textContent = formatCountdown(remaining);
-  }, 1000);
-}
-
-function stopCountdown() {
-  if (countdownTimer) {
-    clearInterval(countdownTimer);
-    countdownTimer = null;
-  }
-}
-
-function setTimelineStep(step) {
-  const timeline = document.getElementById('timeline');
-  if (!timeline) return;
-  timeline.querySelectorAll('.step').forEach(el => {
-    el.classList.toggle('active', el.dataset.step === step);
-  });
-}
-
-function showEventHud(destCode) {
-  const hud = document.getElementById('event-hud');
-  if (!hud) return;
-  const fromEl = document.getElementById('ticket-from-code');
-  const hudFrom = document.getElementById('hud-from');
-  const hudTo = document.getElementById('hud-to');
-  const fromCode = selectedOriginAirport ? selectedOriginAirport.code : normalizeIata(getCodeValue(fromEl));
-  if (hudFrom) hudFrom.textContent = fromCode || '---';
-  if (hudTo) {
-    const toInput = document.getElementById('ticket-dest-code');
-    const manualTo = normalizeIata(getCodeValue(toInput));
-    const toCode = destCode || (selectedDestinationAirport && selectedDestinationAirport.code) || manualTo || selectedCountry || '---';
-    hudTo.textContent = String(toCode).toUpperCase();
-  }
-
-  const stamp = document.getElementById('status-stamp');
-  if (stamp) {
-    const labels = ['BOARDING', 'FINAL CALL', 'ON TIME'];
-    stamp.textContent = labels[Math.floor(Math.random() * labels.length)];
-  }
-
-  setTimelineStep('boarding');
-  startCountdown(23 * 60);
-  hud.classList.add('show');
-}
-
-function hideEventHud() {
-  const hud = document.getElementById('event-hud');
-  if (hud) hud.classList.remove('show');
-  stopCountdown();
 }
 
 function clearRouteOverlay() {
@@ -1746,17 +361,6 @@ function getJourneyFlipMessages() {
   const time = formatTotalDuration(totals.totalMs);
   const tripCount = journeyRoutes.length;
   return [`TRIPS ${tripCount}`, `DIST ${km}KM`, `TIME ${time}`];
-}
-
-function formatTotalDuration(ms) {
-  const totalSeconds = Math.max(0, Math.round(ms / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (hours > 0) {
-    return `${hours}H ${String(minutes).padStart(2, '0')}M ${String(seconds).padStart(2, '0')}S`;
-  }
-  return `${minutes}M ${String(seconds).padStart(2, '0')}S`;
 }
 
 function updateJourneyTotalsFlipboard() {
@@ -2404,7 +1008,10 @@ function findNoFlyDetour(origin, destination, polygon) {
 
 function applyNoFlyZones(route) {
   if (!route || !route.origin || !route.destination) return route;
-  if (route.origin.country !== 'KOR' && route.destination.country !== 'KOR') return route;
+  const originCountry = resolveAirportCountry(route.origin);
+  const destinationCountry = resolveAirportCountry(route.destination);
+  if (originCountry && destinationCountry && originCountry === destinationCountry) return route;
+  if (originCountry !== 'KOR' && destinationCountry !== 'KOR') return route;
   const zone = noFlyZones[0];
   if (!zone) return route;
   const forcePacific = shouldForcePacificDetour(route.origin, route.destination);
@@ -2451,9 +1058,15 @@ function applyNoFlyZones(route) {
 function buildRouteInterpolator(route) {
   if (!route) return null;
   if (route._interpolator && route._segments && route._totalDistance) return route._interpolator;
-  const coords = route.pathCoords && route.pathCoords.length >= 2
+  let coords = route.pathCoords && route.pathCoords.length >= 2
     ? route.pathCoords
     : [[route.origin.lon, route.origin.lat], [route.destination.lon, route.destination.lat]];
+  const originCountry = resolveAirportCountry(route.origin);
+  const destinationCountry = resolveAirportCountry(route.destination);
+  const sameCountry = originCountry && destinationCountry && originCountry === destinationCountry;
+  if (sameCountry && coords.length > 2) {
+    coords = [[route.origin.lon, route.origin.lat], [route.destination.lon, route.destination.lat]];
+  }
   const segments = [];
   let total = 0;
   for (let i = 0; i < coords.length - 1; i++) {
@@ -2481,9 +1094,21 @@ function buildRouteInterpolator(route) {
 function buildDisplayPathCoords(route, stepsPerSegment = 24) {
   if (!route) return [];
   if (route._displayCoords) return route._displayCoords;
-  const coords = route.pathCoords && route.pathCoords.length >= 2
+  let coords = route.pathCoords && route.pathCoords.length >= 2
     ? route.pathCoords
     : [[route.origin.lon, route.origin.lat], [route.destination.lon, route.destination.lat]];
+  const originCountry = resolveAirportCountry(route.origin);
+  const destinationCountry = resolveAirportCountry(route.destination);
+  const sameCountry = originCountry && destinationCountry && originCountry === destinationCountry;
+  if (sameCountry && coords.length > 2) {
+    coords = [[route.origin.lon, route.origin.lat], [route.destination.lon, route.destination.lat]];
+  }
+  if (coords.length > 2) {
+    const start = coords[0];
+    const end = coords[coords.length - 1];
+    route._displayCoords = buildDirectDisplayCoords(start, end, stepsPerSegment * 3);
+    return route._displayCoords;
+  }
   const display = [];
   for (let i = 0; i < coords.length - 1; i++) {
     const start = coords[i];
@@ -2764,18 +1389,6 @@ function getOpenFlightsRoutePath(originCode, destinationCode) {
   return null;
 }
 
-function formatDurationMs(ms) {
-  const totalSeconds = Math.max(0, Math.round(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return minutes ? `${minutes}M ${String(seconds).padStart(2, '0')}S` : `${seconds}S`;
-}
-
-function formatDistanceKm(km) {
-  if (!Number.isFinite(km)) return '---';
-  return Math.round(km).toLocaleString('en-US');
-}
-
 function getRemainingMs(routeInfo) {
   if (!flightMode || !flightStartTime || !flightDurationMs) {
     return routeInfo ? routeInfo.durationMs : 0;
@@ -3040,7 +1653,6 @@ function beginFlightOnGlobe(route) {
   }, arrivalDelay);
 }
 
-// --- 6. 지도 엔진 (D3 & Datamaps) ---
 let map, mapGroup;
 function initPCMap() {
   map = new Datamap({
@@ -3115,7 +1727,7 @@ function initPCMap() {
         if (dateInput && !dateInput.value) dateInput.value = getTodayString();
         updateVisitHistory(d.id);
 
-        const color = themeColors[Math.floor(Math.random()*themeColors.length)];
+        const color = getRandomThemeColor();
         applyAccentColor(color);
 
         zoomToCountry(datamap, d, () => {
@@ -3155,7 +1767,6 @@ function resetMap() {
   selectedCountry = null; 
   
   if (globeMode) {
-    // 모바일 구 지도 리셋
     updateFlipBoard("SELECT DEST");
     const globeSubtitle = document.getElementById('globe-subtitle');
     if (globeSubtitle) globeSubtitle.classList.remove('show');
@@ -3178,7 +1789,6 @@ function resetMap() {
       }
     }
   } else {
-    // PC 평면 지도 리셋
     updateFlipBoard("SELECT DEST");
     document.getElementById('boarding-pass-ui').classList.remove('active');
     const flightStatus = document.getElementById('flight-status');
@@ -3293,7 +1903,6 @@ function scheduleReturnAfterLandingAudio() {
   }, fallbackDelay);
 }
 
-// --- 지구본 모드 (모바일) ---
 function initGlobe() {
   const mapWrapper = document.getElementById('map-wrapper');
   const width = mapWrapper.clientWidth || window.innerWidth;
@@ -3335,7 +1944,6 @@ function initGlobe() {
       const subs = svg.selectAll(".datamaps-subunit");
       const koreaRotation = [-127, -36];
       
-      // 드래그 회전
       const drag = d3.behavior.drag()
   .on("dragstart", function () {
     if (inertiaFrame) {
@@ -3409,7 +2017,6 @@ function initGlobe() {
 
       svg.call(zoom);
 
-      // PC처럼 호버 효과 (비터치 기기)
       if (!isTouch) {
         subs.on("mouseenter", function(geo) {
           if (shouldAllowCountryHover()) {
@@ -3425,7 +2032,6 @@ function initGlobe() {
         });
       }
 
-      // 클릭 이벤트 (PC버전과 동일하게)
       subs.on("click", function(geo) {
         if (isAnimating || flightMode) return;
         if (d3.event) d3.event.stopPropagation();
@@ -3433,17 +2039,14 @@ function initGlobe() {
         setDestinationCountry(geo.id);
         isAnimating = true;
 
-        // flipboard 업데이트
         updateFlipBoard(geo.properties.name);
         const dateInput = document.getElementById('ticket-date');
         if (dateInput && !dateInput.value) dateInput.value = getTodayString();
         updateVisitHistory(geo.id);
 
-        // 테마 색상 변경
-        const color = themeColors[Math.floor(Math.random() * themeColors.length)];
+        const color = getRandomThemeColor();
         applyAccentColor(color);
 
-        // 부드러운 회전으로 선택한 국가를 정면으로
         const center = d3.geo.centroid(geo);
         const targetRotation = [-center[0], -center[1]];
         
@@ -3461,7 +2064,6 @@ function initGlobe() {
             refreshRoutePaths();
           };
         }).each("end", function() {
-          // 회전 완료 후 UI 표시
           const globeSubtitle = document.getElementById('globe-subtitle');
           if (globeSubtitle) {
             globeSubtitle.classList.add('show');
@@ -3535,406 +2137,10 @@ function highlightSelectedCountry() {
   }
 }
 
-// --- 평면 지도 모드 (PC) ---
 function initFlatMap() {
   if (flightMode || forceGlobeMode) {
     initGlobe();
     return;
   }
-  // PC 버전은 initPCMap 사용
   initPCMap();
-}
-
-// 윈도우 리사이즈 시 체크
-window.addEventListener('resize', () => {
-  if (flightMode) return;
-  const newIsMobile = window.innerWidth <= 768;
-  const desiredMode = forceGlobeMode || newIsMobile;
-  if (desiredMode !== globeMode) {
-    checkDeviceAndInitMap();
-  }
-  const overlay = document.getElementById('passport-overlay');
-  if (overlay && overlay.style.display === 'flex') {
-    renderPassport();
-  }
-});
-
-// --- 8. 초기 실행 ---
-window.addEventListener('load', () => { 
-  document.addEventListener('touchstart', unlockAudio, { passive: true, once: true });
-  document.addEventListener('click', unlockAudio, { passive: true, once: true });
-  document.getElementById('input-name').value = userConfig.name;
-  document.getElementById('input-from').value = userConfig.from;
-  populateOriginAirports(userConfig.from);
-  populateDestinationAirports(selectedCountry, selectedDestinationAirport && selectedDestinationAirport.code);
-  syncCustom();
-  const storedAccent = getStoredAccentColor();
-  if (storedAccent) applyAccentColor(storedAccent, false);
-  checkDeviceAndInitMap();
-  loadOpenFlightsData();
-  const mapWrapper = document.getElementById('map-wrapper');
-  if (mapWrapper) {
-    ['gesturestart', 'gesturechange', 'gestureend'].forEach(evt => {
-      mapWrapper.addEventListener(evt, (e) => e.preventDefault(), { passive: false });
-    });
-  }
-  const passportPageEl = document.getElementById('passport-page');
-  if (passportPageEl) {
-    passportPageEl.addEventListener('touchstart', (e) => {
-      if (!e.touches || e.touches.length !== 1) return;
-      passportSwipeStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    }, { passive: true });
-
-    passportPageEl.addEventListener('touchend', (e) => {
-      if (!passportSwipeStart || !e.changedTouches || e.changedTouches.length !== 1) return;
-      const dx = e.changedTouches[0].clientX - passportSwipeStart.x;
-      const dy = e.changedTouches[0].clientY - passportSwipeStart.y;
-      passportSwipeStart = null;
-      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
-      changePassportPage(dx < 0 ? 1 : -1);
-    }, { passive: true });
-  }
-
-  const flipBoard = document.getElementById('flip-board');
-  if (flipBoard) {
-    flipBoard.addEventListener('click', () => {
-      cycleFlipBoardMessage();
-    });
-  }
-
-  const journeyReset = document.getElementById('journey-reset');
-  if (journeyReset) {
-    journeyReset.addEventListener('click', (event) => {
-      event.stopPropagation();
-      resetJourneyNetwork();
-    });
-  }
-  updateJourneyResetButton();
-
-  const mapWrapperClick = document.getElementById('map-wrapper');
-  if (mapWrapperClick) {
-    const handleImmediateReturn = () => {
-      pauseAudio('airplane-loop');
-      pauseAudio('landing-sound');
-      if (landingOnEnded) {
-        const landing = document.getElementById('landing-sound');
-        if (landing) landing.removeEventListener('ended', landingOnEnded);
-        landingOnEnded = null;
-      }
-      startReturnToWorldLanding();
-    };
-
-    mapWrapperClick.addEventListener('pointerdown', (event) => {
-      if (!landingTransitionPending) return;
-      landingTapStart = {
-        time: Date.now(),
-        x: event.clientX,
-        y: event.clientY,
-        moved: false
-      };
-    });
-
-    mapWrapperClick.addEventListener('pointermove', (event) => {
-      if (!landingTapStart) return;
-      const dx = event.clientX - landingTapStart.x;
-      const dy = event.clientY - landingTapStart.y;
-      if ((dx * dx + dy * dy) > 64) landingTapStart.moved = true;
-    });
-
-    mapWrapperClick.addEventListener('pointerup', (event) => {
-      if (!landingTapStart || !landingTransitionPending) {
-        landingTapStart = null;
-        return;
-      }
-      const elapsed = Date.now() - landingTapStart.time;
-      const moved = landingTapStart.moved;
-      landingTapStart = null;
-      if (moved) return;
-      if (elapsed <= 250) {
-        handleImmediateReturn();
-      }
-    });
-
-    ['pointercancel', 'pointerleave'].forEach(evt => {
-      mapWrapperClick.addEventListener(evt, () => {
-        landingTapStart = null;
-      });
-    });
-  }
-
-  const albumUploadInput = document.getElementById('album-upload');
-  if (albumUploadInput) {
-    albumUploadInput.addEventListener('change', handleAlbumUpload);
-  }
-
-  const albumPrev = document.getElementById('album-prev');
-  const albumNext = document.getElementById('album-next');
-  const albumBook = document.getElementById('album-book');
-  if (albumPrev) {
-    albumPrev.addEventListener('click', (event) => {
-      event.stopPropagation();
-      flipAlbumPage(-1);
-    });
-  }
-  if (albumNext) {
-    albumNext.addEventListener('click', (event) => {
-      event.stopPropagation();
-      flipAlbumPage(1);
-    });
-  }
-  if (albumBook) {
-    albumBook.addEventListener('click', (event) => {
-      if (!albumPhotoCount) return;
-      const rect = albumBook.getBoundingClientRect();
-      const direction = (event.clientX - rect.left) > rect.width / 2 ? 1 : -1;
-      flipAlbumPage(direction);
-    });
-  }
-
-  document.addEventListener('click', (event) => {
-    const target = event.target;
-    if (!target) return;
-    const isBoardingPass = target.closest('#boarding-pass-ui');
-    const isTicketInput = target.closest('#boarding-pass-ui input, #boarding-pass-ui select');
-    if (isTicketInput || target.closest('.airport-suggest') || target.closest('.date-picker')) return;
-    if (target.closest('.date-picker-backdrop')) return;
-    if (target.closest('button') || (isBoardingPass && !isTicketInput) || target.closest('.click-prompt')) {
-      playAudio('airplane-bp');
-    }
-  });
-
-  const fromCodeInput = document.getElementById('ticket-from-code');
-  if (fromCodeInput) {
-    fromCodeInput.addEventListener('change', () => {
-      const code = normalizeIata(getCodeValue(fromCodeInput));
-      setCodeValue(fromCodeInput, code);
-      if (code) setOriginAirport(code, { syncInput: true });
-      showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : selectedCountry);
-    });
-    attachAirportSuggest(fromCodeInput, (code) => {
-      if (code) setOriginAirport(code, { syncInput: true });
-      showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : selectedCountry);
-    }, {
-      title: 'DEPARTURE AIRPORTS',
-      listProvider: () => {
-        const primary = (airportsByCountry.KOR || []).map(airport => ({
-          code: airport.code,
-          name: airport.name || airport.code,
-          labelCountry: 'KOR'
-        }));
-        if (!primary.length) return getAllAirportsForList();
-        const primaryCodes = new Set(primary.map(entry => entry.code));
-        const rest = getAllAirportsForList().filter(entry => !primaryCodes.has(entry.code));
-        return primary.concat(rest);
-      }
-    });
-  }
-
-  const toCodeInput = document.getElementById('ticket-dest-code');
-  if (toCodeInput) {
-    toCodeInput.addEventListener('change', () => {
-      const code = normalizeIata(getCodeValue(toCodeInput));
-      setCodeValue(toCodeInput, code);
-      if (code) setDestinationAirport(code);
-      showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : selectedCountry);
-    });
-    attachAirportSuggest(toCodeInput, (code) => {
-      if (code) setDestinationAirport(code);
-      showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : selectedCountry);
-    }, {
-      title: 'ARRIVAL AIRPORTS',
-      listProvider: () => {
-        if (selectedCountry && airportsByCountry[selectedCountry]) {
-          const local = airportsByCountry[selectedCountry].map(airport => ({
-            code: airport.code,
-            name: airport.name || airport.code,
-            labelCountry: selectedCountry
-          }));
-          const localCodes = new Set(local.map(entry => entry.code));
-          const rest = getAllAirportsForList().filter(entry => !localCodes.has(entry.code));
-          return local.concat(rest);
-        }
-        return getAllAirportsForList();
-      }
-    });
-  }
-
-  const dateInput = document.getElementById('ticket-date');
-  if (dateInput) {
-    attachDatePicker(dateInput);
-  }
-
-  const seatInput = document.getElementById('ticket-seat');
-  if (seatInput) {
-    syncSeatStub(seatInput.value);
-    seatInput.addEventListener('input', (e) => {
-      syncSeatStub(e.target.value);
-    });
-  }
-
-}); 
-
-// --- Album (open via passport stamp) ---
-function openAlbum(code) {
-  albumCountry = code;
-  albumCurrentPage = 0;
-  albumLastPage = 0;
-  albumFlipLocked = false;
-  if (albumFlipTimer) {
-    clearTimeout(albumFlipTimer);
-    albumFlipTimer = null;
-  }
-  const overlay = document.getElementById('album-overlay');
-  const subtitle = document.getElementById('album-subtitle');
-  if (subtitle) {
-    const fromCode = document.getElementById('ticket-from-code');
-    const from = normalizeIata(getCodeValue(fromCode)) || '---';
-    subtitle.textContent = `${from} → ${code || '---'}`;
-  }
-  if (overlay) overlay.classList.add('show');
-  renderAlbumGrid();
-}
-
-function closeAlbum() {
-  const overlay = document.getElementById('album-overlay');
-  if (overlay) overlay.classList.remove('show');
-  albumCountry = null;
-  albumPages = [];
-  albumPhotoCount = 0;
-  albumCurrentPage = 0;
-}
-
-function buildAlbumPages(photos) {
-  return photos.map((src, index) => ({
-    front: { src, number: index + 1 },
-    back: index + 1 < photos.length ? { src: photos[index + 1], number: index + 2 } : null
-  }));
-}
-
-function updateAlbumBookState() {
-  const book = document.getElementById('album-book');
-  if (!book) return;
-  const leaves = book.querySelectorAll('.book-leaf');
-  leaves.forEach((leaf, index) => {
-    leaf.classList.toggle('flipped', index < albumCurrentPage);
-    const depth = (albumPages.length - index) * 0.6;
-    leaf.style.setProperty('--page-depth', `${depth}px`);
-    const total = albumPages.length;
-    const flippingForward = albumCurrentPage > albumLastPage;
-    const activeFlipIndex = flippingForward ? (albumCurrentPage - 1) : albumCurrentPage;
-    if (index === activeFlipIndex) {
-      leaf.style.zIndex = total + 2;
-    } else {
-      leaf.style.zIndex = total - Math.abs(albumCurrentPage - index);
-    }
-  });
-
-  const counter = document.getElementById('album-counter');
-  if (counter) {
-    const format = (num) => String(num).padStart(2, '0');
-    if (!albumPhotoCount) {
-      counter.textContent = 'PAGE 00 / 00';
-    } else {
-      const currentSpread = Math.min(albumPhotoCount, Math.max(albumCurrentPage + 1, 1));
-      counter.textContent = `PAGE ${format(currentSpread)} / ${format(albumPhotoCount)}`;
-    }
-  }
-
-  const prevButton = document.getElementById('album-prev');
-  const nextButton = document.getElementById('album-next');
-  const maxPage = Math.max(0, albumPages.length - 1);
-  if (prevButton) prevButton.disabled = albumCurrentPage <= 0 || !albumPhotoCount;
-  if (nextButton) nextButton.disabled = albumCurrentPage >= maxPage || !albumPhotoCount;
-}
-
-function flipAlbumPage(direction) {
-  if (!albumPages.length || !albumPhotoCount || albumFlipLocked) return;
-  const maxPage = Math.max(0, albumPages.length - 1);
-  const nextPage = albumCurrentPage + direction;
-  if (nextPage < 0 || nextPage > maxPage) return;
-  albumFlipLocked = true;
-  albumLastPage = albumCurrentPage;
-  albumCurrentPage = nextPage;
-  updateAlbumBookState();
-  if (albumFlipTimer) clearTimeout(albumFlipTimer);
-  albumFlipTimer = setTimeout(() => {
-    albumFlipLocked = false;
-    albumLastPage = albumCurrentPage;
-    updateAlbumBookState();
-  }, 980);
-}
-
-function renderAlbumGrid() {
-  const book = document.getElementById('album-book');
-  if (!book) return;
-  book.innerHTML = '';
-  const photos = travelData[albumCountry] || [];
-  albumPhotoCount = photos.length;
-  albumPages = buildAlbumPages(photos);
-  if (!albumPhotoCount) {
-    const empty = document.createElement('div');
-    empty.className = 'book-empty';
-    empty.innerHTML = '<span>EMPTY ALBUM</span><span>ADD PHOTOS TO START</span>';
-    book.appendChild(empty);
-    updateAlbumBookState();
-    return;
-  }
-
-  const maxPage = Math.max(0, albumPages.length - 1);
-  albumCurrentPage = Math.min(Math.max(albumCurrentPage, 0), maxPage);
-  albumLastPage = albumCurrentPage;
-
-  albumPages.forEach((page, index) => {
-    const leaf = document.createElement('div');
-    leaf.className = 'book-leaf';
-
-    const front = document.createElement('div');
-    front.className = 'book-page front';
-    front.appendChild(buildAlbumPageFrame(page.front));
-
-    const back = document.createElement('div');
-    back.className = 'book-page back';
-    back.appendChild(buildAlbumPageFrame(page.back));
-
-    leaf.appendChild(front);
-    leaf.appendChild(back);
-    book.appendChild(leaf);
-  });
-
-  updateAlbumBookState();
-}
-
-function buildAlbumPageFrame(page) {
-  if (!page || !page.src) {
-    const placeholder = document.createElement('div');
-    placeholder.className = 'page-placeholder';
-    placeholder.classList.add('is-blank');
-    return placeholder;
-  }
-
-  const photo = document.createElement('div');
-  photo.className = 'page-photo';
-  const img = document.createElement('img');
-  img.className = 'page-photo-img';
-  img.src = page.src;
-  img.alt = `Album photo ${page.number}`;
-  photo.appendChild(img);
-  return photo;
-}
-
-function handleAlbumUpload(e) {
-  if (!albumCountry) return;
-  const files = Array.from(e.target.files || []);
-  if (!files.length) return;
-  if (!travelData[albumCountry]) travelData[albumCountry] = [];
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      travelData[albumCountry].push(ev.target.result);
-      localStorage.setItem('travelogue_data', JSON.stringify(travelData));
-      renderAlbumGrid();
-    };
-    reader.readAsDataURL(file);
-  });
-  e.target.value = '';
 }
