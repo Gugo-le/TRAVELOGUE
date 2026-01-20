@@ -712,7 +712,7 @@ button {
   transition: border-color 0.2s ease, color 0.2s ease;
   position: relative;
   z-index: 2;
-  text-align: right;
+  text-align: center;
   letter-spacing: 0;
   font-size: 2.25rem;
   font-weight: 700;
@@ -725,8 +725,20 @@ button {
 }
 .route .city-code-input#ticket-from-code,
 .route .city-code-input#ticket-dest-code {
+  justify-self: center;
+  transform: none;
+}
+
+.route .city-code-input#ticket-from-code {
   justify-self: end;
-  transform: translateX(14px);
+  text-align: right;
+  transform: translateX(clamp(10px, 2vw, 26px));
+}
+
+.route .city-code-input#ticket-dest-code {
+  justify-self: start;
+  text-align: left;
+  transform: translateX(clamp(10px, 2vw, 26px));
 }
 .city-code-input::placeholder {
   color: #bbb;
@@ -1527,10 +1539,6 @@ button {
     padding: 2px 0 4px;
   }
   .meta-grid { grid-template-columns: repeat(2, 1fr); text-align: left; margin-top: 8px; }
-  .route .city-code-input#ticket-from-code,
-  .route .city-code-input#ticket-dest-code {
-    transform: translateX(-12px);
-  }
   /* center subtitle to avoid left overflow and enable wrapping */
   #subtitle-container { bottom: calc(170px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); }
   #journey-summary {
@@ -1604,10 +1612,6 @@ button {
     max-width: 100px;
     font-size: 1.4rem;
     letter-spacing: 0;
-  }
-  .route .city-code-input#ticket-from-code,
-  .route .city-code-input#ticket-dest-code {
-    transform: translateX(-12px);
   }
   .plane-path { flex: 0 0 86px; }
   #subtitle-container { bottom: calc(70px + env(safe-area-inset-bottom)); }
