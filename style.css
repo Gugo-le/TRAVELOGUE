@@ -367,7 +367,7 @@ button {
   color: rgba(0,0,0,0.55);
   margin-bottom: 6px;
   align-self: flex-start;
-  padding-left: 13px;
+  padding-left: 1px;
 }
 
 #journey-summary.journey-summary--hud .journey-summary-row {
@@ -386,6 +386,7 @@ button {
 #journey-summary.journey-summary--hud .journey-summary-row .value {
   font-size: 1rem;
 }
+
 
 .flip-board {
   display: flex;
@@ -1495,6 +1496,9 @@ button {
     bottom: calc(130px + env(safe-area-inset-bottom));
     left: 50%;
     transform: translateX(-50%);
+  }
+  #journey-summary.journey-summary--hud::before {
+    padding-left: 12px;
   }
   .flip-board { justify-content: center; }
   .subtitle-note { margin-top: 8px; font-size: 0.95rem; color: rgba(247,179,179,0.95); }
