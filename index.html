@@ -138,7 +138,16 @@
             <p class="album-title">TRAVELOGUE ALBUM</p>
             <p class="album-sub" id="album-subtitle">ICN → ---</p>
         </div>
-        <div class="album-grid" id="album-grid"></div>
+        <div class="album-body">
+            <div class="album-book-wrap">
+                <button class="album-nav prev" id="album-prev" type="button" aria-label="Previous pages">&lt;</button>
+                <div class="book-stage">
+                    <div class="book" id="album-book" aria-live="polite"></div>
+                </div>
+                <button class="album-nav next" id="album-next" type="button" aria-label="Next pages">&gt;</button>
+            </div>
+            <div class="album-counter" id="album-counter">PAGE 00 / 00</div>
+        </div>
         <div class="album-upload">
             <label class="upload-button">
                 ADD PHOTO

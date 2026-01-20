@@ -38,6 +38,12 @@ let passportSwipeStart = null;
 let autoRotateFrame = null;
 let autoRotatePausedUntil = 0;
 let albumCountry = null;
+let albumPages = [];
+let albumPhotoCount = 0;
+let albumCurrentPage = 0;
+let albumLastPage = 0;
+let albumFlipLocked = false;
+let albumFlipTimer = null;
 const themeColors = ['#e67e22', '#2980b9', '#27ae60', '#8e44ad', '#c0392b'];
 const allowConnectingRoutes = false;
 const airportsByCountry = {
@@ -272,6 +278,8 @@ let journeyRoutes = loadJSON('travelogue_routes', []);
 let journeyLayer = null;
 let journeyNetworkTimer = null;
 let journeyNetworkVisible = false;
+let journeyTotalsTimer = null;
+const JOURNEY_NETWORK_DELAY_MS = 15000;
 const noFlyZones = [
   {
     code: 'PRK',
@@ -826,6 +834,10 @@ function updateFlipBoardInstant(text) {
   });
 }
 
+function shouldAllowCountryHover() {
+  return !selectedCountry && !flightMode && !landingTransitionPending && !journeyNetworkVisible;
+}
+
 // --- 4. 여권 시스템 (기록 확인) ---
 function togglePassport() {
   const overlay = document.getElementById('passport-overlay');
@@ -1051,13 +1063,21 @@ function clearJourneyNetwork() {
     clearTimeout(journeyNetworkTimer);
     journeyNetworkTimer = null;
   }
+  if (journeyTotalsTimer) {
+    clearInterval(journeyTotalsTimer);
+    journeyTotalsTimer = null;
+  }
+  updateJourneyResetButton();
 }
 
-function recordJourneyRoute(route) {
+function recordJourneyRoute(route, options = {}) {
   if (!route || !route.origin || !route.destination) return;
   const key = `${route.origin.code}-${route.destination.code}-${route.pathCoords?.length || 0}`;
   if (!journeyRoutes) journeyRoutes = [];
   if (journeyRoutes.some(entry => entry.key === key)) return;
+  const color = options.color || getAccentColor();
+  const distanceKm = Number.isFinite(options.distanceKm) ? options.distanceKm : (route.distanceKm || computeDistanceFromCoords(route.pathCoords));
+  const durationMs = Number.isFinite(options.durationMs) ? options.durationMs : getRouteDurationMs(distanceKm);
   journeyRoutes.push({
     key,
     origin: {
@@ -1073,24 +1093,31 @@ function recordJourneyRoute(route) {
       country: route.destination.country
     },
     pathCoords: route.pathCoords && route.pathCoords.length ? route.pathCoords : [[route.origin.lon, route.origin.lat], [route.destination.lon, route.destination.lat]],
+    color,
+    distanceKm,
+    durationMs,
     createdAt: Date.now()
   });
   localStorage.setItem('travelogue_routes', JSON.stringify(journeyRoutes));
+  updateJourneyResetButton();
 }
 
 function renderJourneyNetwork() {
   if (!journeyNetworkVisible) return;
-  const svg = globeMode && globeMap && globePath ? globeMap.svg : (map && flatPath ? map.svg : null);
-  const path = globePath || flatPath;
+  const isGlobe = globeMode && globeMap && globePath;
+  const svg = isGlobe ? globeMap.svg : (map && flatPath ? map.svg : null);
+  const path = isGlobe ? globePath : flatPath;
   if (!svg || !path) return;
   if (!journeyRoutes || !journeyRoutes.length) return;
   if (journeyLayer) journeyLayer.remove();
-  journeyLayer = svg.append('g').attr('class', 'journey-layer');
+  const layerParent = isGlobe ? svg : (mapGroup || svg);
+  journeyLayer = layerParent.append('g').attr('class', 'journey-layer');
   journeyLayer.selectAll('path')
     .data(journeyRoutes)
     .enter()
     .append('path')
     .attr('class', 'journey-path')
+    .attr('stroke', d => d.color || 'rgba(0,0,0,0.2)')
     .attr('d', d => path({ type: 'LineString', coordinates: d.pathCoords }));
   if (journeyLayer.node() && journeyLayer.node().parentNode) {
     journeyLayer.node().parentNode.appendChild(journeyLayer.node());
@@ -1098,18 +1125,111 @@ function renderJourneyNetwork() {
 }
 
 function refreshJourneyNetwork() {
-  const path = globePath || flatPath;
+  const path = globeMode && globePath ? globePath : flatPath;
   if (!journeyLayer || !path) return;
   journeyLayer.selectAll('path')
     .attr('d', d => path({ type: 'LineString', coordinates: d.pathCoords }));
 }
 
-function scheduleJourneyNetwork() {
+function shrinkGlobeForJourneyNetwork() {
+  if (!globeMode || !globeProjection || !globeMap || !globePath) return;
+  const svg = globeMap.svg;
+  const startScale = globeProjection.scale();
+  const targetScale = globeBaseScale ? globeBaseScale * 0.82 : startScale * 0.85;
+  const startRotation = globeProjection.rotate();
+  d3.transition().duration(1200).ease("cubic-in-out").tween("shrink", function() {
+    const s = d3.interpolate(startScale, targetScale);
+    const r = d3.interpolate(startRotation, startRotation);
+    return function(t) {
+      globeProjection.rotate(r(t)).scale(s(t));
+      svg.selectAll(".datamaps-subunit").attr("d", globePath);
+      refreshRoutePaths();
+      updateRouteMarkers();
+      updateRoutePlanePosition();
+    };
+  });
+}
+
+function getJourneyTotals() {
+  if (!journeyRoutes || !journeyRoutes.length) return { totalKm: 0, totalMs: 0 };
+  let totalKm = 0;
+  let totalMs = 0;
+  journeyRoutes.forEach(route => {
+    const distanceKm = Number.isFinite(route.distanceKm) ? route.distanceKm : computeDistanceFromCoords(route.pathCoords);
+    totalKm += distanceKm;
+    totalMs += Number.isFinite(route.durationMs) ? route.durationMs : getRouteDurationMs(distanceKm);
+  });
+  return { totalKm, totalMs };
+}
+
+function getJourneyFlipMessages() {
+  if (!journeyRoutes || !journeyRoutes.length) return [];
+  const totals = getJourneyTotals();
+  const km = formatDistanceKm(totals.totalKm);
+  const time = formatTotalDuration(totals.totalMs);
+  return [`TOTAL ${km} KM`, `TIME ${time}`];
+}
+
+function formatTotalDuration(ms) {
+  const totalSeconds = Math.max(0, Math.round(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}H ${String(minutes).padStart(2, '0')}M ${String(seconds).padStart(2, '0')}S`;
+  }
+  return `${minutes}M ${String(seconds).padStart(2, '0')}S`;
+}
+
+function updateJourneyTotalsFlipboard() {
+  startJourneyTotalsCycle();
+}
+
+function startJourneyTotalsCycle() {
+  if (journeyTotalsTimer) {
+    clearInterval(journeyTotalsTimer);
+    journeyTotalsTimer = null;
+  }
+  const messages = getJourneyFlipMessages();
+  if (!messages.length) return;
+  let index = 0;
+  updateFlipBoardInstant(messages[index]);
+  journeyTotalsTimer = setInterval(() => {
+    index = (index + 1) % messages.length;
+    updateFlipBoardInstant(messages[index]);
+  }, 3200);
+}
+
+function resetJourneyNetwork() {
+  journeyRoutes = [];
+  localStorage.removeItem('travelogue_routes');
+  clearJourneyNetwork();
+  updateFlipBoard("JOURNEY RESET");
+}
+
+function updateJourneyResetButton() {
+  const btn = document.getElementById('journey-reset');
+  if (!btn) return;
+  btn.style.display = journeyRoutes && journeyRoutes.length ? 'inline-flex' : 'none';
+}
+function showJourneyNetworkNow() {
+  journeyNetworkVisible = true;
+  shrinkGlobeForJourneyNetwork();
+  renderJourneyNetwork();
+  updateJourneyTotalsFlipboard();
+}
+
+function scheduleJourneyNetwork(delayMs = JOURNEY_NETWORK_DELAY_MS) {
   if (journeyNetworkTimer) clearTimeout(journeyNetworkTimer);
+  if (delayMs <= 0) {
+    journeyNetworkTimer = null;
+    showJourneyNetworkNow();
+    return;
+  }
   journeyNetworkTimer = setTimeout(() => {
-    journeyNetworkVisible = true;
-    renderJourneyNetwork();
-  }, 15000);
+    journeyNetworkTimer = null;
+    showJourneyNetworkNow();
+  }, delayMs);
 }
 
 function clearAirportSelectionMarkers() {
@@ -2036,10 +2156,11 @@ function getRemainingMs(routeInfo) {
 
 function getFlipMessages(routeInfo) {
   if (!routeInfo) return [];
-  const timeMs = routeProgress >= 1
+  const arrived = routeInfo.arrived || landingTransitionPending || routeProgress >= 0.999;
+  const timeMs = arrived
     ? 0
     : (flightMode ? getRemainingMs(routeInfo) : routeInfo.durationMs);
-  const remainingDistance = routeProgress >= 1
+  const remainingDistance = arrived
     ? 0
     : (flightMode ? Math.max(0, routeInfo.distanceKm * (1 - routeProgress)) : routeInfo.distanceKm);
   return [
@@ -2058,13 +2179,15 @@ function cycleFlipBoardMessage() {
         origin: route.origin,
         destination: route.destination,
         distanceKm,
-        durationMs: getRouteDurationMs(distanceKm)
+        durationMs: getRouteDurationMs(distanceKm),
+        arrived: false
       };
       flipMessageIndex = 0;
     }
   }
   if (!lastRouteInfo) return;
-  const messages = getFlipMessages(lastRouteInfo);
+  const journeyMessages = journeyNetworkVisible ? getJourneyFlipMessages() : [];
+  const messages = journeyMessages.length ? journeyMessages : getFlipMessages(lastRouteInfo);
   if (!messages.length) return;
   flipMessageIndex = (flipMessageIndex + 1) % messages.length;
   if (flightMode) {
@@ -2236,7 +2359,8 @@ function beginFlightOnGlobe(route) {
     origin: route.origin,
     destination: route.destination,
     distanceKm,
-    durationMs: flightDuration
+    durationMs: flightDuration,
+    arrived: false
   };
   flipMessageIndex = 0;
   updateFlipBoard(`${route.origin.code} TO ${route.destination.code}`);
@@ -2259,8 +2383,12 @@ function beginFlightOnGlobe(route) {
       onEnd: () => {
         updateFlipBoard("ARRIVED");
         pauseAudio('airplane-loop');
-        recordJourneyRoute(route);
-        scheduleJourneyNetwork();
+        recordJourneyRoute(route, {
+          color: getAccentColor(),
+          distanceKm,
+          durationMs: flightDuration
+        });
+        if (lastRouteInfo) lastRouteInfo.arrived = true;
         routeProgress = 1;
         flightMode = false;
         isAnimating = false;
@@ -2275,6 +2403,7 @@ function beginFlightOnGlobe(route) {
         const passportBtn = document.getElementById('passport-btn');
         if (passportBtn) passportBtn.style.display = 'block';
         playAudio('landing-sound');
+        scheduleJourneyNetwork(0);
         scheduleReturnAfterLandingAudio();
       }
     });
@@ -2328,13 +2457,13 @@ function initPCMap() {
       // hover handlers only on non-touch devices
       if (canHover) {
         subs.on("mouseenter", function(d) { 
-          if(!selectedCountry && !flightMode) { 
+          if (shouldAllowCountryHover()) { 
             updateFlipBoard(d.properties.name); 
             d3.select(this).style("fill", "#ffcccc"); 
           } 
         })
         .on("mouseleave", function(d) { 
-          if(!selectedCountry && !flightMode) { 
+          if (shouldAllowCountryHover()) { 
             updateFlipBoard(""); 
             d3.select(this).style("fill", "#e6e6e6"); 
           } 
@@ -2525,7 +2654,9 @@ function scheduleReturnAfterLandingAudio() {
   };
   landing.addEventListener('ended', landingOnEnded);
   const duration = Number.isFinite(landing.duration) && landing.duration > 0 ? landing.duration : 0;
-  const fallbackDelay = duration ? Math.ceil(duration * 1000) + 200 : 2000;
+  const baseDelay = duration ? Math.ceil(duration * 1000) + 200 : 2000;
+  const minDelay = journeyNetworkTimer ? (JOURNEY_NETWORK_DELAY_MS + 3000) : 0;
+  const fallbackDelay = Math.max(baseDelay, minDelay);
   landingReturnTimer = setTimeout(() => {
     if (landingTransitionPending) startReturnToWorldLanding();
   }, fallbackDelay);
@@ -2650,13 +2781,13 @@ function initGlobe() {
       // PC처럼 호버 효과 (비터치 기기)
       if (!isTouch) {
         subs.on("mouseenter", function(geo) {
-          if (!selectedCountry && !flightMode) {
+          if (shouldAllowCountryHover()) {
             updateFlipBoard(geo.properties.name);
             d3.select(this).style("fill", "#ffcccc");
           }
         })
         .on("mouseleave", function(geo) {
-          if (!selectedCountry && !flightMode) {
+          if (shouldAllowCountryHover()) {
             updateFlipBoard("");
             d3.select(this).style("fill", "#e6e6e6");
           }
@@ -2838,6 +2969,15 @@ window.addEventListener('load', () => {
     });
   }
 
+  const journeyReset = document.getElementById('journey-reset');
+  if (journeyReset) {
+    journeyReset.addEventListener('click', (event) => {
+      event.stopPropagation();
+      resetJourneyNetwork();
+    });
+  }
+  updateJourneyResetButton();
+
   const mapWrapperClick = document.getElementById('map-wrapper');
   if (mapWrapperClick) {
     const handleImmediateReturn = () => {
@@ -2892,6 +3032,30 @@ window.addEventListener('load', () => {
   const albumUploadInput = document.getElementById('album-upload');
   if (albumUploadInput) {
     albumUploadInput.addEventListener('change', handleAlbumUpload);
+  }
+
+  const albumPrev = document.getElementById('album-prev');
+  const albumNext = document.getElementById('album-next');
+  const albumBook = document.getElementById('album-book');
+  if (albumPrev) {
+    albumPrev.addEventListener('click', (event) => {
+      event.stopPropagation();
+      flipAlbumPage(-1);
+    });
+  }
+  if (albumNext) {
+    albumNext.addEventListener('click', (event) => {
+      event.stopPropagation();
+      flipAlbumPage(1);
+    });
+  }
+  if (albumBook) {
+    albumBook.addEventListener('click', (event) => {
+      if (!albumPhotoCount) return;
+      const rect = albumBook.getBoundingClientRect();
+      const direction = (event.clientX - rect.left) > rect.width / 2 ? 1 : -1;
+      flipAlbumPage(direction);
+    });
   }
 
   document.addEventListener('click', (event) => {
@@ -2965,6 +3129,13 @@ window.addEventListener('load', () => {
 // --- Album (open via passport stamp) ---
 function openAlbum(code) {
   albumCountry = code;
+  albumCurrentPage = 0;
+  albumLastPage = 0;
+  albumFlipLocked = false;
+  if (albumFlipTimer) {
+    clearTimeout(albumFlipTimer);
+    albumFlipTimer = null;
+  }
   const overlay = document.getElementById('album-overlay');
   const subtitle = document.getElementById('album-subtitle');
   if (subtitle) {
@@ -2980,28 +3151,127 @@ function closeAlbum() {
   const overlay = document.getElementById('album-overlay');
   if (overlay) overlay.classList.remove('show');
   albumCountry = null;
+  albumPages = [];
+  albumPhotoCount = 0;
+  albumCurrentPage = 0;
+}
+
+function buildAlbumPages(photos) {
+  return photos.map((src, index) => ({
+    front: { src, number: index + 1 },
+    back: index + 1 < photos.length ? { src: photos[index + 1], number: index + 2 } : null
+  }));
+}
+
+function updateAlbumBookState() {
+  const book = document.getElementById('album-book');
+  if (!book) return;
+  const leaves = book.querySelectorAll('.book-leaf');
+  leaves.forEach((leaf, index) => {
+    leaf.classList.toggle('flipped', index < albumCurrentPage);
+    const depth = (albumPages.length - index) * 0.6;
+    leaf.style.setProperty('--page-depth', `${depth}px`);
+    const total = albumPages.length;
+    const flippingForward = albumCurrentPage > albumLastPage;
+    const activeFlipIndex = flippingForward ? (albumCurrentPage - 1) : albumCurrentPage;
+    if (index === activeFlipIndex) {
+      leaf.style.zIndex = total + 2;
+    } else {
+      leaf.style.zIndex = total - Math.abs(albumCurrentPage - index);
+    }
+  });
+
+  const counter = document.getElementById('album-counter');
+  if (counter) {
+    const format = (num) => String(num).padStart(2, '0');
+    if (!albumPhotoCount) {
+      counter.textContent = 'PAGE 00 / 00';
+    } else {
+      const currentSpread = Math.min(albumPhotoCount, Math.max(albumCurrentPage + 1, 1));
+      counter.textContent = `PAGE ${format(currentSpread)} / ${format(albumPhotoCount)}`;
+    }
+  }
+
+  const prevButton = document.getElementById('album-prev');
+  const nextButton = document.getElementById('album-next');
+  const maxPage = Math.max(0, albumPages.length - 1);
+  if (prevButton) prevButton.disabled = albumCurrentPage <= 0 || !albumPhotoCount;
+  if (nextButton) nextButton.disabled = albumCurrentPage >= maxPage || !albumPhotoCount;
+}
+
+function flipAlbumPage(direction) {
+  if (!albumPages.length || !albumPhotoCount || albumFlipLocked) return;
+  const maxPage = Math.max(0, albumPages.length - 1);
+  const nextPage = albumCurrentPage + direction;
+  if (nextPage < 0 || nextPage > maxPage) return;
+  albumFlipLocked = true;
+  albumLastPage = albumCurrentPage;
+  albumCurrentPage = nextPage;
+  updateAlbumBookState();
+  if (albumFlipTimer) clearTimeout(albumFlipTimer);
+  albumFlipTimer = setTimeout(() => {
+    albumFlipLocked = false;
+    albumLastPage = albumCurrentPage;
+    updateAlbumBookState();
+  }, 980);
 }
 
 function renderAlbumGrid() {
-  const grid = document.getElementById('album-grid');
-  if (!grid) return;
-  grid.innerHTML = '';
+  const book = document.getElementById('album-book');
+  if (!book) return;
+  book.innerHTML = '';
   const photos = travelData[albumCountry] || [];
-  if (!photos.length) {
+  albumPhotoCount = photos.length;
+  albumPages = buildAlbumPages(photos);
+  if (!albumPhotoCount) {
     const empty = document.createElement('div');
-    empty.className = 'album-empty';
-    empty.textContent = 'NO PHOTOS YET';
-    grid.appendChild(empty);
+    empty.className = 'book-empty';
+    empty.innerHTML = '<span>EMPTY ALBUM</span><span>ADD PHOTOS TO START</span>';
+    book.appendChild(empty);
+    updateAlbumBookState();
     return;
   }
-  photos.forEach(src => {
-    const item = document.createElement('div');
-    item.className = 'album-item';
-    const img = document.createElement('img');
-    img.src = src;
-    item.appendChild(img);
-    grid.appendChild(item);
+
+  const maxPage = Math.max(0, albumPages.length - 1);
+  albumCurrentPage = Math.min(Math.max(albumCurrentPage, 0), maxPage);
+  albumLastPage = albumCurrentPage;
+
+  albumPages.forEach((page, index) => {
+    const leaf = document.createElement('div');
+    leaf.className = 'book-leaf';
+
+    const front = document.createElement('div');
+    front.className = 'book-page front';
+    front.appendChild(buildAlbumPageFrame(page.front));
+
+    const back = document.createElement('div');
+    back.className = 'book-page back';
+    back.appendChild(buildAlbumPageFrame(page.back));
+
+    leaf.appendChild(front);
+    leaf.appendChild(back);
+    book.appendChild(leaf);
   });
+
+  updateAlbumBookState();
+}
+
+function buildAlbumPageFrame(page) {
+  if (!page || !page.src) {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'page-placeholder';
+    placeholder.classList.add('is-blank');
+    return placeholder;
+  }
+
+  const photo = document.createElement('div');
+  photo.className = 'page-photo';
+  const img = document.createElement('img');
+  img.className = 'page-photo-img';
+  img.src = page.src;
+  img.alt = `Album photo ${page.number}`;
+  photo.appendChild(img);
+  return photo;
 }
 
 function handleAlbumUpload(e) {
