@@ -123,7 +123,7 @@ let selectedCountry = null;
 let isAnimating = false;
 let isMobileView = window.innerWidth <= 768;
 let globeMode = isMobileView; // true = 지구본(3D), false = 평면지도(2D)
-let globeRotation = [100, -30];
+let globeRotation = [-127, -36];
 let globeMap = null;
 let globeProjection = null;
 let globePath = null;
@@ -186,7 +186,7 @@ let journeyNetworkTimer = null;
 let journeyNetworkVisible = false;
 let journeyTotalsTimer = null;
 const JOURNEY_NETWORK_DELAY_MS = 15000;
-const JOURNEY_GLOBE_ROTATION = [100, -30];
+const JOURNEY_GLOBE_ROTATION = [-127, -36];
 const noFlyZones = [
   {
     code: 'PRK',

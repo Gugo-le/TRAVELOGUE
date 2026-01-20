@@ -163,6 +163,7 @@ function clearJourneyNetwork() {
     journeyTotalsTimer = null;
   }
   updateJourneyResetButton();
+  updateJourneySummary();
 }
 
 function recordJourneyRoute(route, options = {}) {
@@ -196,11 +197,17 @@ function recordJourneyRoute(route, options = {}) {
   });
   localStorage.setItem('travelogue_routes', JSON.stringify(journeyRoutes));
   updateJourneyResetButton();
+  updateJourneySummary();
 }
 
 function renderJourneyNetwork() {
   if (!journeyNetworkVisible) return;
-  journeyRoutes = hydrateJourneyRoutes(journeyRoutes);
+  journeyRoutes = hydrateJourneyRoutes(loadJSON('travelogue_routes', []));
+  if (!journeyRoutes || !journeyRoutes.length) {
+    clearJourneyNetwork();
+    return;
+  }
+  updateJourneySummary();
   const fallbackColor = getStoredAccentColor() || getAccentColor();
   let updated = false;
   journeyRoutes.forEach(route => {
@@ -353,6 +360,56 @@ function getJourneyTotals() {
   return { totalKm, totalMs };
 }
 
+function updateJourneySummary() {
+  const panel = document.getElementById('journey-summary');
+  if (!panel) return;
+  const subtitle = document.getElementById('subtitle-container');
+  const isJourneyMode = journeyNetworkVisible && !flightMode && !landingTransitionPending;
+  if (flightMode || landingTransitionPending || !journeyNetworkVisible) {
+    panel.classList.remove('is-visible');
+    panel.setAttribute('aria-hidden', 'true');
+    if (subtitle) subtitle.classList.remove('subtitle-hidden');
+    return;
+  }
+  const tripsEl = document.getElementById('journey-summary-trips');
+  const topEl = document.getElementById('journey-summary-top');
+  const distEl = document.getElementById('journey-summary-dist');
+  const timeEl = document.getElementById('journey-summary-time');
+  if (!journeyRoutes || !journeyRoutes.length) {
+    panel.classList.remove('is-visible');
+    panel.setAttribute('aria-hidden', 'true');
+    if (tripsEl) tripsEl.textContent = '0';
+    if (topEl) topEl.textContent = '---';
+    if (distEl) distEl.textContent = '0 KM';
+    if (timeEl) timeEl.textContent = '0M 00S';
+    return;
+  }
+  const totals = getJourneyTotals();
+  if (tripsEl) tripsEl.textContent = String(journeyRoutes.length);
+  if (topEl) {
+    const counts = new Map();
+    journeyRoutes.forEach(route => {
+      const country = resolveAirportCountry(route.destination) || resolveAirportCountry(route.origin);
+      if (!country) return;
+      counts.set(country, (counts.get(country) || 0) + 1);
+    });
+    let topCountry = '';
+    let topCount = 0;
+    counts.forEach((count, code) => {
+      if (count > topCount) {
+        topCount = count;
+        topCountry = code;
+      }
+    });
+    topEl.textContent = topCountry || '---';
+  }
+  if (distEl) distEl.textContent = `${formatDistanceKm(totals.totalKm)} KM`;
+  if (timeEl) timeEl.textContent = formatTotalDuration(totals.totalMs);
+  panel.classList.add('is-visible');
+  panel.setAttribute('aria-hidden', 'false');
+  if (subtitle) subtitle.classList.toggle('subtitle-hidden', isJourneyMode);
+}
+
 function getJourneyFlipMessages() {
   if (!journeyRoutes || !journeyRoutes.length) return [];
   const totals = getJourneyTotals();
@@ -398,6 +455,7 @@ function showJourneyNetworkNow() {
   shrinkGlobeForJourneyNetwork();
   renderJourneyNetwork();
   updateJourneyTotalsFlipboard();
+  updateJourneySummary();
 }
 
 function scheduleJourneyNetwork(delayMs = JOURNEY_NETWORK_DELAY_MS) {
@@ -1016,20 +1074,44 @@ function applyNoFlyZones(route) {
   const forcePacific = shouldForcePacificDetour(route.origin, route.destination);
   const intersectsZone = pathIntersectsZone(route.pathCoords, zone)
     || pathIntersectsZone(buildDisplayPathCoords(route, 32), zone);
-  const forceWest = shouldForceWestDetour(route.origin, route.destination, route.distanceKm);
-  if (!forcePacific && !intersectsZone && !forceWest) return route;
+  const distanceKm = Number.isFinite(route.distanceKm)
+    ? route.distanceKm
+    : computeDistanceFromCoords(route.pathCoords);
+  const forceWest = shouldForceWestDetour(route.origin, route.destination, distanceKm);
+  if (!forcePacific && !intersectsZone && !forceWest) {
+    route._noFlyDetour = false;
+    return route;
+  }
   if (forcePacific) {
     const pacificLine = buildPacificLinearPath(route.origin, route.destination);
     if (!pacificLine) return route;
     route.pathCoords = pacificLine;
     route.distanceKm = computeDistanceFromCoords(pacificLine);
+    route._noFlyDetour = true;
   } else {
+    if (intersectsZone && distanceKm <= 2000) {
+      const mildCurve = buildNoFlyMildCurve(route.origin, route.destination, zone);
+      if (mildCurve) {
+        route.pathCoords = mildCurve;
+        route.distanceKm = computeDistanceFromCoords(mildCurve);
+        route._noFlyDetour = true;
+        route._segments = null;
+        route._totalDistance = null;
+        route._interpolator = null;
+        route._displayCoords = null;
+        route._displaySegments = null;
+        route._displayTotalDistance = null;
+        route._displayInterpolator = null;
+        return route;
+      }
+    }
     const westDetour = (forceWest || intersectsZone)
       ? buildWestDetourPath(route.origin, route.destination, zone)
       : null;
     if (westDetour) {
       route.pathCoords = westDetour;
       route.distanceKm = computeDistanceFromCoords(westDetour);
+      route._noFlyDetour = true;
       route._segments = null;
       route._totalDistance = null;
       route._interpolator = null;
@@ -1043,6 +1125,7 @@ function applyNoFlyZones(route) {
     if (!mildCurve) return route;
     route.pathCoords = mildCurve;
     route.distanceKm = computeDistanceFromCoords(mildCurve);
+    route._noFlyDetour = true;
   }
   route._segments = null;
   route._totalDistance = null;
@@ -1103,9 +1186,13 @@ function buildDisplayPathCoords(route, stepsPerSegment = 24) {
     coords = [[route.origin.lon, route.origin.lat], [route.destination.lon, route.destination.lat]];
   }
   if (coords.length > 2) {
-    const start = coords[0];
-    const end = coords[coords.length - 1];
-    route._displayCoords = buildDirectDisplayCoords(start, end, stepsPerSegment * 3);
+    if (route._noFlyDetour) {
+      route._displayCoords = smoothPathCoords(coords, stepsPerSegment);
+    } else {
+      const start = coords[0];
+      const end = coords[coords.length - 1];
+      route._displayCoords = buildDirectDisplayCoords(start, end, stepsPerSegment * 3);
+    }
     return route._displayCoords;
   }
   const display = [];
@@ -1506,7 +1593,7 @@ function startFlightSequence(route) {
   globeMode = true;
   pendingRoute = route;
   globeRotation = [-route.origin.lon, -route.origin.lat];
-  resetMap();
+  resetMap({ preserveFlight: true });
   isAnimating = true;
   const passportBtn = document.getElementById('passport-btn');
   if (passportBtn) passportBtn.style.display = 'none';
@@ -1644,9 +1731,11 @@ function beginFlightOnGlobe(route) {
         }
         const passportBtn = document.getElementById('passport-btn');
         if (passportBtn) passportBtn.style.display = 'block';
+        const backBtn = document.getElementById('back-btn');
+        if (backBtn) backBtn.style.display = 'block';
         playAudio('landing-sound');
         scheduleJourneyNetwork(0);
-        scheduleReturnAfterLandingAudio();
+        landingTransitionPending = false;
       }
     });
   }, arrivalDelay);
@@ -1762,8 +1851,19 @@ function zoomToCountry(datamap, geo, callback) {
   }
 }
 
-function resetMap() {
-  selectedCountry = null; 
+function resetMap(options = {}) {
+  const { preserveFlight = false } = options;
+  selectedCountry = null;
+  selectedDestinationAirport = null;
+  if (!preserveFlight) {
+    flightMode = false;
+    forceGlobeMode = false;
+    pendingRoute = null;
+    landingTransitionPending = false;
+    clearJourneyNetwork();
+    pauseAudio('airplane-loop');
+    pauseAudio('landing-sound');
+  }
   
   if (globeMode) {
     updateFlipBoard("SELECT DEST");

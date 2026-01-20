@@ -2,6 +2,8 @@
   App bootstrapping and event wiring.
 */
 
+const JOURNEY_SUMMARY_STYLE = 'hud';
+
 window.addEventListener('resize', () => {
   if (flightMode) return;
   const newIsMobile = window.innerWidth <= 768;
@@ -226,5 +228,11 @@ window.addEventListener('load', async () => {
     seatInput.addEventListener('input', (e) => {
       syncSeatStub(e.target.value);
     });
+  }
+
+  const summary = document.getElementById('journey-summary');
+  if (summary) {
+    summary.classList.remove('journey-summary--film', 'journey-summary--micro', 'journey-summary--hud');
+    summary.classList.add(`journey-summary--${JOURNEY_SUMMARY_STYLE}`);
   }
 });

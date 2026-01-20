@@ -502,7 +502,9 @@ function syncSeatStub(value) {
 function startJourney() {
   if (isAnimating) return;
   isAnimating = true;
+  unlockAudio();
   playAudio('airplane-bp');
+  setTimeout(() => playAudio('airplane-bp', { restart: false }), 80);
 
   document.getElementById('intro-window').style.transform = 'translateY(-100%)';
 
