@@ -1,5 +1,4 @@
 /*
-  script.js
   App bootstrapping and event wiring.
 */
 

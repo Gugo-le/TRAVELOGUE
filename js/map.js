@@ -1,5 +1,4 @@
 /*
-  map.js
   Map rendering, routing, journey network, and flight animation logic.
 */
 function resolveAirportCountry(airport) {

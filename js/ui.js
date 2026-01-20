@@ -1,5 +1,4 @@
 /*
-  ui.js
   UI interactions, boarding flow, date picker, passport, and album logic.
 */
 

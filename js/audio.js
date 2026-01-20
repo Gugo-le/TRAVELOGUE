@@ -1,5 +1,4 @@
 /*
-  audio.js
   Audio playback helpers for UI sounds and flight ambience.
 */
 

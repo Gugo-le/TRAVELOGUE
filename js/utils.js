@@ -1,5 +1,4 @@
 /*
-  utils.js
   Shared helpers for formatting, airport lookups, and basic DOM helpers.
 */
 

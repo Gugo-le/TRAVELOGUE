@@ -1,5 +1,4 @@
 /*
-  state.js
   Global state, persistence helpers, and shared constants.
 */
 
