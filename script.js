@@ -7,6 +7,95 @@ function loadJSON(key, fallback) {
   }
 }
 
+const ACCENT_STORAGE_KEY = 'travelogue_accent';
+
+function getStoredAccentColor() {
+  const raw = localStorage.getItem(ACCENT_STORAGE_KEY);
+  return raw ? raw.trim() : '';
+}
+
+function applyAccentColor(color, persist = true) {
+  const value = String(color || '').trim();
+  if (!value) return;
+  document.documentElement.style.setProperty('--accent', value);
+  if (persist) localStorage.setItem(ACCENT_STORAGE_KEY, value);
+}
+
+function normalizeJourneyPathCoords(coords) {
+  if (!Array.isArray(coords)) return null;
+  const normalized = coords.map((coord) => {
+    if (Array.isArray(coord)) {
+      const lon = Number(coord[0]);
+      const lat = Number(coord[1]);
+      if (Number.isFinite(lon) && Number.isFinite(lat)) return [lon, lat];
+      return null;
+    }
+    if (coord && typeof coord === 'object') {
+      const lon = Number(coord.lon ?? coord.lng);
+      const lat = Number(coord.lat);
+      if (Number.isFinite(lon) && Number.isFinite(lat)) return [lon, lat];
+    }
+    return null;
+  }).filter(Boolean);
+  return normalized.length >= 2 ? normalized : null;
+}
+
+function resolveJourneyAirportCoord(airport) {
+  if (!airport) return null;
+  if (typeof airport === 'string') {
+    const code = normalizeIata(airport);
+    const ref = code ? airportIndex[code] : null;
+    if (ref && Number.isFinite(ref.lon) && Number.isFinite(ref.lat)) {
+      return [ref.lon, ref.lat];
+    }
+    return null;
+  }
+  const lat = Number(airport.lat);
+  const lon = Number(airport.lon);
+  if (Number.isFinite(lon) && Number.isFinite(lat)) return [lon, lat];
+  const code = normalizeIata(airport.code);
+  const ref = code ? airportIndex[code] : null;
+  if (ref && Number.isFinite(ref.lon) && Number.isFinite(ref.lat)) {
+    airport.lat = ref.lat;
+    airport.lon = ref.lon;
+    if (!airport.country && ref.country) airport.country = ref.country;
+    return [ref.lon, ref.lat];
+  }
+  return null;
+}
+
+function hydrateJourneyRoutes(routes) {
+  if (!Array.isArray(routes)) return [];
+  let updated = false;
+  const fallbackColor = getStoredAccentColor();
+  const normalized = routes.map(route => {
+    if (!route || typeof route !== 'object') return route;
+    if (!route.color && fallbackColor) {
+      route.color = fallbackColor;
+      updated = true;
+    }
+    const coords = normalizeJourneyPathCoords(route.pathCoords);
+    if (coords) {
+      if (coords !== route.pathCoords) {
+        route.pathCoords = coords;
+        updated = true;
+      }
+      return route;
+    }
+    const originCoord = resolveJourneyAirportCoord(route.origin);
+    const destinationCoord = resolveJourneyAirportCoord(route.destination);
+    if (originCoord && destinationCoord) {
+      route.pathCoords = [originCoord, destinationCoord];
+      updated = true;
+    }
+    return route;
+  });
+  if (updated) {
+    localStorage.setItem('travelogue_routes', JSON.stringify(normalized));
+  }
+  return normalized;
+}
+
 let travelData = loadJSON('travelogue_data', {});
 let userConfig = loadJSON('travelogue_config', { name: '', from: '' });
 let visitedCountries = loadJSON('visited_countries', {});
@@ -44,7 +133,28 @@ let albumCurrentPage = 0;
 let albumLastPage = 0;
 let albumFlipLocked = false;
 let albumFlipTimer = null;
-const themeColors = ['#e67e22', '#2980b9', '#27ae60', '#8e44ad', '#c0392b'];
+const themeColors = [
+  '#e67e22',
+  '#2980b9',
+  '#27ae60',
+  '#8e44ad',
+  '#c0392b',
+  '#1abc9c',
+  '#d35400',
+  '#16a085',
+  '#2ecc71',
+  '#e74c3c',
+  '#f39c12',
+  '#e84393',
+  '#00b894',
+  '#0984e3',
+  '#6c5ce7',
+  '#fdcb6e',
+  '#00cec9',
+  '#ff7675',
+  '#55efc4',
+  '#b2bec3'
+];
 const allowConnectingRoutes = false;
 const airportsByCountry = {
   KOR: [
@@ -98,12 +208,16 @@ const airportsByCountry = {
     { code: 'PHX', name: 'Phoenix', lat: 33.4373, lon: -112.0078 },
     { code: 'IAH', name: 'Houston IAH', lat: 29.9902, lon: -95.3368 },
     { code: 'MSP', name: 'Minneapolis', lat: 44.8848, lon: -93.2223 },
-    { code: 'DTW', name: 'Detroit', lat: 42.2162, lon: -83.3554 }
+    { code: 'DTW', name: 'Detroit', lat: 42.2162, lon: -83.3554 },
+    { code: 'EWR', name: 'Newark', lat: 40.6895, lon: -74.1745 },
+    { code: 'MCO', name: 'Orlando', lat: 28.4312, lon: -81.3081 }
   ],
   CAN: [
     { code: 'YYZ', name: 'Toronto Pearson', lat: 43.6777, lon: -79.6248 },
     { code: 'YVR', name: 'Vancouver', lat: 49.1951, lon: -123.1779 },
-    { code: 'YUL', name: 'Montreal', lat: 45.4706, lon: -73.7408 }
+    { code: 'YUL', name: 'Montreal', lat: 45.4706, lon: -73.7408 },
+    { code: 'YYC', name: 'Calgary', lat: 51.1139, lon: -114.0203 },
+    { code: 'YOW', name: 'Ottawa', lat: 45.3225, lon: -75.6692 }
   ],
   MEX: [
     { code: 'MEX', name: 'Mexico City', lat: 19.4361, lon: -99.0719 },
@@ -144,12 +258,15 @@ const airportsByCountry = {
   ESP: [
     { code: 'MAD', name: 'Madrid', lat: 40.4983, lon: -3.5676 },
     { code: 'BCN', name: 'Barcelona', lat: 41.2974, lon: 2.0833 },
-    { code: 'AGP', name: 'Malaga', lat: 36.6749, lon: -4.4991 }
+    { code: 'AGP', name: 'Malaga', lat: 36.6749, lon: -4.4991 },
+    { code: 'VLC', name: 'Valencia', lat: 39.4893, lon: -0.4816 },
+    { code: 'PMI', name: 'Palma de Mallorca', lat: 39.5517, lon: 2.7388 }
   ],
   ITA: [
     { code: 'FCO', name: 'Rome Fiumicino', lat: 41.8003, lon: 12.2389 },
     { code: 'MXP', name: 'Milan Malpensa', lat: 45.6301, lon: 8.7281 },
-    { code: 'VCE', name: 'Venice', lat: 45.5053, lon: 12.3519 }
+    { code: 'VCE', name: 'Venice', lat: 45.5053, lon: 12.3519 },
+    { code: 'LIN', name: 'Milan Linate', lat: 45.4451, lon: 9.2767 }
   ],
   TUR: [
     { code: 'IST', name: 'Istanbul', lat: 41.2753, lon: 28.7519 },
@@ -171,10 +288,12 @@ const airportsByCountry = {
     { code: 'PEK', name: 'Beijing', lat: 40.0801, lon: 116.5846 },
     { code: 'PKX', name: 'Beijing Daxing', lat: 39.5099, lon: 116.4109 },
     { code: 'PVG', name: 'Shanghai Pudong', lat: 31.1443, lon: 121.8083 },
+    { code: 'SHA', name: 'Shanghai Hongqiao', lat: 31.1979, lon: 121.3364 },
     { code: 'CAN', name: 'Guangzhou', lat: 23.3924, lon: 113.2988 },
     { code: 'SZX', name: 'Shenzhen', lat: 22.6393, lon: 113.8107 },
     { code: 'CTU', name: 'Chengdu', lat: 30.5785, lon: 103.9469 },
-    { code: 'XMN', name: 'Xiamen', lat: 24.5440, lon: 118.1277 }
+    { code: 'XMN', name: 'Xiamen', lat: 24.5440, lon: 118.1277 },
+    { code: 'XIY', name: 'Xian', lat: 34.4471, lon: 108.7516 }
   ],
   HKG: [
     { code: 'HKG', name: 'Hong Kong', lat: 22.3080, lon: 113.9185 }
@@ -210,10 +329,13 @@ const airportsByCountry = {
     { code: 'SYD', name: 'Sydney', lat: -33.9399, lon: 151.1753 },
     { code: 'MEL', name: 'Melbourne', lat: -37.6733, lon: 144.8433 },
     { code: 'BNE', name: 'Brisbane', lat: -27.3842, lon: 153.1175 },
-    { code: 'PER', name: 'Perth', lat: -31.9403, lon: 115.9672 }
+    { code: 'PER', name: 'Perth', lat: -31.9403, lon: 115.9672 },
+    { code: 'ADL', name: 'Adelaide', lat: -34.9450, lon: 138.5306 }
   ],
   NZL: [
-    { code: 'AKL', name: 'Auckland', lat: -37.0082, lon: 174.7850 }
+    { code: 'AKL', name: 'Auckland', lat: -37.0082, lon: 174.7850 },
+    { code: 'CHC', name: 'Christchurch', lat: -43.4894, lon: 172.5322 },
+    { code: 'WLG', name: 'Wellington', lat: -41.3272, lon: 174.8054 }
   ],
   ZAF: [
     { code: 'JNB', name: 'Johannesburg', lat: -26.1337, lon: 28.2420 },
@@ -224,13 +346,150 @@ const airportsByCountry = {
     { code: 'DME', name: 'Moscow Domodedovo', lat: 55.4088, lon: 37.9063 }
   ],
   SWE: [
-    { code: 'ARN', name: 'Stockholm Arlanda', lat: 59.6519, lon: 17.9186 }
+    { code: 'ARN', name: 'Stockholm Arlanda', lat: 59.6519, lon: 17.9186 },
+    { code: 'GOT', name: 'Gothenburg', lat: 57.6628, lon: 12.2798 }
   ],
   NOR: [
-    { code: 'OSL', name: 'Oslo', lat: 60.1939, lon: 11.1004 }
+    { code: 'OSL', name: 'Oslo', lat: 60.1939, lon: 11.1004 },
+    { code: 'BGO', name: 'Bergen', lat: 60.2934, lon: 5.2181 }
   ],
   DNK: [
-    { code: 'CPH', name: 'Copenhagen', lat: 55.6181, lon: 12.6560 }
+    { code: 'CPH', name: 'Copenhagen', lat: 55.6181, lon: 12.6560 },
+    { code: 'AAL', name: 'Aalborg', lat: 57.0928, lon: 9.8492 }
+  ],
+  IRL: [
+    { code: 'DUB', name: 'Dublin', lat: 53.4213, lon: -6.2701 },
+    { code: 'SNN', name: 'Shannon', lat: 52.7019, lon: -8.9248 }
+  ],
+  PRT: [
+    { code: 'LIS', name: 'Lisbon', lat: 38.7742, lon: -9.1342 },
+    { code: 'OPO', name: 'Porto', lat: 41.2356, lon: -8.6781 },
+    { code: 'FAO', name: 'Faro', lat: 37.0144, lon: -7.9659 }
+  ],
+  BEL: [
+    { code: 'BRU', name: 'Brussels', lat: 50.9010, lon: 4.4844 }
+  ],
+  AUT: [
+    { code: 'VIE', name: 'Vienna', lat: 48.1103, lon: 16.5697 }
+  ],
+  POL: [
+    { code: 'WAW', name: 'Warsaw', lat: 52.1657, lon: 20.9671 },
+    { code: 'KRK', name: 'Krakow', lat: 50.0777, lon: 19.7848 }
+  ],
+  CZE: [
+    { code: 'PRG', name: 'Prague', lat: 50.1008, lon: 14.2600 }
+  ],
+  HUN: [
+    { code: 'BUD', name: 'Budapest', lat: 47.4399, lon: 19.2611 }
+  ],
+  GRC: [
+    { code: 'ATH', name: 'Athens', lat: 37.9364, lon: 23.9445 }
+  ],
+  ISL: [
+    { code: 'KEF', name: 'Keflavik', lat: 63.9850, lon: -22.6056 }
+  ],
+  FIN: [
+    { code: 'HEL', name: 'Helsinki', lat: 60.3172, lon: 24.9633 }
+  ],
+  ROU: [
+    { code: 'OTP', name: 'Bucharest', lat: 44.5711, lon: 26.0850 }
+  ],
+  UKR: [
+    { code: 'KBP', name: 'Kyiv Boryspil', lat: 50.3450, lon: 30.8942 }
+  ],
+  ISR: [
+    { code: 'TLV', name: 'Tel Aviv', lat: 32.0114, lon: 34.8867 }
+  ],
+  SAU: [
+    { code: 'JED', name: 'Jeddah', lat: 21.6796, lon: 39.1565 },
+    { code: 'RUH', name: 'Riyadh', lat: 24.9576, lon: 46.6988 }
+  ],
+  KWT: [
+    { code: 'KWI', name: 'Kuwait', lat: 29.2266, lon: 47.9689 }
+  ],
+  BHR: [
+    { code: 'BAH', name: 'Bahrain', lat: 26.2708, lon: 50.6336 }
+  ],
+  OMN: [
+    { code: 'MCT', name: 'Muscat', lat: 23.5933, lon: 58.2844 }
+  ],
+  JOR: [
+    { code: 'AMM', name: 'Amman', lat: 31.7226, lon: 35.9932 }
+  ],
+  LBN: [
+    { code: 'BEY', name: 'Beirut', lat: 33.8209, lon: 35.4884 }
+  ],
+  EGY: [
+    { code: 'CAI', name: 'Cairo', lat: 30.1219, lon: 31.4056 }
+  ],
+  MAR: [
+    { code: 'CMN', name: 'Casablanca', lat: 33.3675, lon: -7.5899 }
+  ],
+  ETH: [
+    { code: 'ADD', name: 'Addis Ababa', lat: 8.9779, lon: 38.7993 }
+  ],
+  KEN: [
+    { code: 'NBO', name: 'Nairobi', lat: -1.3192, lon: 36.9278 }
+  ],
+  NGA: [
+    { code: 'LOS', name: 'Lagos', lat: 6.5774, lon: 3.3212 }
+  ],
+  GHA: [
+    { code: 'ACC', name: 'Accra', lat: 5.6052, lon: -0.1668 }
+  ],
+  SEN: [
+    { code: 'DKR', name: 'Dakar', lat: 14.7397, lon: -17.4902 }
+  ],
+  TZA: [
+    { code: 'DAR', name: 'Dar es Salaam', lat: -6.8781, lon: 39.2026 }
+  ],
+  COL: [
+    { code: 'BOG', name: 'Bogota', lat: 4.7016, lon: -74.1469 }
+  ],
+  PER: [
+    { code: 'LIM', name: 'Lima', lat: -12.0219, lon: -77.1143 }
+  ],
+  CHL: [
+    { code: 'SCL', name: 'Santiago', lat: -33.3929, lon: -70.7858 }
+  ],
+  ECU: [
+    { code: 'UIO', name: 'Quito', lat: -0.1292, lon: -78.3575 }
+  ],
+  PAN: [
+    { code: 'PTY', name: 'Panama City', lat: 9.0714, lon: -79.3835 }
+  ],
+  URY: [
+    { code: 'MVD', name: 'Montevideo', lat: -34.8384, lon: -56.0308 }
+  ],
+  LKA: [
+    { code: 'CMB', name: 'Colombo', lat: 7.1808, lon: 79.8841 }
+  ],
+  BGD: [
+    { code: 'DAC', name: 'Dhaka', lat: 23.8433, lon: 90.3978 }
+  ],
+  NPL: [
+    { code: 'KTM', name: 'Kathmandu', lat: 27.6966, lon: 85.3591 }
+  ],
+  PAK: [
+    { code: 'ISB', name: 'Islamabad', lat: 33.6167, lon: 73.0992 }
+  ],
+  KAZ: [
+    { code: 'ALA', name: 'Almaty', lat: 43.3521, lon: 77.0405 }
+  ],
+  UZB: [
+    { code: 'TAS', name: 'Tashkent', lat: 41.2579, lon: 69.2812 }
+  ],
+  MMR: [
+    { code: 'RGN', name: 'Yangon', lat: 16.9073, lon: 96.1332 }
+  ],
+  KHM: [
+    { code: 'PNH', name: 'Phnom Penh', lat: 11.5466, lon: 104.8442 }
+  ],
+  LAO: [
+    { code: 'VTE', name: 'Vientiane', lat: 17.9883, lon: 102.5633 }
+  ],
+  MNG: [
+    { code: 'UBN', name: 'Ulaanbaatar', lat: 47.8431, lon: 106.7666 }
   ]
 };
 const airportIndex = {};
@@ -274,12 +533,13 @@ let landingReturnTimer = null;
 let landingOnEnded = null;
 let landingTapStart = null;
 let audioUnlocked = false;
-let journeyRoutes = loadJSON('travelogue_routes', []);
+let journeyRoutes = hydrateJourneyRoutes(loadJSON('travelogue_routes', []));
 let journeyLayer = null;
 let journeyNetworkTimer = null;
 let journeyNetworkVisible = false;
 let journeyTotalsTimer = null;
 const JOURNEY_NETWORK_DELAY_MS = 15000;
+const JOURNEY_GLOBE_ROTATION = [100, -30];
 const noFlyZones = [
   {
     code: 'PRK',
@@ -408,7 +668,7 @@ function getAllAirportsForList() {
       });
     });
   });
-  if (openFlightsReady && openFlightsAirports.size) {
+  if (openFlightsAirports.size) {
     openFlightsAirports.forEach((airport, code) => {
       if (!code || seen.has(code)) return;
       seen.add(code);
@@ -651,6 +911,217 @@ function attachAirportSuggest(input, onSelect, options = {}) {
   }, true);
 }
 
+let datePickerPanel = null;
+let datePickerBackdrop = null;
+let datePickerTitle = null;
+let datePickerGrid = null;
+let datePickerInput = null;
+let datePickerOpen = false;
+let datePickerYear = null;
+let datePickerMonth = null;
+let datePickerSelected = null;
+
+function parseDateString(value) {
+  if (!value) return null;
+  const parts = String(value).split('-');
+  if (parts.length !== 3) return null;
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  return { year, month: month - 1, day };
+}
+
+function formatDateValue(year, month, day) {
+  const yyyy = String(year).padStart(4, '0');
+  const mm = String(month + 1).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function ensureDatePicker() {
+  if (datePickerPanel) return;
+  datePickerBackdrop = document.createElement('div');
+  datePickerBackdrop.className = 'date-picker-backdrop';
+  datePickerBackdrop.style.display = 'none';
+  datePickerBackdrop.addEventListener('click', closeDatePicker);
+  document.body.appendChild(datePickerBackdrop);
+
+  datePickerPanel = document.createElement('div');
+  datePickerPanel.className = 'date-picker';
+  datePickerPanel.style.display = 'none';
+
+  const header = document.createElement('div');
+  header.className = 'date-picker-header';
+  const prev = document.createElement('button');
+  prev.type = 'button';
+  prev.className = 'date-picker-nav';
+  prev.textContent = '<';
+  prev.addEventListener('click', () => shiftDatePickerMonth(-1));
+  const titleWrap = document.createElement('div');
+  titleWrap.className = 'date-picker-title-wrap';
+  const icon = document.createElement('span');
+  icon.className = 'date-picker-icon';
+  icon.textContent = '✈';
+  datePickerTitle = document.createElement('span');
+  datePickerTitle.className = 'date-picker-title';
+  const next = document.createElement('button');
+  next.type = 'button';
+  next.className = 'date-picker-nav';
+  next.textContent = '>';
+  next.addEventListener('click', () => shiftDatePickerMonth(1));
+
+  header.appendChild(prev);
+  titleWrap.appendChild(icon);
+  titleWrap.appendChild(datePickerTitle);
+  header.appendChild(titleWrap);
+  header.appendChild(next);
+
+  const week = document.createElement('div');
+  week.className = 'date-picker-week';
+  ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].forEach(label => {
+    const span = document.createElement('span');
+    span.textContent = label;
+    week.appendChild(span);
+  });
+
+  datePickerGrid = document.createElement('div');
+  datePickerGrid.className = 'date-picker-grid';
+
+  datePickerPanel.appendChild(header);
+  datePickerPanel.appendChild(week);
+  datePickerPanel.appendChild(datePickerGrid);
+  document.body.appendChild(datePickerPanel);
+}
+
+function positionDatePicker() {
+  if (!datePickerPanel) return;
+  const width = Math.min(360, Math.max(260, window.innerWidth * 0.88));
+  datePickerPanel.style.width = `${width}px`;
+  datePickerPanel.style.left = '50%';
+  datePickerPanel.style.top = '50%';
+  datePickerPanel.style.transform = 'translate(-50%, -50%)';
+}
+
+function renderDatePicker() {
+  if (!datePickerGrid || datePickerYear === null || datePickerMonth === null) return;
+  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  datePickerTitle.textContent = `${monthNames[datePickerMonth]} ${datePickerYear}`;
+  datePickerGrid.innerHTML = '';
+
+  const firstDay = new Date(datePickerYear, datePickerMonth, 1).getDay();
+  const daysInMonth = new Date(datePickerYear, datePickerMonth + 1, 0).getDate();
+  const daysInPrevMonth = new Date(datePickerYear, datePickerMonth, 0).getDate();
+  const today = new Date();
+  const todayMatch = { year: today.getFullYear(), month: today.getMonth(), day: today.getDate() };
+
+  for (let i = 0; i < 42; i += 1) {
+    let day = i - firstDay + 1;
+    let month = datePickerMonth;
+    let year = datePickerYear;
+    let isOther = false;
+    if (day <= 0) {
+      isOther = true;
+      day = daysInPrevMonth + day;
+      month = datePickerMonth - 1;
+      if (month < 0) {
+        month = 11;
+        year -= 1;
+      }
+    } else if (day > daysInMonth) {
+      isOther = true;
+      day = day - daysInMonth;
+      month = datePickerMonth + 1;
+      if (month > 11) {
+        month = 0;
+        year += 1;
+      }
+    }
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'date-picker-day';
+    if (isOther) button.classList.add('is-other');
+    if (datePickerSelected &&
+      datePickerSelected.year === year &&
+      datePickerSelected.month === month &&
+      datePickerSelected.day === day) {
+      button.classList.add('is-selected');
+    }
+    if (todayMatch.year === year && todayMatch.month === month && todayMatch.day === day) {
+      button.classList.add('is-today');
+    }
+    button.textContent = String(day);
+    button.addEventListener('click', () => {
+      datePickerSelected = { year, month, day };
+      if (datePickerInput) {
+        datePickerInput.value = formatDateValue(year, month, day);
+        datePickerInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      closeDatePicker();
+    });
+    datePickerGrid.appendChild(button);
+  }
+}
+
+function shiftDatePickerMonth(delta) {
+  if (datePickerYear === null || datePickerMonth === null) return;
+  const next = new Date(datePickerYear, datePickerMonth + delta, 1);
+  datePickerYear = next.getFullYear();
+  datePickerMonth = next.getMonth();
+  renderDatePicker();
+}
+
+function openDatePicker(input) {
+  if (!input) return;
+  ensureDatePicker();
+  datePickerInput = input;
+  const parsed = parseDateString(input.value) || parseDateString(getTodayString());
+  datePickerSelected = parsed ? { ...parsed } : null;
+  datePickerYear = parsed ? parsed.year : new Date().getFullYear();
+  datePickerMonth = parsed ? parsed.month : new Date().getMonth();
+  renderDatePicker();
+  positionDatePicker();
+  if (datePickerBackdrop) datePickerBackdrop.style.display = 'block';
+  if (datePickerPanel) datePickerPanel.style.display = 'flex';
+  datePickerOpen = true;
+}
+
+function closeDatePicker() {
+  if (datePickerPanel) datePickerPanel.style.display = 'none';
+  if (datePickerBackdrop) datePickerBackdrop.style.display = 'none';
+  datePickerOpen = false;
+  datePickerInput = null;
+}
+
+function attachDatePicker(input) {
+  if (!input) return;
+  input.setAttribute('readonly', 'readonly');
+  input.setAttribute('inputmode', 'none');
+  input.addEventListener('focus', (e) => {
+    e.preventDefault();
+    openDatePicker(input);
+  });
+  input.addEventListener('click', (e) => {
+    e.preventDefault();
+    openDatePicker(input);
+  });
+  document.addEventListener('pointerdown', (e) => {
+    if (!datePickerOpen || !datePickerPanel) return;
+    if (datePickerPanel.contains(e.target) || e.target === input) return;
+    closeDatePicker();
+  });
+  window.addEventListener('resize', () => {
+    if (datePickerOpen) positionDatePicker();
+  });
+  window.addEventListener('scroll', () => {
+    if (datePickerOpen) positionDatePicker();
+  }, true);
+}
+
 function setOriginAirport(code, options = {}) {
   const { syncInput = false } = options;
   const normalized = normalizeIata(code);
@@ -730,6 +1201,16 @@ function checkDeviceAndInitMap() {
     mapWrapper.classList.toggle('flat-mode', !globeMode);
   }
   mapWrapper.innerHTML = '';
+  map = null;
+  mapGroup = null;
+  flatProjection = null;
+  flatPath = null;
+  flatZoomBehavior = null;
+  flatZoomScale = 1;
+  globeMap = null;
+  globeProjection = null;
+  globePath = null;
+  globeBaseScale = null;
   
   if (globeMode) {
     initGlobe();
@@ -1075,7 +1556,8 @@ function recordJourneyRoute(route, options = {}) {
   const key = `${route.origin.code}-${route.destination.code}-${route.pathCoords?.length || 0}`;
   if (!journeyRoutes) journeyRoutes = [];
   if (journeyRoutes.some(entry => entry.key === key)) return;
-  const color = options.color || getAccentColor();
+  const storedAccent = getStoredAccentColor();
+  const color = options.color || storedAccent || getAccentColor();
   const distanceKm = Number.isFinite(options.distanceKm) ? options.distanceKm : (route.distanceKm || computeDistanceFromCoords(route.pathCoords));
   const durationMs = Number.isFinite(options.durationMs) ? options.durationMs : getRouteDurationMs(distanceKm);
   journeyRoutes.push({
@@ -1104,21 +1586,97 @@ function recordJourneyRoute(route, options = {}) {
 
 function renderJourneyNetwork() {
   if (!journeyNetworkVisible) return;
+  journeyRoutes = hydrateJourneyRoutes(journeyRoutes);
+  const fallbackColor = getStoredAccentColor() || getAccentColor();
+  let updated = false;
+  journeyRoutes.forEach(route => {
+    if (route && !route.color && fallbackColor) {
+      route.color = fallbackColor;
+      updated = true;
+    }
+  });
+  if (updated) {
+    localStorage.setItem('travelogue_routes', JSON.stringify(journeyRoutes));
+  }
   const isGlobe = globeMode && globeMap && globePath;
   const svg = isGlobe ? globeMap.svg : (map && flatPath ? map.svg : null);
   const path = isGlobe ? globePath : flatPath;
+  const projection = isGlobe ? globeProjection : flatProjection;
   if (!svg || !path) return;
   if (!journeyRoutes || !journeyRoutes.length) return;
+  const drawableRoutes = journeyRoutes.filter(route => {
+    return route && Array.isArray(route.pathCoords) && route.pathCoords.length >= 2;
+  });
+  if (!drawableRoutes.length) return;
   if (journeyLayer) journeyLayer.remove();
   const layerParent = isGlobe ? svg : (mapGroup || svg);
   journeyLayer = layerParent.append('g').attr('class', 'journey-layer');
   journeyLayer.selectAll('path')
-    .data(journeyRoutes)
+    .data(drawableRoutes)
     .enter()
     .append('path')
     .attr('class', 'journey-path')
-    .attr('stroke', d => d.color || 'rgba(0,0,0,0.2)')
+    .attr('stroke', d => d.color || fallbackColor || 'rgba(0,0,0,0.2)')
+    .attr('stroke-dasharray', 'none')
+    .attr('stroke-width', 2.4)
+    .attr('stroke-linecap', 'round')
+    .attr('opacity', 0.95)
+    .style('stroke', d => d.color || fallbackColor || 'rgba(0,0,0,0.2)')
+    .style('stroke-dasharray', 'none')
+    .style('opacity', 0.95)
     .attr('d', d => path({ type: 'LineString', coordinates: d.pathCoords }));
+
+  const markerData = [];
+  const seenMarkers = new Set();
+  const addMarker = (coord, code, label, color) => {
+    if (!coord) return;
+    const key = code || `${coord[0].toFixed(3)}|${coord[1].toFixed(3)}`;
+    if (seenMarkers.has(key)) return;
+    seenMarkers.add(key);
+    markerData.push({ coord, code, label, color });
+  };
+  drawableRoutes.forEach(route => {
+    const coords = route.pathCoords;
+    if (!coords || coords.length < 2) return;
+    const origin = route.origin || {};
+    const destination = route.destination || {};
+    const originCoord = resolveJourneyAirportCoord(origin) || coords[0];
+    const destCoord = resolveJourneyAirportCoord(destination) || coords[coords.length - 1];
+    const originCode = origin.code || '';
+    const destCode = destination.code || '';
+    const originName = (originCode ? getAirportByCode(originCode)?.name : '') || origin.name || originCode;
+    const destName = (destCode ? getAirportByCode(destCode)?.name : '') || destination.name || destCode;
+    addMarker(originCoord, originCode, originName, route.color || fallbackColor);
+    addMarker(destCoord, destCode, destName, route.color || fallbackColor);
+  });
+  const markers = journeyLayer.append('g').attr('class', 'journey-markers');
+  markers.selectAll('circle')
+    .data(markerData)
+    .enter()
+    .append('circle')
+    .attr('class', 'journey-marker')
+    .attr('r', isMobileView ? 2.6 : 2.2)
+    .attr('fill', d => d.color || fallbackColor)
+    .attr('transform', d => {
+      if (!projection) return 'translate(-9999,-9999)';
+      const point = projection(d.coord);
+      return point ? `translate(${point[0]}, ${point[1]})` : 'translate(-9999,-9999)';
+    });
+  const labels = journeyLayer.append('g').attr('class', 'journey-labels');
+  labels.selectAll('text')
+    .data(markerData)
+    .enter()
+    .append('text')
+    .attr('class', 'journey-label')
+    .attr('fill', d => d.color || fallbackColor)
+    .attr('dx', isMobileView ? 4 : 6)
+    .attr('dy', isMobileView ? -4 : -6)
+    .attr('transform', d => {
+      if (!projection) return 'translate(-9999,-9999)';
+      const point = projection(d.coord);
+      return point ? `translate(${point[0]}, ${point[1]})` : 'translate(-9999,-9999)';
+    })
+    .text(d => d.label || d.code || '');
   if (journeyLayer.node() && journeyLayer.node().parentNode) {
     journeyLayer.node().parentNode.appendChild(journeyLayer.node());
   }
@@ -1126,9 +1684,21 @@ function renderJourneyNetwork() {
 
 function refreshJourneyNetwork() {
   const path = globeMode && globePath ? globePath : flatPath;
+  const projection = globeMode && globeProjection ? globeProjection : flatProjection;
   if (!journeyLayer || !path) return;
   journeyLayer.selectAll('path')
     .attr('d', d => path({ type: 'LineString', coordinates: d.pathCoords }));
+  if (!projection) return;
+  journeyLayer.selectAll('.journey-marker')
+    .attr('transform', d => {
+      const point = projection(d.coord);
+      return point ? `translate(${point[0]}, ${point[1]})` : 'translate(-9999,-9999)';
+    });
+  journeyLayer.selectAll('.journey-label')
+    .attr('transform', d => {
+      const point = projection(d.coord);
+      return point ? `translate(${point[0]}, ${point[1]})` : 'translate(-9999,-9999)';
+    });
 }
 
 function shrinkGlobeForJourneyNetwork() {
@@ -1137,15 +1707,22 @@ function shrinkGlobeForJourneyNetwork() {
   const startScale = globeProjection.scale();
   const targetScale = globeBaseScale ? globeBaseScale * 0.82 : startScale * 0.85;
   const startRotation = globeProjection.rotate();
+  const targetRotation = [
+    JOURNEY_GLOBE_ROTATION[0],
+    JOURNEY_GLOBE_ROTATION[1],
+    Number.isFinite(startRotation[2]) ? startRotation[2] : 0
+  ];
   d3.transition().duration(1200).ease("cubic-in-out").tween("shrink", function() {
     const s = d3.interpolate(startScale, targetScale);
-    const r = d3.interpolate(startRotation, startRotation);
+    const r = d3.interpolate(startRotation, targetRotation);
     return function(t) {
-      globeProjection.rotate(r(t)).scale(s(t));
+      globeRotation = r(t);
+      globeProjection.rotate(globeRotation).scale(s(t));
       svg.selectAll(".datamaps-subunit").attr("d", globePath);
       refreshRoutePaths();
       updateRouteMarkers();
       updateRoutePlanePosition();
+      refreshJourneyNetwork();
     };
   });
 }
@@ -1167,7 +1744,8 @@ function getJourneyFlipMessages() {
   const totals = getJourneyTotals();
   const km = formatDistanceKm(totals.totalKm);
   const time = formatTotalDuration(totals.totalMs);
-  return [`TOTAL ${km} KM`, `TIME ${time}`];
+  const tripCount = journeyRoutes.length;
+  return [`TRIPS ${tripCount}`, `DIST ${km}KM`, `TIME ${time}`];
 }
 
 function formatTotalDuration(ms) {
@@ -1294,7 +1872,7 @@ function updateAirportSelectionMarkers() {
   });
   airportSelectionMarkers.append('circle')
     .attr('class', 'airport-selection-dot')
-    .attr('r', 3.4)
+    .attr('r', 5.2)
     .attr('fill', d => getMarkerColor(d.code));
   updateAirportSelectionMarkerPositions();
 }
@@ -1382,7 +1960,8 @@ function updateRoutePlaneFromPath(t) {
 }
 
 function updateRoutePlanePosition() {
-  if (!activeRoute || !globeProjection) return;
+  const projection = globeProjection || flatProjection;
+  if (!activeRoute || !projection) return;
   const coord = getRouteCoordAt(activeRoute, routeProgress);
   const nextCoord = getRouteCoordAt(activeRoute, Math.min(1, routeProgress + 0.01));
   updateRoutePlanePositionAt(coord, nextCoord);
@@ -1761,11 +2340,44 @@ function buildNoFlyCurvedPath(origin, destination, zone, options = {}) {
   return lastCoords;
 }
 
+function buildWestDetourPath(origin, destination, zone) {
+  if (!origin || !destination) return null;
+  const originCoord = [origin.lon, origin.lat];
+  const destCoord = [destination.lon, destination.lat];
+  const interpolate = d3.geo.interpolate(originCoord, destCoord);
+  const offsets = [18, 22, 26, 30, 34, 38];
+  const steps = 110;
+  for (const offset of offsets) {
+    const coords = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const base = interpolate(t);
+      const bow = Math.sin(Math.PI * t);
+      const lat = clampLat(base[1] - offset * bow);
+      coords.push([base[0], lat]);
+    }
+    const midLat = coords[Math.floor(steps / 2)][1];
+    if (midLat < 18 || midLat > 34) continue;
+    if (!pathIntersectsZone(coords, zone)) return coords;
+  }
+  return null;
+}
+
 function shouldForcePacificDetour(origin, destination) {
   if (!origin || !destination) return false;
   const other = origin.country === 'KOR' ? destination : (destination.country === 'KOR' ? origin : null);
   if (!other) return false;
   return other.lon < -30;
+}
+
+function shouldForceWestDetour(origin, destination, distanceKm) {
+  if (!origin || !destination) return false;
+  if (!Number.isFinite(origin.lon) || !Number.isFinite(destination.lon)) return false;
+  const westbound = destination.lon < origin.lon - 6;
+  if (!westbound) return false;
+  if (destination.lon <= -30) return false;
+  const km = Number.isFinite(distanceKm) ? distanceKm : estimateDistanceKm(origin, destination);
+  return km > 2200;
 }
 
 function findNoFlyDetour(origin, destination, polygon) {
@@ -1796,13 +2408,31 @@ function applyNoFlyZones(route) {
   const zone = noFlyZones[0];
   if (!zone) return route;
   const forcePacific = shouldForcePacificDetour(route.origin, route.destination);
-  if (!forcePacific && !pathIntersectsZone(route.pathCoords, zone)) return route;
+  const intersectsZone = pathIntersectsZone(route.pathCoords, zone)
+    || pathIntersectsZone(buildDisplayPathCoords(route, 32), zone);
+  const forceWest = shouldForceWestDetour(route.origin, route.destination, route.distanceKm);
+  if (!forcePacific && !intersectsZone && !forceWest) return route;
   if (forcePacific) {
     const pacificLine = buildPacificLinearPath(route.origin, route.destination);
     if (!pacificLine) return route;
     route.pathCoords = pacificLine;
     route.distanceKm = computeDistanceFromCoords(pacificLine);
   } else {
+    const westDetour = (forceWest || intersectsZone)
+      ? buildWestDetourPath(route.origin, route.destination, zone)
+      : null;
+    if (westDetour) {
+      route.pathCoords = westDetour;
+      route.distanceKm = computeDistanceFromCoords(westDetour);
+      route._segments = null;
+      route._totalDistance = null;
+      route._interpolator = null;
+      route._displayCoords = null;
+      route._displaySegments = null;
+      route._displayTotalDistance = null;
+      route._displayInterpolator = null;
+      return route;
+    }
     const mildCurve = buildNoFlyMildCurve(route.origin, route.destination, zone);
     if (!mildCurve) return route;
     route.pathCoords = mildCurve;
@@ -2486,7 +3116,7 @@ function initPCMap() {
         updateVisitHistory(d.id);
 
         const color = themeColors[Math.floor(Math.random()*themeColors.length)];
-        document.documentElement.style.setProperty('--accent', color);
+        applyAccentColor(color);
 
         zoomToCountry(datamap, d, () => {
           document.getElementById('boarding-pass-ui').classList.add('active');
@@ -2626,6 +3256,7 @@ function startReturnToWorldLanding() {
     clearTimeout(landingReturnTimer);
     landingReturnTimer = null;
   }
+  clearJourneyNetwork();
   landingTransitionPending = false;
   const mapWrapper = document.getElementById('map-wrapper');
   if (mapWrapper) mapWrapper.classList.add('map-fade');
@@ -2810,7 +3441,7 @@ function initGlobe() {
 
         // 테마 색상 변경
         const color = themeColors[Math.floor(Math.random() * themeColors.length)];
-        document.documentElement.style.setProperty('--accent', color);
+        applyAccentColor(color);
 
         // 부드러운 회전으로 선택한 국가를 정면으로
         const center = d3.geo.centroid(geo);
@@ -2937,6 +3568,8 @@ window.addEventListener('load', () => {
   populateOriginAirports(userConfig.from);
   populateDestinationAirports(selectedCountry, selectedDestinationAirport && selectedDestinationAirport.code);
   syncCustom();
+  const storedAccent = getStoredAccentColor();
+  if (storedAccent) applyAccentColor(storedAccent, false);
   checkDeviceAndInitMap();
   loadOpenFlightsData();
   const mapWrapper = document.getElementById('map-wrapper');
@@ -3063,7 +3696,8 @@ window.addEventListener('load', () => {
     if (!target) return;
     const isBoardingPass = target.closest('#boarding-pass-ui');
     const isTicketInput = target.closest('#boarding-pass-ui input, #boarding-pass-ui select');
-    if (isTicketInput || target.closest('.airport-suggest')) return;
+    if (isTicketInput || target.closest('.airport-suggest') || target.closest('.date-picker')) return;
+    if (target.closest('.date-picker-backdrop')) return;
     if (target.closest('button') || (isBoardingPass && !isTicketInput) || target.closest('.click-prompt')) {
       playAudio('airplane-bp');
     }
@@ -3082,11 +3716,17 @@ window.addEventListener('load', () => {
       showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : selectedCountry);
     }, {
       title: 'DEPARTURE AIRPORTS',
-      listProvider: () => (airportsByCountry.KOR || []).map(airport => ({
-        code: airport.code,
-        name: airport.name || airport.code,
-        labelCountry: 'KOR'
-      }))
+      listProvider: () => {
+        const primary = (airportsByCountry.KOR || []).map(airport => ({
+          code: airport.code,
+          name: airport.name || airport.code,
+          labelCountry: 'KOR'
+        }));
+        if (!primary.length) return getAllAirportsForList();
+        const primaryCodes = new Set(primary.map(entry => entry.code));
+        const rest = getAllAirportsForList().filter(entry => !primaryCodes.has(entry.code));
+        return primary.concat(rest);
+      }
     });
   }
 
@@ -3105,15 +3745,23 @@ window.addEventListener('load', () => {
       title: 'ARRIVAL AIRPORTS',
       listProvider: () => {
         if (selectedCountry && airportsByCountry[selectedCountry]) {
-          return airportsByCountry[selectedCountry].map(airport => ({
+          const local = airportsByCountry[selectedCountry].map(airport => ({
             code: airport.code,
             name: airport.name || airport.code,
             labelCountry: selectedCountry
           }));
+          const localCodes = new Set(local.map(entry => entry.code));
+          const rest = getAllAirportsForList().filter(entry => !localCodes.has(entry.code));
+          return local.concat(rest);
         }
         return getAllAirportsForList();
       }
     });
+  }
+
+  const dateInput = document.getElementById('ticket-date');
+  if (dateInput) {
+    attachDatePicker(dateInput);
   }
 
   const seatInput = document.getElementById('ticket-seat');
