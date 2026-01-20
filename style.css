@@ -367,6 +367,7 @@ button {
   color: rgba(0,0,0,0.55);
   margin-bottom: 6px;
   align-self: flex-start;
+  padding-left: 13px;
 }
 
 #journey-summary.journey-summary--hud .journey-summary-row {

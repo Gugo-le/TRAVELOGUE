@@ -374,14 +374,14 @@ function updateJourneySummary() {
   const tripsEl = document.getElementById('journey-summary-trips');
   const topEl = document.getElementById('journey-summary-top');
   const distEl = document.getElementById('journey-summary-dist');
-  const timeEl = document.getElementById('journey-summary-time');
+  const avgEl = document.getElementById('journey-summary-avg');
   if (!journeyRoutes || !journeyRoutes.length) {
     panel.classList.remove('is-visible');
     panel.setAttribute('aria-hidden', 'true');
     if (tripsEl) tripsEl.textContent = '0';
     if (topEl) topEl.textContent = '---';
     if (distEl) distEl.textContent = '0 KM';
-    if (timeEl) timeEl.textContent = '0M 00S';
+    if (avgEl) avgEl.textContent = '0 KM';
     return;
   }
   const totals = getJourneyTotals();
@@ -404,7 +404,10 @@ function updateJourneySummary() {
     topEl.textContent = topCountry || '---';
   }
   if (distEl) distEl.textContent = `${formatDistanceKm(totals.totalKm)} KM`;
-  if (timeEl) timeEl.textContent = formatTotalDuration(totals.totalMs);
+  if (avgEl) {
+    const avgKm = journeyRoutes.length ? totals.totalKm / journeyRoutes.length : 0;
+    avgEl.textContent = `${formatDistanceKm(avgKm)} KM`;
+  }
   panel.classList.add('is-visible');
   panel.setAttribute('aria-hidden', 'false');
   if (subtitle) subtitle.classList.toggle('subtitle-hidden', isJourneyMode);
