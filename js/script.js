@@ -7,7 +7,7 @@ const JOURNEY_SUMMARY_STYLE = 'hud';
 window.addEventListener('resize', () => {
   if (flightMode) return;
   const newIsMobile = window.innerWidth <= 768;
-  const desiredMode = forceGlobeMode || newIsMobile;
+  const desiredMode = forceGlobeMode || newIsMobile || mapViewPreference === 'globe';
   if (desiredMode !== globeMode) {
     checkDeviceAndInitMap();
   }
@@ -68,6 +68,15 @@ window.addEventListener('load', async () => {
     });
   }
   updateJourneyResetButton();
+
+  const mapModeToggle = document.getElementById('map-mode-toggle');
+  if (mapModeToggle) {
+    mapModeToggle.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-mode]');
+      if (!button) return;
+      setMapViewPreference(button.dataset.mode);
+    });
+  }
 
   const mapWrapperClick = document.getElementById('map-wrapper');
   if (mapWrapperClick) {

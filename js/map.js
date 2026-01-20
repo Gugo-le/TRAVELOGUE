@@ -109,7 +109,8 @@ function buildRouteFromSelection() {
 
 function checkDeviceAndInitMap() {
   isMobileView = window.innerWidth <= 768;
-  globeMode = forceGlobeMode || isMobileView || flightMode;
+  const prefersGlobe = mapViewPreference === 'globe';
+  globeMode = forceGlobeMode || isMobileView || flightMode || prefersGlobe;
   
   const mapWrapper = document.getElementById('map-wrapper');
   if (mapWrapper) {
@@ -132,6 +133,9 @@ function checkDeviceAndInitMap() {
     initGlobe();
   } else {
     initFlatMap();
+  }
+  if (typeof syncMapModeToggle === 'function') {
+    syncMapModeToggle();
   }
 }
 

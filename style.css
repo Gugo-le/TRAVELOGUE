@@ -942,6 +942,58 @@ button {
   color: var(--accent);
 }
 
+#map-mode-toggle {
+  position: absolute;
+  top: 36px;
+  right: 36px;
+  display: inline-flex;
+  gap: 14px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  font-family: var(--font-ticket);
+  letter-spacing: 2px;
+  z-index: 120;
+}
+
+#map-mode-toggle .map-mode-btn {
+  border: none;
+  background: transparent;
+  color: var(--ticket-muted);
+  border-radius: 0;
+  padding: 4px 2px 6px;
+  font-size: 0.58rem;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  font-family: inherit;
+  letter-spacing: 2px;
+  position: relative;
+  z-index: 1;
+  border-bottom: 1px solid transparent;
+}
+
+#map-mode-toggle .map-mode-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+#map-mode-toggle .map-mode-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  color: var(--ticket-ink);
+  border-bottom-color: var(--ticket-ink);
+}
+
+#map-mode-toggle .map-mode-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+#map-mode-toggle.is-disabled {
+  opacity: 0.65;
+}
+
 #flight-status {
   position: absolute;
   top: 18px;
@@ -1511,6 +1563,7 @@ button {
   #map-wrapper.globe-mode { padding-top: 0; }
   .hero-overlay h1 { font-size: 2.6rem; letter-spacing: 9px; font-weight: 100; }
   #back-btn { top: calc(12px + env(safe-area-inset-top)); left: 12px; padding: 8px 12px; font-size: 0.7rem; }
+  #map-mode-toggle { display: none; }
   #flight-status { top: calc(14px + env(safe-area-inset-top)); font-size: 0.5rem; letter-spacing: 3.5px; }
   #event-hud { top: calc(64px + env(safe-area-inset-top)); width: min(420px, 92vw); }
   .event-row { font-size: 0.5rem; letter-spacing: 2.6px; }

@@ -564,6 +564,29 @@ function shouldAllowCountryHover() {
   return !selectedCountry && !flightMode && !landingTransitionPending && !journeyNetworkVisible;
 }
 
+function setMapViewPreference(mode) {
+  if (flightMode || isMobileView) return;
+  const nextMode = mode === 'globe' ? 'globe' : 'flat';
+  mapViewPreference = nextMode;
+  localStorage.setItem(MAP_MODE_STORAGE_KEY, JSON.stringify(nextMode));
+  forceGlobeMode = false;
+  checkDeviceAndInitMap();
+}
+
+function syncMapModeToggle() {
+  const toggle = document.getElementById('map-mode-toggle');
+  if (!toggle) return;
+  const buttons = toggle.querySelectorAll('button[data-mode]');
+  const activeMode = globeMode ? 'globe' : 'flat';
+  buttons.forEach((button) => {
+    const isActive = button.dataset.mode === activeMode;
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-pressed', String(isActive));
+    button.disabled = flightMode;
+  });
+  toggle.classList.toggle('is-disabled', flightMode);
+}
+
 function togglePassport() {
   const overlay = document.getElementById('passport-overlay');
   if (overlay.style.display === 'flex') {

@@ -12,6 +12,7 @@ function loadJSON(key, fallback) {
 }
 
 const ACCENT_STORAGE_KEY = 'travelogue_accent';
+const MAP_MODE_STORAGE_KEY = 'travelogue_map_mode';
 
 function getStoredAccentColor() {
   const raw = localStorage.getItem(ACCENT_STORAGE_KEY);
@@ -122,6 +123,11 @@ if (Array.isArray(visitedCountries)) {
 let selectedCountry = null;
 let isAnimating = false;
 let isMobileView = window.innerWidth <= 768;
+let mapViewPreference = loadJSON(MAP_MODE_STORAGE_KEY, null);
+if (mapViewPreference !== 'globe' && mapViewPreference !== 'flat') {
+  mapViewPreference = null;
+  localStorage.removeItem(MAP_MODE_STORAGE_KEY);
+}
 let globeMode = isMobileView; // true = 지구본(3D), false = 평면지도(2D)
 let globeRotation = [-127, -36];
 let globeMap = null;
