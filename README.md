@@ -3,8 +3,15 @@
 <img src = "assets/favicon/web-app-manifest-512x512.png" width = "200">
 
 ## overview
+The excitement of travel is always at its peak just before departure.
+The air in the terminal, the wait in front of the gate, the subtle tremble in your fingertips as you press the “Check in” button. TRAVELOGUE captures those moments like turning a page, so you can return to them long after the journey ends.
+
+When a trip is over, we like to believe that photos last forever.
+But the warmth held within those images fades faster than we expect. TRAVELOGUE began as a way to hold onto that warmth—the feeling that disappears even before the photos do.
+
+**To bring back travel memories not as information, but as atmosphere.**
+
 여행의 설렘은 늘 출발 직전에 가장 선명해진다. 터미널의 공기, 게이트 앞의 기다림, "체크 인" 버튼을 누르는 손끝의 떨림. TRAVELOGUE는 그 순간을 한 페이지를 넘기듯 기록하고, 여행이 끝난 뒤에 다시 꺼내볼 수 있도록 만들었다.
 여행이 끝나면 사진은 영원하다고 여기지만, 사진 속에 담겼던 온도는 생각보다 빨리 옅어진다. TRAVELOGUE는 사진보다 먼저 사라지는 그 온도를 붙잡기 위해 시작됐다. 
 
 **여행의 기억을 "정보"가 아니라 "분위기"로 다시 불러오기 위해.**
-
