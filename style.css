@@ -219,7 +219,7 @@ button {
 /* --- FLIP BOARD --- */
 #subtitle-container {
   position: absolute;
-  bottom: 120px;
+  bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;

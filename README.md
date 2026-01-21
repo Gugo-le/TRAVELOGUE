@@ -18,7 +18,10 @@ But the warmth held within those images fades faster than we expect. TRAVELOGUE 
 
 
 - [ ] 엘범 기능
-- [ ] 파이어베이스 연동
+- [ ] 파이어베이스 연동(친구추가, 기록 저장)
 - [ ] flutter로 재개발 -> 앱 배포
 - [ ] 여권 꾸미기 기능
 - [ ] 국가마다 상징적인 소리 업데이트
+- [ ] 프로필: 방문한 나라들의 대표 색 합성
+- [ ] 채팅: 여행을 도와주는 도구
+- [ ] 
