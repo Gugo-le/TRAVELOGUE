@@ -15,3 +15,10 @@ But the warmth held within those images fades faster than we expect. TRAVELOGUE 
 여행이 끝나면 사진은 영원하다고 여기지만, 사진 속에 담겼던 온도는 생각보다 빨리 옅어진다. TRAVELOGUE는 사진보다 먼저 사라지는 그 온도를 붙잡기 위해 시작됐다. 
 
 **여행의 기억을 "정보"가 아니라 "분위기"로 다시 불러오기 위해.**
+
+---
+
+- [ ] 엘범 기능
+- [ ] 파이어베이스 연동
+- [ ] swift로 재개발
+- [ ] 여권 꾸미기 기능
