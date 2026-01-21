@@ -1914,7 +1914,7 @@ button {
 /* --- BOTTOM NAVIGATION BAR --- */
 .bottom-nav {
   position: fixed;
-  bottom: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   width: auto;
@@ -1930,7 +1930,6 @@ button {
   box-shadow: none;
   padding: 12px 0;
   gap: 56px;
-  padding-bottom: max(0px, env(safe-area-inset-bottom));
 }
 
 .nav-item {
@@ -1987,7 +1986,7 @@ button {
 @media (max-width: 768px) {
   .bottom-nav {
     height: auto;
-    bottom: 16px;
+    bottom: calc(28px + env(safe-area-inset-bottom));
     gap: 44px;
   }
   
@@ -2004,7 +2003,7 @@ button {
 
 @media (max-width: 480px) {
   .bottom-nav {
-    bottom: 12px;
+    bottom: calc(32px + env(safe-area-inset-bottom));
     gap: 36px;
   }
   
