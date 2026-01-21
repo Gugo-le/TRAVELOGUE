@@ -16,9 +16,9 @@ But the warmth held within those images fades faster than we expect. TRAVELOGUE 
 
 **여행의 기억을 "정보"가 아니라 "분위기"로 다시 불러오기 위해.**
 
----
 
 - [ ] 엘범 기능
 - [ ] 파이어베이스 연동
-- [ ] swift로 재개발
+- [ ] flutter로 재개발 -> 앱 배포
 - [ ] 여권 꾸미기 기능
+- [ ] 국가마다 상징적인 소리 업데이트
