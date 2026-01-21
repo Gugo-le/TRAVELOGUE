@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/public/index.html" },
+    { "source": "/search", "destination": "/public/search.html" },
+    { "source": "/chat", "destination": "/public/chat.html" },
+    { "source": "/profile", "destination": "/public/profile.html" },
+    { "source": "/(.*)", "destination": "/public/$1" }
+  ]
+}
