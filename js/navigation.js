@@ -1,9 +1,3 @@
-/*
-  Bottom Navigation Bar functionality
-  Handles page/section switching
-*/
-
-// Page contents (to be created)
 const PAGES = {
   home: 'map-wrapper',
   search: 'search-page',

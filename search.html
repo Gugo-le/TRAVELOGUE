@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search - TRAVELOGUE</title>
+
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon/favicon.svg">
+    <link rel="alternate icon" type="image/png" href="assets/favicon/favicon-96x96.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
+    <link rel="manifest" href="assets/favicon/site.webmanifest">
+    <meta name="theme-color" content="#ffffff">
+</head>
+<body>
+
+<div id="main-content">
+    <div class="page-container">
+        <div class="page-header">
+            <h1>SEARCH</h1>
+            <p class="page-subtitle">여행지를 찾아보세요</p>
+        </div>
+
+        <div class="search-container">
+            <div class="search-box">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" id="search-input" placeholder="국가, 도시, 공항 검색..." autocomplete="off">
+            </div>
+
+            <div class="filter-chips">
+                <button class="filter-chip active" data-filter="all">All</button>
+                <button class="filter-chip" data-filter="visited">Visited</button>
+                <button class="filter-chip" data-filter="wishlist">Wishlist</button>
+            </div>
+
+            <div id="search-results" class="search-results">
+                <div class="result-placeholder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                        <path d="M2 17l10 5 10-5"></path>
+                        <path d="M2 12l10 5 10-5"></path>
+                    </svg>
+                    <p>검색어를 입력하세요</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom Navigation Bar -->
+<nav id="bottom-nav" class="bottom-nav">
+    <a href="index.html" class="nav-item" data-page="home" title="Home">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+        <span class="nav-label">Home</span>
+    </a>
+    <a href="search.html" class="nav-item active" data-page="search" title="Search">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <span class="nav-label">Search</span>
+    </a>
+    <a href="chat.html" class="nav-item" data-page="chat" title="Chat">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span class="nav-label">Chat</span>
+    </a>
+    <a href="profile.html" class="nav-item" data-page="profile" title="Profile">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span class="nav-label">Profile</span>
+    </a>
+</nav>
+
+<style>
+.page-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 80px 24px 100px;
+    min-height: 100vh;
+}
+
+.page-header {
+    margin-bottom: 48px;
+}
+
+.page-header h1 {
+    font-family: var(--font-ticket);
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin: 0 0 8px 0;
+    color: var(--text);
+}
+
+.page-subtitle {
+    font-family: var(--font-body);
+    font-size: 16px;
+    color: var(--ticket-muted);
+    margin: 0;
+}
+
+.search-container {
+    width: 100%;
+}
+
+.search-box {
+    position: relative;
+    margin-bottom: 24px;
+}
+
+.search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    color: var(--ticket-muted);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+#search-input {
+    width: 100%;
+    padding: 16px 16px 16px 48px;
+    font-family: var(--font-body);
+    font-size: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text);
+    transition: all 0.3s ease;
+}
+
+#search-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.filter-chips {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+}
+
+.filter-chip {
+    padding: 8px 20px;
+    font-family: var(--font-ticket);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--ticket-muted);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.filter-chip:hover {
+    border-color: var(--accent);
+    color: var(--text);
+}
+
+.filter-chip.active {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--bg);
+}
+
+.search-results {
+    min-height: 400px;
+}
+
+.result-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    color: var(--ticket-muted);
+}
+
+.result-placeholder svg {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.result-placeholder p {
+    font-family: var(--font-body);
+    font-size: 14px;
+    margin: 0;
+}
+</style>
+
+</body>
+</html>

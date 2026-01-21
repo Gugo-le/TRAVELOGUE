@@ -26,7 +26,7 @@
 <audio id="airplane-loop" loop src="assets/audio/airplane.m4a"></audio>
 <audio id="soundscape-audio" loop></audio>
 
-<div id="intro-window">
+<div id="intro-window" style="display: none;">
     <div class="window-frame"><div class="window-glass"><div class="clouds"></div></div></div>
     <div class="intro-text-zone">
         <p class="terminal">TERMINAL 01 · GATE 24A</p>
@@ -45,7 +45,7 @@
     </div>
 </div>
 
-<div id="main-content">
+<div id="main-content" class="active">
     <div id="subtitle-container">
         <div class="flip-board" id="flip-board"></div>
     </div>
@@ -144,32 +144,33 @@
 
 <!-- Bottom Navigation Bar -->
 <nav id="bottom-nav" class="bottom-nav">
-    <button class="nav-item active" data-page="home" title="Home">
+    <a href="index.html" class="nav-item active" data-page="home" title="Home">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 12l9-9 9 9M12 21V9"></path>
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
         </svg>
         <span class="nav-label">Home</span>
-    </button>
-    <button class="nav-item" data-page="search" title="Search">
+    </a>
+    <a href="search.html" class="nav-item" data-page="search" title="Search">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.35-4.35"></path>
         </svg>
         <span class="nav-label">Search</span>
-    </button>
-    <button class="nav-item" data-page="chat" title="Chat">
+    </a>
+    <a href="chat.html" class="nav-item" data-page="chat" title="Chat">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
         </svg>
         <span class="nav-label">Chat</span>
-    </button>
-    <button class="nav-item" data-page="profile" title="Profile">
+    </a>
+    <a href="profile.html" class="nav-item" data-page="profile" title="Profile">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
             <circle cx="12" cy="7" r="4"></circle>
         </svg>
         <span class="nav-label">Profile</span>
-    </button>
+    </a>
 </nav>
 
 <script src="js/data.js"></script>
