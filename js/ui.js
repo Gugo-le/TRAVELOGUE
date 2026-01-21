@@ -549,17 +549,10 @@ function startJourney() {
   }
 
   setTimeout(() => {
-    const loading = document.getElementById('loading-overlay');
-    loading.classList.add('active');
-    updateFlipBoard('TAKING OFF');
-
-    setTimeout(() => {
-      loading.classList.remove('active');
-      document.getElementById('main-content').classList.add('active');
-      updateFlipBoard('WELCOME ABOARD');
-      checkDeviceAndInitMap();
-      isAnimating = false;
-    }, 3000);
+    document.getElementById('main-content').classList.add('active');
+    updateFlipBoard('WELCOME ABOARD');
+    checkDeviceAndInitMap();
+    isAnimating = false;
   }, 1000);
 }
 

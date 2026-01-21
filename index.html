@@ -45,15 +45,9 @@
     </div>
 </div>
 
-<div id="loading-overlay">
-    <div class="airplane-loading">✈</div>
-    <p>TAKING OFF...</p>
-</div>
-
 <div id="main-content">
     <div id="subtitle-container">
         <div class="flip-board" id="flip-board"></div>
-        <p class="subtitle-note">Travel, one page at a time.</p>
     </div>
     <div id="journey-summary" aria-hidden="true">
         <div class="summary-header">
@@ -148,12 +142,43 @@
     <div id="map-wrapper"></div>
 </div>
 
+<!-- Bottom Navigation Bar -->
+<nav id="bottom-nav" class="bottom-nav">
+    <button class="nav-item active" data-page="home" title="Home">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12l9-9 9 9M12 21V9"></path>
+        </svg>
+        <span class="nav-label">Home</span>
+    </button>
+    <button class="nav-item" data-page="search" title="Search">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <span class="nav-label">Search</span>
+    </button>
+    <button class="nav-item" data-page="chat" title="Chat">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span class="nav-label">Chat</span>
+    </button>
+    <button class="nav-item" data-page="profile" title="Profile">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span class="nav-label">Profile</span>
+    </button>
+</nav>
+
 <script src="js/data.js"></script>
 <script src="js/state.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/map.js"></script>
+<script src="js/navigation.js"></script>
 <script src="js/script.js"></script>
 </body>
 </html>

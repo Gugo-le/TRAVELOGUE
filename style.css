@@ -219,7 +219,7 @@ button {
 /* --- FLIP BOARD --- */
 #subtitle-container {
   position: absolute;
-  bottom: 60px;
+  bottom: 120px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
@@ -238,7 +238,7 @@ button {
 
 #journey-summary {
   position: absolute;
-  bottom: 90px;
+  bottom: 150px;
   left: 50%;
   transform: translateX(-50%);
   display: none;
@@ -1908,5 +1908,108 @@ button {
 
   .soundscape-slider {
     width: 80px;
+  }
+}
+
+/* --- BOTTOM NAVIGATION BAR --- */
+.bottom-nav {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  height: auto;
+  background: transparent;
+  backdrop-filter: none;
+  border: none;
+  border-radius: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  box-shadow: none;
+  padding: 12px 0;
+  gap: 56px;
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+  color: var(--ticket-muted);
+  transition: color 0.3s ease;
+  flex: 0;
+  height: auto;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font-family: var(--font-ticket);
+}
+
+.nav-item:hover {
+  color: var(--text);
+  background: transparent;
+}
+
+.nav-item.active {
+  color: var(--accent);
+}
+
+.nav-item.active::after {
+  display: none;
+}
+
+.nav-icon {
+  width: 24px;
+  height: 24px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.nav-label {
+  display: none;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Adjust main content for bottom nav */
+#main-app {
+  padding-bottom: 70px;
+}
+
+@media (max-width: 768px) {
+  .bottom-nav {
+    height: auto;
+    bottom: 16px;
+    gap: 44px;
+  }
+  
+  .nav-item {
+    gap: 0;
+    padding: 0;
+  }
+  
+  .nav-icon {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .bottom-nav {
+    bottom: 12px;
+    gap: 36px;
+  }
+  
+  .nav-icon {
+    width: 20px;
+    height: 20px;
   }
 }
