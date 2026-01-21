@@ -109,7 +109,6 @@ function hydrateJourneyRoutes(routes) {
   return normalized;
 }
 
-let travelData = loadJSON('travelogue_data', {});
 let userConfig = loadJSON('travelogue_config', { name: '', from: '' });
 let visitedCountries = loadJSON('visited_countries', {});
 if (Array.isArray(visitedCountries)) {
@@ -144,13 +143,6 @@ let passportPage = 0;
 let passportSwipeStart = null;
 let autoRotateFrame = null;
 let autoRotatePausedUntil = 0;
-let albumCountry = null;
-let albumPages = [];
-let albumPhotoCount = 0;
-let albumCurrentPage = 0;
-let albumLastPage = 0;
-let albumFlipLocked = false;
-let albumFlipTimer = null;
 const allowConnectingRoutes = false;
 let selectedOriginAirport = null;
 let selectedDestinationAirport = null;

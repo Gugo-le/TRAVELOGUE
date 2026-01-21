@@ -1914,8 +1914,6 @@ function resetMap(options = {}) {
   document.getElementById("back-btn").style.display = "none";
   const passportBtn = document.getElementById('passport-btn');
   if (passportBtn) passportBtn.style.display = 'block';
-  const albumOverlay = document.getElementById('album-overlay');
-  if (albumOverlay) albumOverlay.classList.remove('show');
   clearRouteOverlay();
   clearAirportSelectionMarkers();
   const mapWrapper = document.getElementById('map-wrapper');
@@ -1961,8 +1959,6 @@ function returnToWorldLanding() {
   if (backBtn) backBtn.style.display = "none";
   const passportBtn = document.getElementById('passport-btn');
   if (passportBtn) passportBtn.style.display = 'block';
-  const albumOverlay = document.getElementById('album-overlay');
-  if (albumOverlay) albumOverlay.classList.remove('show');
   checkDeviceAndInitMap();
   isAnimating = false;
 }

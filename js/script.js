@@ -129,34 +129,6 @@ window.addEventListener('load', async () => {
     });
   }
 
-  const albumUploadInput = document.getElementById('album-upload');
-  if (albumUploadInput) {
-    albumUploadInput.addEventListener('change', handleAlbumUpload);
-  }
-
-  const albumPrev = document.getElementById('album-prev');
-  const albumNext = document.getElementById('album-next');
-  const albumBook = document.getElementById('album-book');
-  if (albumPrev) {
-    albumPrev.addEventListener('click', (event) => {
-      event.stopPropagation();
-      flipAlbumPage(-1);
-    });
-  }
-  if (albumNext) {
-    albumNext.addEventListener('click', (event) => {
-      event.stopPropagation();
-      flipAlbumPage(1);
-    });
-  }
-  if (albumBook) {
-    albumBook.addEventListener('click', (event) => {
-      if (!albumPhotoCount) return;
-      const rect = albumBook.getBoundingClientRect();
-      const direction = (event.clientX - rect.left) > rect.width / 2 ? 1 : -1;
-      flipAlbumPage(direction);
-    });
-  }
 
   document.addEventListener('click', (event) => {
     const target = event.target;
