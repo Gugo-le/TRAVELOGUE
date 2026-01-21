@@ -60,7 +60,7 @@ function playLandingThenResume() {
 
 async function loadCountrySounds() {
   try {
-    const res = await fetch('assets/data/country-sounds.json');
+    const res = await fetch('../assets/data/country-sounds.json');
     if (!res.ok) return;
     const data = await res.json();
     countrySounds = data.sounds || {};

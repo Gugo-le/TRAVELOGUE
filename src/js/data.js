@@ -1,5 +1,5 @@
-const AIRPORTS_DATA_URL = 'assets/data/airports.json';
-const THEME_COLORS_URL = 'assets/data/theme-colors.json';
+const AIRPORTS_DATA_URL = '../assets/data/airports.json';
+const THEME_COLORS_URL = '../assets/data/theme-colors.json';
 
 let themeColors = [];
 let airportsByCountry = {};
