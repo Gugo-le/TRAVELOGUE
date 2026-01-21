@@ -1320,8 +1320,8 @@ function addOpenFlightsRoute(source, destination) {
 }
 
 function loadOpenFlightsData() {
-  const airportsUrl = '../assets/data/openflights/airports.dat';
-  const routesUrl = '../assets/data/openflights/routes.dat';
+  const airportsUrl = 'assets/data/openflights/airports.dat';
+  const routesUrl = 'assets/data/openflights/routes.dat';
   return Promise.all([
     fetch(airportsUrl).then(res => res.ok ? res.text() : ''),
     fetch(routesUrl).then(res => res.ok ? res.text() : '')
