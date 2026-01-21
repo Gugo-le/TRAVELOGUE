@@ -191,9 +191,7 @@ window.addEventListener('load', async () => {
             name: airport.name || airport.code,
             labelCountry: selectedCountry
           }));
-          const localCodes = new Set(local.map(entry => entry.code));
-          const rest = getAllAirportsForList().filter(entry => !localCodes.has(entry.code));
-          return local.concat(rest);
+          return local;
         }
         return getAllAirportsForList();
       }

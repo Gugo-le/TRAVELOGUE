@@ -730,7 +730,7 @@ let flatZoomBehavior = null;
 
 function focusAirportFlat(airport, options = {}) {
   if (!mapGroup || !flatProjection || !airport) return;
-  const { duration = 900, scale = 1.8 } = options;
+  const { duration = 900, scale = 2.5 } = options;
   const point = flatProjection([airport.lon, airport.lat]);
   if (!point || point.length < 2) return;
   const tx = (window.innerWidth / 2) - (scale * point[0]);

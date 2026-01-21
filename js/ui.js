@@ -132,7 +132,10 @@ function attachAirportSuggest(input, onSelect, options = {}) {
     backdrop = document.createElement('div');
     backdrop.className = 'airport-suggest-backdrop';
     backdrop.style.display = 'none';
-    backdrop.addEventListener('click', () => close());
+    backdrop.addEventListener('click', (e) => {
+      e.stopPropagation();
+      close();
+    });
     document.body.appendChild(backdrop);
 
     panel = document.createElement('div');
@@ -195,11 +198,15 @@ function attachAirportSuggest(input, onSelect, options = {}) {
         item.textContent = `${entry.code} \u00b7 ${entry.name}`;
         item.addEventListener('pointerdown', (e) => {
           e.preventDefault();
+          e.stopPropagation();
           const code = normalizeIata(entry.code);
           input.value = code;
           if (typeof onSelect === 'function') onSelect(code);
           close();
-          input.blur();
+          // Delay blur on mobile to allow focus animation to complete
+          setTimeout(() => {
+            input.blur();
+          }, 100);
         });
         listBox.appendChild(item);
       });
