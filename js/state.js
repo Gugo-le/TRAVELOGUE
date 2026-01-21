@@ -111,6 +111,7 @@ function hydrateJourneyRoutes(routes) {
 
 let userConfig = loadJSON('travelogue_config', { name: '', from: '' });
 let visitedCountries = loadJSON('visited_countries', {});
+let visitedStamps = loadJSON('visited_stamps', []);
 if (Array.isArray(visitedCountries)) {
   const migrated = {};
   visitedCountries.forEach(code => {

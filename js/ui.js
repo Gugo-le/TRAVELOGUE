@@ -9,6 +9,18 @@ function updateVisitHistory(code) {
   historyEl.textContent = dates.length ? `${dates.join(' \u00b7 ')}` : 'FIRST VISIT';
 }
 
+function getPassportEntries() {
+  if (Array.isArray(visitedStamps) && visitedStamps.length) {
+    return visitedStamps
+      .filter(entry => entry.type !== 'DEP')
+      .slice()
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  }
+  return Object.keys(visitedCountries).flatMap(code => {
+    return (visitedCountries[code] || []).map(date => ({ code, date, type: 'ARR' }));
+  }).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+}
+
 function updateTicketAirportCodes() {
   const fromEl = document.getElementById('ticket-from-code');
   const toEl = document.getElementById('ticket-dest-code');
@@ -600,21 +612,145 @@ function togglePassport() {
   }
 }
 
+function getPassportStampLabel(code) {
+  const labels = {
+    AUS: 'AUSTRALIA',
+    IND: 'INDIA',
+    USA: 'UNITED STATES OF AMERICA',
+    JPN: 'JAPAN',
+    GBR: 'UNITED KINGDOM',
+    FRA: 'FRANCE',
+    ITA: 'ITALY',
+    ESP: 'SPAIN',
+    DEU: 'GERMANY',
+    NLD: 'NETHERLANDS',
+    CHE: 'SWITZERLAND',
+    AUT: 'AUSTRIA',
+    GRC: 'GREECE',
+    EGY: 'EGYPT',
+    TUR: 'TURKEY',
+    RUS: 'RUSSIAN FEDERATION',
+    CHN: 'CHINA',
+    THA: 'THAILAND',
+    VNM: 'VIETNAM',
+    MYS: 'MALAYSIA',
+    SGP: 'SINGAPORE',
+    IDN: 'INDONESIA',
+    PHL: 'PHILIPPINES',
+    NZL: 'NEW ZEALAND',
+    CAN: 'CANADA',
+    MEX: 'MEXICO',
+    BRA: 'BRAZIL',
+    ARG: 'ARGENTINA',
+    CHL: 'CHILE',
+    PER: 'PERU',
+    COL: 'COLOMBIA',
+    ZAF: 'SOUTH AFRICA',
+    MAR: 'MOROCCO',
+    ARE: 'UNITED ARAB EMIRATES',
+    ISR: 'ISRAEL',
+    SAU: 'SAUDI ARABIA',
+    KEN: 'KENYA',
+    NGA: 'NIGERIA',
+    SWE: 'SWEDEN',
+    NOR: 'NORWAY',
+    KOR: 'REPUBLIC OF KOREA'
+  };
+  return {
+    title: labels[code] || code,
+    subtitle: code
+  };
+}
+
+function getPassportStampTheme(code, index) {
+  const colors = ['#e8a1b4', '#8bbd9f', '#d8b46a', '#7ba8d1', '#c3a7d8', '#e2a07f'];
+  const shapes = ['shape-oval', 'shape-rect'];
+  const color = colors[index % colors.length];
+  const shape = shapes[index % shapes.length];
+  const rotate = (index % 5 - 2) * 2;
+  return {
+    color,
+    shape,
+    rotate,
+    icon: getPassportLandmarkSvg(code)
+  };
+}
+
+function getPassportLandmarkSvg(code) {
+  const icons = {
+    AUS: '<svg viewBox="0 0 64 64"><path d="M8 48h48M12 48c8-10 18-16 22-16m-6 16c6-7 14-12 20-12"/></svg>',
+    IND: '<svg viewBox="0 0 64 64"><path d="M10 50h44M16 50V30h32v20M20 30l12-12 12 12M26 30v20M38 30v20"/></svg>',
+    USA: '<svg viewBox="0 0 64 64"><path d="M32 10v44M24 54h16M26 22h12l-2 10h-8l-2-10M26 22l-2 8M38 22l2 8"/></svg>',
+    JPN: '<svg viewBox="0 0 64 64"><path d="M12 52h40M14 22h36M14 22l-2-6h40l-2 6M20 22v-8M44 22v-8M24 52V28h16v24M28 28v-6h8v6"/></svg>',
+    GBR: '<svg viewBox="0 0 64 64"><path d="M20 54h24M22 54V20h20v34M24 20V10h16v10M24 28h16"/></svg>',
+    FRA: '<svg viewBox="0 0 64 64"><path d="M32 10l10 24H22l10-24M26 34l-6 20h24l-6-20M30 24h4"/></svg>',
+    ITA: '<svg viewBox="0 0 64 64"><path d="M16 52h32M18 52V22h28v30M20 22l6-8h12l6 8M24 30h16"/></svg>',
+    ESP: '<svg viewBox="0 0 64 64"><path d="M16 50h32M20 50V24h24v26M24 24l8-10 8 10M28 34h8"/></svg>',
+    DEU: '<svg viewBox="0 0 64 64"><path d="M10 52h44M18 52V22h28v30M24 22V14h16v8M24 34h16"/></svg>',
+    NLD: '<svg viewBox="0 0 64 64"><path d="M12 50h40M32 14v28M20 30l12-16 12 16M24 42h16"/></svg>',
+    CHE: '<svg viewBox="0 0 64 64"><path d="M10 50h44M20 50l8-20 8 8 8-16 8 28M28 30l-6-14"/></svg>',
+    AUT: '<svg viewBox="0 0 64 64"><path d="M12 50h40M20 50V26h24v24M24 26l8-10 8 10M26 36h12"/></svg>',
+    GRC: '<svg viewBox="0 0 64 64"><path d="M12 52h40M16 52l8-20h16l8 20M24 32h16M26 26h12"/></svg>',
+    EGY: '<svg viewBox="0 0 64 64"><path d="M12 52h40M20 52l12-24 12 24M24 40h16"/></svg>',
+    TUR: '<svg viewBox="0 0 64 64"><path d="M12 52h40M20 52V28h24v24M24 28l8-10 8 10M24 36h16"/></svg>',
+    RUS: '<svg viewBox="0 0 64 64"><path d="M12 52h40M18 52V28h28v24M20 28l6-10 8 6 10-10 8 14M24 36h16"/></svg>',
+    CHN: '<svg viewBox="0 0 64 64"><path d="M6 46l8-10 8 6 8-10 8 6 8-10 4 4M10 30h6M24 30h6M38 30h6M18 40h6M32 40h6M46 40h6"/></svg>',
+    THA: '<svg viewBox="0 0 64 64"><path d="M12 52h40M20 52V28h24v24M24 28l8-12 8 12M24 36h16"/></svg>',
+    VNM: '<svg viewBox="0 0 64 64"><path d="M12 52h40M16 52V30h32v22M20 30l12-12 12 12M22 38h20"/></svg>',
+    MYS: '<svg viewBox="0 0 64 64"><path d="M16 52h32M20 52V24h10v28M34 24h10v28M24 24l4-8 8 8 4-8"/></svg>',
+    SGP: '<svg viewBox="0 0 64 64"><path d="M12 52h40M20 52V24h24v28M22 24l10-10 10 10M26 34h12"/></svg>',
+    IDN: '<svg viewBox="0 0 64 64"><path d="M12 52h40M18 52l6-18h16l6 18M24 34h16"/></svg>',
+    PHL: '<svg viewBox="0 0 64 64"><path d="M12 52h40M18 52V28h28v24M22 28l10-10 10 10M24 36h16"/></svg>',
+    NZL: '<svg viewBox="0 0 64 64"><path d="M10 50h44M14 50l10-18 8 8 10-18 8 28"/></svg>',
+    CAN: '<svg viewBox="0 0 64 64"><path d="M16 54h32M20 54V22h24v32M24 22V12h16v10M24 32h16"/></svg>',
+    MEX: '<svg viewBox="0 0 64 64"><path d="M12 52h40M18 52V28h28v24M22 28l10-12 10 12M24 36h16"/></svg>',
+    BRA: '<svg viewBox="0 0 64 64"><path d="M32 14v36M20 26h24M18 42l14 8 14-8"/></svg>',
+    ARG: '<svg viewBox="0 0 64 64"><path d="M12 52h40M22 52V26h20v26M24 26l8-12 8 12M26 36h12"/></svg>',
+    CHL: '<svg viewBox="0 0 64 64"><path d="M12 52h40M18 52l8-18 6 10 12-18 8 26"/></svg>',
+    PER: '<svg viewBox="0 0 64 64"><path d="M12 52h40M16 52l8-20 16 12 8-16"/></svg>',
+    COL: '<svg viewBox="0 0 64 64"><path d="M12 52h40M20 52V26h24v26M24 26l8-10 8 10M24 36h16"/></svg>',
+    ZAF: '<svg viewBox="0 0 64 64"><path d="M10 52h44M18 52l6-18 8 8 10-18 10 28"/></svg>',
+    MAR: '<svg viewBox="0 0 64 64"><path d="M12 52h40M18 52V30h28v22M22 30l10-10 10 10M24 38h16"/></svg>',
+    ARE: '<svg viewBox="0 0 64 64"><path d="M12 52h40M20 52V20h8v32M30 20h8v32M40 28h8v24"/></svg>',
+    ISR: '<svg viewBox="0 0 64 64"><path d="M12 52h40M20 52V26h24v26M24 26l8-8 8 8M24 36h16"/></svg>',
+    SAU: '<svg viewBox="0 0 64 64"><path d="M12 52h40M18 52V30h28v22M22 30l10-12 10 12M24 38h16"/></svg>',
+    KEN: '<svg viewBox="0 0 64 64"><path d="M12 52h40M18 52l6-18 8 10 10-18 10 26"/></svg>',
+    NGA: '<svg viewBox="0 0 64 64"><path d="M12 52h40M20 52V28h24v24M22 28l10-12 10 12M24 36h16"/></svg>',
+    SWE: '<svg viewBox="0 0 64 64"><path d="M12 52h40M20 52V24h24v28M24 24l8-8 8 8M24 34h16"/></svg>',
+    NOR: '<svg viewBox="0 0 64 64"><path d="M12 52h40M18 52l8-20 8 12 8-18 8 26"/></svg>',
+    KOR: '<svg viewBox="0 0 64 64"><path d="M10 52h44M14 52V30h36v22M18 30l14-12 14 12M20 30v-6h24v6M24 40h16"/></svg>'
+  };
+  return icons[code] || '<svg viewBox="0 0 64 64"><path d="M12 48h40M32 14l6 14H26l6-14M20 48l12-18 12 18"/></svg>';
+}
+
+function formatPassportDate(date) {
+  if (!date) return '';
+  const parts = date.split('-');
+  if (parts.length !== 3) return date;
+  const [year, month, day] = parts;
+  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const monthIndex = Math.max(1, Math.min(12, Number(month))) - 1;
+  const safeDay = day && day.length === 2 ? day : String(day).padStart(2, '0');
+  return `${monthNames[monthIndex]} ${safeDay} ${year}`;
+}
+
 function renderPassport() {
   const page = document.getElementById('passport-page');
-  const stampsPerPage = isMobileView ? 6 : 8;
-  const codes = Object.keys(visitedCountries).sort();
-  const entries = codes.flatMap(code => {
-    return (visitedCountries[code] || []).map(date => ({ code, date }));
-  }).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const stampsPerPage = 18;
+  const entries = getPassportEntries();
   const summary = document.getElementById('passport-summary');
   if (summary) {
+    const codes = Object.keys(visitedCountries).sort();
     const parts = codes.map(code => `${code} x${(visitedCountries[code] || []).length}`);
     summary.textContent = parts.length ? parts.join(' \u00b7 ') : 'NO VISITS YET';
   }
   const totalPages = Math.max(1, Math.ceil(entries.length / stampsPerPage));
   passportPage = Math.min(passportPage, totalPages - 1);
-  page.innerHTML = entries.length ? '' : "<div style='grid-column:1/-1; text-align:center; color:#1a3666; opacity:0.3; padding-top:150px; font-family:var(--font-ticket); letter-spacing:5px;'>NO RECORDS FOUND</div>";
+  if (entries.length) {
+    page.innerHTML = '';
+  } else {
+    page.innerHTML = "<div class='passport-empty'>NO RECORDS FOUND</div>";
+  }
 
   const prevBtn = document.getElementById('passport-prev');
   const nextBtn = document.getElementById('passport-next');
@@ -628,18 +764,22 @@ function renderPassport() {
 
   const start = passportPage * stampsPerPage;
   const pageItems = entries.slice(start, start + stampsPerPage);
-  pageItems.forEach(({ code, date }) => {
+  pageItems.forEach(({ code, date, type, airport, origin }, index) => {
     const stamp = document.createElement('div');
-    const color = getRandomThemeColor();
-    const randomRot = Math.random() * 20 - 10;
+    const stampIndex = passportPage * stampsPerPage + index;
+    const theme = getPassportStampTheme(code, stampIndex);
+    const label = getPassportStampLabel(code);
 
-    stamp.className = 'passport-stamp';
-    stamp.style = `border:4px double ${color}; color:${color}; transform:rotate(${randomRot}deg); box-shadow: inset 0 0 5px ${color}33;`;
+    stamp.className = `passport-stamp ${theme.shape}`;
+    stamp.style.setProperty('--stamp-color', theme.color);
+    stamp.style.setProperty('--stamp-rotate', `${theme.rotate}deg`);
+    const dateLabel = formatPassportDate(date);
+    const subtitle = origin ? `${origin} → ${airport || label.subtitle}` : (airport || label.subtitle);
     stamp.innerHTML = `
-      <div style="font-size:0.5rem; margin-bottom:5px; border-bottom:1px solid">IMMIGRATION</div>
-      <div style="font-size:1.8rem; margin:2px 0;">${code}</div>
-      <div style="font-size:0.4rem;">${date || ''}</div>
-      <div style="font-size:0.4rem; margin-top:5px;">ADMITTED</div>
+      <div class="stamp-title">${label.title}</div>
+      <div class="stamp-icon">${theme.icon}</div>
+      <div class="stamp-subtitle">${subtitle}</div>
+      <div class="stamp-meta">${dateLabel ? `${type || 'ARR'} ${dateLabel}` : ''}</div>
     `;
     page.appendChild(stamp);
   });
@@ -653,7 +793,7 @@ function renderPassport() {
 }
 
 function changePassportPage(delta) {
-  const stampsPerPage = isMobileView ? 6 : 8;
+  const stampsPerPage = 18;
   const totalPages = Math.max(1, Math.ceil(
     Object.keys(visitedCountries).reduce((sum, code) => sum + (visitedCountries[code] || []).length, 0) / stampsPerPage
   ));
@@ -699,6 +839,17 @@ function handleTicketClick(e) {
   visitedCountries[selectedCountry].push(visitDate);
   localStorage.setItem('visited_countries', JSON.stringify(visitedCountries));
   updateVisitHistory(selectedCountry);
+  if (route && route.origin && route.destination) {
+    const destinationCountry = route.destination.country || resolveAirportCountry(route.destination);
+    visitedStamps.push({
+      code: destinationCountry || route.destination.code,
+      airport: route.destination.code,
+      origin: route.origin.code,
+      date: visitDate,
+      type: 'ARR'
+    });
+    localStorage.setItem('visited_stamps', JSON.stringify(visitedStamps));
+  }
 
   setTimeout(() => {
     ticket.classList.add('tearing');

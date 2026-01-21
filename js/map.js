@@ -137,6 +137,9 @@ function checkDeviceAndInitMap() {
   if (typeof syncMapModeToggle === 'function') {
     syncMapModeToggle();
   }
+  if (journeyNetworkVisible) {
+    renderJourneyNetwork();
+  }
 }
 
 function clearRouteOverlay() {
@@ -269,10 +272,10 @@ function renderJourneyNetwork() {
     const destCoord = resolveJourneyAirportCoord(destination) || coords[coords.length - 1];
     const originCode = origin.code || '';
     const destCode = destination.code || '';
-    const originName = (originCode ? getAirportByCode(originCode)?.name : '') || origin.name || originCode;
-    const destName = (destCode ? getAirportByCode(destCode)?.name : '') || destination.name || destCode;
-    addMarker(originCoord, originCode, originName, route.color || fallbackColor);
-    addMarker(destCoord, destCode, destName, route.color || fallbackColor);
+    const originLabel = (originCode ? getAirportByCode(originCode)?.name : '') || origin.name || '';
+    const destLabel = (destCode ? getAirportByCode(destCode)?.name : '') || destination.name || '';
+    addMarker(originCoord, originCode, originLabel, route.color || fallbackColor);
+    addMarker(destCoord, destCode, destLabel, route.color || fallbackColor);
   });
   const markers = journeyLayer.append('g').attr('class', 'journey-markers');
   markers.selectAll('circle')
@@ -301,7 +304,7 @@ function renderJourneyNetwork() {
       const point = projection(d.coord);
       return point ? `translate(${point[0]}, ${point[1]})` : 'translate(-9999,-9999)';
     })
-    .text(d => d.label || d.code || '');
+    .text(d => d.label || '');
   if (journeyLayer.node() && journeyLayer.node().parentNode) {
     journeyLayer.node().parentNode.appendChild(journeyLayer.node());
   }
@@ -681,10 +684,6 @@ function renderRouteOverlay(route) {
   routeMarkers.append("circle")
     .attr("r", 4.5)
     .attr("stroke", accent);
-  routeMarkers.append("text")
-    .attr("y", -12)
-    .text(d => d.code)
-    .attr("fill", accent);
   routePlane = routeLayer.append("g")
     .attr("class", "route-plane")
     .style("opacity", 0);
