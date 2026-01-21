@@ -21,6 +21,8 @@ window.addEventListener('load', async () => {
   document.addEventListener('touchstart', unlockAudio, { passive: true, once: true });
   document.addEventListener('click', unlockAudio, { passive: true, once: true });
   await loadStaticData();
+  await loadCountrySounds();
+  loadStoredSoundscapeVolume();
   document.getElementById('input-name').value = userConfig.name;
   document.getElementById('input-from').value = userConfig.from;
   populateOriginAirports(userConfig.from);

@@ -13,6 +13,12 @@ function loadJSON(key, fallback) {
 
 const ACCENT_STORAGE_KEY = 'travelogue_accent';
 const MAP_MODE_STORAGE_KEY = 'travelogue_map_mode';
+const SOUNDSCAPE_VOLUME_KEY = 'travelogue_soundscape_volume';
+
+let countrySounds = {};
+let currentSoundscape = null;
+let soundscapeVolume = 0.5;
+let soundscapeMuted = false;
 
 function getStoredAccentColor() {
   const raw = localStorage.getItem(ACCENT_STORAGE_KEY);
@@ -109,7 +115,7 @@ function hydrateJourneyRoutes(routes) {
   return normalized;
 }
 
-let userConfig = loadJSON('travelogue_config', { name: '', from: '' });
+let userConfig = loadJSON('travelogue_config', { name: '', from: '', issuedAt: '' });
 let visitedCountries = loadJSON('visited_countries', {});
 let visitedStamps = loadJSON('visited_stamps', []);
 if (Array.isArray(visitedCountries)) {

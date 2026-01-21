@@ -469,6 +469,10 @@ function setDestinationCountry(countryCode) {
   selectedCountry = countryCode;
   populateDestinationAirports(countryCode, selectedDestinationAirport && selectedDestinationAirport.code);
   showEventHud(selectedDestinationAirport ? selectedDestinationAirport.code : countryCode);
+  
+  setTimeout(() => {
+    playSoundscape(countryCode);
+  }, 2300);
 }
 
 function setDestinationAirport(code) {
@@ -501,7 +505,7 @@ function syncCustom() {
     const fromEl = document.getElementById('ticket-from-code');
     setCodeValue(fromEl, fromCode);
   }
-  userConfig = { name, from };
+  userConfig = { ...userConfig, name, from };
   localStorage.setItem('travelogue_config', JSON.stringify(userConfig));
   updateTicketAirportCodes();
 }
@@ -515,10 +519,27 @@ function startJourney() {
   if (isAnimating) return;
   isAnimating = true;
   unlockAudio();
-  playAudio('airplane-bp');
-  setTimeout(() => playAudio('airplane-bp', { restart: false }), 80);
+  
+  // Play boarding sound effect
+  const bpSound = playAudio('airplane-bp');
+  if (bpSound) bpSound.volume = 0.6; // 음량 조절
+  setTimeout(() => {
+    const bpSound2 = playAudio('airplane-bp', { restart: false });
+    if (bpSound2) bpSound2.volume = 0.6;
+  }, 80);
+
+  // Play soundscape for destination country
+  setTimeout(() => {
+    if (selectedCountry) {
+      playSoundscape(selectedCountry);
+    }
+  }, 500);
 
   document.getElementById('intro-window').style.transform = 'translateY(-100%)';
+  if (!userConfig.issuedAt) {
+    userConfig.issuedAt = getTodayString();
+    localStorage.setItem('travelogue_config', JSON.stringify(userConfig));
+  }
 
   setTimeout(() => {
     const loading = document.getElementById('loading-overlay');
@@ -916,13 +937,17 @@ function formatPassportDate(date) {
 
 function renderPassport() {
   const page = document.getElementById('passport-page');
-  const stampsPerPage = 18;
+  const stampsPerPage = isMobileView ? 10 : 18;
   const entries = getPassportEntries();
   const summary = document.getElementById('passport-summary');
   if (summary) {
-    const codes = Object.keys(visitedCountries).sort();
-    const parts = codes.map(code => `${code} x${(visitedCountries[code] || []).length}`);
-    summary.textContent = parts.length ? parts.join(' \u00b7 ') : 'NO VISITS YET';
+    const name = (userConfig.name || 'TRAVELER').toUpperCase();
+    const issuedLabel = userConfig.issuedAt ? formatPassportDate(userConfig.issuedAt) : '—';
+    summary.innerHTML = `
+      <span class="summary-name">${name}</span>
+      <span class="summary-issue">ISSUED ${issuedLabel}</span>
+      <span class="summary-count">${entries.length} STAMPS</span>
+    `;
   }
   const totalPages = Math.max(1, Math.ceil(entries.length / stampsPerPage));
   passportPage = Math.min(passportPage, totalPages - 1);
@@ -973,7 +998,7 @@ function renderPassport() {
 }
 
 function changePassportPage(delta) {
-  const stampsPerPage = 18;
+  const stampsPerPage = isMobileView ? 10 : 18;
   const totalPages = Math.max(1, Math.ceil(
     Object.keys(visitedCountries).reduce((sum, code) => sum + (visitedCountries[code] || []).length, 0) / stampsPerPage
   ));

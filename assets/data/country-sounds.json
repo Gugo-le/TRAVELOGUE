@@ -1,0 +1,52 @@
+{
+  "sounds": {
+    "JPN": {
+      "name": "Japan",
+      "file": "assets/audio/soundscapes/JP.mp3"
+    },
+    "KOR": {
+      "name": "South Korea",
+      "file": "assets/audio/soundscapes/KR.mp3"
+    },
+    "THA": {
+      "name": "Thailand",
+      "file": "assets/audio/soundscapes/TH.mp3",
+      "disabled": true
+    },
+    "FRA": {
+      "name": "France",
+      "file": "assets/audio/soundscapes/FR.mp3",
+      "disabled": true
+    },
+    "USA": {
+      "name": "United States",
+      "file": "assets/audio/soundscapes/US.mp3",
+      "disabled": true
+    },
+    "ITA": {
+      "name": "Italy",
+      "file": "assets/audio/soundscapes/IT.mp3",
+      "disabled": true
+    },
+    "ESP": {
+      "name": "Spain",
+      "file": "assets/audio/soundscapes/ES.mp3",
+      "disabled": true
+    },
+    "DEU": {
+      "name": "Germany",
+      "file": "assets/audio/soundscapes/DE.mp3",
+      "disabled": true
+    },
+    "CHN": {
+      "name": "China",
+      "file": "assets/audio/soundscapes/CN.mp3",
+      "disabled": true
+    },
+    "AUS": {
+      "name": "Australia",
+      "file": "assets/audio/soundscapes/AU.mp3"
+    }
+  }
+}
+

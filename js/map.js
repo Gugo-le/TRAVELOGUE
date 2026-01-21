@@ -1861,6 +1861,10 @@ function resetMap(options = {}) {
   const { preserveFlight = false } = options;
   selectedCountry = null;
   selectedDestinationAirport = null;
+  
+  // Stop soundscape when returning to world map
+  stopSoundscape();
+  
   if (!preserveFlight) {
     flightMode = false;
     forceGlobeMode = false;
