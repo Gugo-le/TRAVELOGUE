@@ -16,6 +16,28 @@ But the warmth held within those images fades faster than we expect. TRAVELOGUE 
 
 **여행의 기억을 "정보"가 아니라 "분위기"로 다시 불러오기 위해.**
 
+## Trips Schema & Stats
+
+Trips are stored in Firestore under `users/{uid}/trips` with documents like:
+
+```
+{
+	origin: "ICN",             // IATA code (uppercase)
+	destination: "NRT",        // IATA code (uppercase)
+	date: <timestamp|string>,   // travel date
+	distanceOverride?: 1234,    // optional km override
+	country?: "JPN",           // optional primary country tag
+	createdAt: <timestamp>      // server timestamp
+}
+```
+
+Stats are computed via `js/stats.js` using the airports dataset loaded in `js/data.js`:
+- Total Trips: number of trip documents
+- Total Countries: unique countries visited (origin/destination inferred)
+- Total Distance: Haversine distance (km) summed; overrides honored
+
+The profile page subscribes to `users/{uid}/trips` changes and updates both the UI and `users/{uid}.stats` automatically.
+
 
 - [ ] 엘범 기능
 - [ ] 파이어베이스 연동(친구추가, 기록 저장)

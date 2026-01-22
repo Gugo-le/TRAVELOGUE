@@ -3,18 +3,17 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // users 컬렉션 - 자신의 프로필만 읽고 쓸 수 있음
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      // 읽기: 로그인된 사용자는 다른 사용자 프로필 검색 가능
+      allow read: if request.auth != null;
+      // 쓰기: 본인만 자신의 프로필을 관리
       allow create: if request.auth != null && request.auth.uid == userId;
       allow update: if request.auth != null && request.auth.uid == userId;
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    // trips 컬렉션 - 자신의 여행 기록만 접근
-    match /trips/{userId}/{document=**} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && request.auth.uid == userId;
-      allow delete: if request.auth != null && request.auth.uid == userId;
+    // users/{userId}/trips 서브컬렉션 - 자신의 여행 기록만 접근
+    match /users/{userId}/trips/{tripId} {
+      allow read, create, update, delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // friendLinks 컬렉션 - 친구 관계 관리

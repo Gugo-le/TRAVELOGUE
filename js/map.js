@@ -1,6 +1,9 @@
 /*
   Map rendering, routing, journey network, and flight animation logic.
 */
+let lastTripSaveKey = null;
+let lastTripSaveCounter = 0;
+
 function resolveAirportCountry(airport) {
   if (!airport) return '';
   if (airport.country) return airport.country;
@@ -1592,6 +1595,7 @@ function startFlightSequence(route) {
     resetMap();
     return;
   }
+  lastTripSaveKey = null;
   clearJourneyNetwork();
   playAudio('airplane-loop', { restart: true });
   flightMode = true;
@@ -1681,6 +1685,39 @@ function waitForGlobeAndBegin(route) {
   requestAnimationFrame(tick);
 }
 
+async function persistTripAfterLanding(route, distanceKm) {
+  if (!route || !route.origin || !route.destination) return;
+  const routeKey = `${route.origin.code || ''}-${route.destination.code || ''}-${Math.round(distanceKm || 0)}`;
+  if (lastTripSaveKey === routeKey) return;
+  const user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+  if (!user || !user.uid || typeof addTripForCurrentUser !== 'function') return;
+  const dateInput = document.getElementById('ticket-date');
+  const visitDate = (dateInput && dateInput.value) ? dateInput.value : getTodayString();
+  const country = route.destination.country || resolveAirportCountry(route.destination);
+  const payload = {
+    origin: route.origin.code,
+    destination: route.destination.code,
+    date: visitDate,
+    distanceOverride: Math.round(distanceKm || 0),
+    country: country || undefined
+  };
+  try {
+    await addTripForCurrentUser(payload);
+    // 추가 안전망: 바로 재계산 및 프로필 stats 저장
+    if (typeof recalcAndPersistStats === 'function') {
+      await recalcAndPersistStats(user.uid);
+    }
+    lastTripSaveKey = routeKey;
+    lastTripSaveCounter += 1;
+    if (lastRouteInfo) {
+      lastRouteInfo.tripSaved = true;
+      lastRouteInfo.tripKey = routeKey;
+    }
+  } catch (e) {
+    console.warn('Failed to persist trip after landing:', e);
+  }
+}
+
 function beginFlightOnGlobe(route) {
   if (!globeProjection || !globePath || !globeMap || !route) return;
   isAnimating = false;
@@ -1689,13 +1726,16 @@ function beginFlightOnGlobe(route) {
   const distanceKm = route.distanceKm || estimateDistanceKm(route.origin, route.destination);
   const focusScale = getRouteZoomScale(baseScale, distanceKm);
   const flightDuration = getRouteDurationMs(distanceKm);
+  const routeKey = `${route.origin.code}-${route.destination.code}-${Math.round(distanceKm || 0)}`;
   renderRouteOverlay(route);
   lastRouteInfo = {
     origin: route.origin,
     destination: route.destination,
     distanceKm,
     durationMs: flightDuration,
-    arrived: false
+    arrived: false,
+    tripSaved: false,
+    tripKey: routeKey
   };
   flipMessageIndex = 0;
   updateFlipBoard(`${route.origin.code} TO ${route.destination.code}`);
@@ -1740,6 +1780,8 @@ function beginFlightOnGlobe(route) {
         const backBtn = document.getElementById('back-btn');
         if (backBtn) backBtn.style.display = 'block';
         playAudio('landing-sound');
+        // After landing, persist trip to user profile (if logged in)
+        persistTripAfterLanding(route, distanceKm);
         scheduleJourneyNetwork(0);
         landingTransitionPending = false;
       }

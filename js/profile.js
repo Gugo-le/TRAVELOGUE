@@ -58,7 +58,8 @@ async function searchUserByHandle(handle) {
     const querySnapshot = await query.get();
     
     if (!querySnapshot.empty) {
-      return querySnapshot.docs[0].data();
+      const doc = querySnapshot.docs[0];
+      return { id: doc.id, ...doc.data() };
     } else {
       return null;
     }
@@ -88,7 +89,7 @@ async function searchUsersByDisplayName(searchTerm, limit = 10) {
       .limit(limit);
     
     const querySnapshot = await query.get();
-    return querySnapshot.docs.map(doc => doc.data());
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (error) {
     console.error('Error searching users by display name:', error);
     throw error;
@@ -188,3 +189,106 @@ async function updateCurrentUserTheme(theme) {
   }
   return await updateUserTheme(user.uid, theme);
 }
+
+// 사용자 trips 로드 후 통계 계산 및 화면 반영
+async function computeUserStatsAndRender(uid) {
+  try {
+    // 공항 인덱스 준비
+    if (typeof airportIndex === 'undefined' || !airportIndex || !Object.keys(airportIndex).length) {
+      if (typeof loadStaticData === 'function') {
+        await loadStaticData();
+      }
+    }
+
+    // trips: users/{uid}/trips 서브컬렉션 기준
+    const tripSnap = await firebase.firestore().collection('users').doc(uid).collection('trips').get();
+    const trips = tripSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // 통계 계산
+    const stats = typeof computeStats === 'function' ? computeStats(trips, airportIndex) : {
+      totalTrips: trips.length || 0,
+      totalCountries: 0,
+      totalDistance: 0,
+      visitedCountries: []
+    };
+
+    // 화면 반영
+    if (typeof renderStats === 'function') {
+      renderStats(stats);
+    } else {
+      const tripsEl = document.getElementById('stat-trips');
+      const countriesEl = document.getElementById('stat-countries');
+      const distEl = document.getElementById('stat-distance');
+      if (tripsEl) tripsEl.textContent = stats.totalTrips || 0;
+      if (countriesEl) countriesEl.textContent = stats.totalCountries || 0;
+      if (distEl) distEl.textContent = (stats.totalDistance || 0) + ' km';
+    }
+
+    // 프로필 문서에 저장 (통계 동기화)
+    try {
+      await updateUserProfile(uid, { stats });
+    } catch (e) {
+      console.warn('Failed to persist stats from profile page:', e);
+    }
+
+    return stats;
+  } catch (error) {
+    console.error('Error computing user stats:', error);
+    return null;
+  }
+}
+
+// 현재 사용자 통계 계산 후 표시
+async function computeCurrentUserStatsAndRender() {
+  const user = getCurrentUser();
+  if (!user) return null;
+  return await computeUserStatsAndRender(user.uid);
+}
+
+// 실시간 trips 구독하여 통계 자동 갱신 및 Firestore 저장
+let tripsUnsubscribe = null;
+async function subscribeUserTripsAndStats(uid) {
+  try {
+    if (tripsUnsubscribe) {
+      try { tripsUnsubscribe(); } catch (_) {}
+      tripsUnsubscribe = null;
+    }
+
+    // 공항 인덱스 준비 (필요 시)
+    if (typeof airportIndex === 'undefined' || !airportIndex || !Object.keys(airportIndex).length) {
+      if (typeof loadStaticData === 'function') await loadStaticData();
+    }
+
+    const ref = firebase.firestore().collection('users').doc(uid).collection('trips');
+    tripsUnsubscribe = ref.onSnapshot(async (snap) => {
+      const trips = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const stats = typeof computeStats === 'function' ? computeStats(trips, airportIndex) : {
+        totalTrips: trips.length || 0,
+        totalCountries: 0,
+        totalDistance: 0,
+        visitedCountries: []
+      };
+      // UI 반영
+      if (typeof renderStats === 'function') renderStats(stats);
+      // Firestore의 users/{uid}.stats 필드에 저장
+      try {
+        await updateUserProfile(uid, { stats });
+      } catch (e) {
+        console.warn('Failed to persist stats:', e);
+      }
+    });
+    return true;
+  } catch (error) {
+    console.error('Error subscribing trips:', error);
+    return false;
+  }
+}
+
+function unsubscribeUserTrips() {
+  if (tripsUnsubscribe) {
+    try { tripsUnsubscribe(); } catch (_) {}
+    tripsUnsubscribe = null;
+  }
+}
+
+

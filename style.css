@@ -236,6 +236,39 @@ button {
   visibility: hidden;
 }
 
+.flip-board {
+  display: flex;
+  gap: 3px;
+  border-radius: 6px;
+  background: transparent;
+  padding: 10px 12px;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.flip-char {
+  width: 28px;
+  height: 40px;
+  background: #222;
+  color: #eee;
+  font-family: var(--font-ticket);
+  font-size: 1.4rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  border-bottom: 2px solid #000;
+  background: linear-gradient(to bottom, #333 50%, #222 51%);
+}
+
+.subtitle-note {
+  font-size: 0.88rem;
+  letter-spacing: 2px;
+  color: rgba(247,179,179,0.95);
+  margin-top: 10px;
+}
+
 #journey-summary {
   position: absolute;
   bottom: 150px;
@@ -388,43 +421,40 @@ button {
 }
 
 
-.flip-board {
-  display: flex;
-  gap: 3px;
-  border-radius: 6px;
-  /* transparent background */
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
   background: transparent;
-  padding: 10px 12px;
-  box-shadow: none;
-  cursor: pointer;
-}
-
-.flip-char {
-  width: 28px;
-  height: 40px;
-  background: #222;
-  color: #eee;
-  font-family: var(--font-ticket);
-  font-size: 1.4rem;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
+  display: none;
+  align-items: flex-start;
   justify-content: center;
-  border-radius: 3px;
-  border-bottom: 2px solid #000;
-  background: linear-gradient(to bottom, #333 50%, #222 51%); 
+  padding: clamp(32px, 10vh, 96px) 18px calc(140px + env(safe-area-inset-bottom));
+  z-index: 1500;
+  pointer-events: auto;
+  overflow-y: auto;
+}
+.overlay-backdrop.active { display: flex; }
+
+.overlay-backdrop.active .overlay-panel {
+  transform: translateY(0);
+  opacity: 1;
 }
 
-/* Subtitle note (default desktop) */
-.subtitle-note {
-  font-size: 0.88rem;
-  letter-spacing: 2px;
-  color: rgba(247,179,179,0.95);
-  margin-top: 10px;
+.overlay-panel {
+  position: relative;
+  width: min(460px, 94vw);
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 18px;
+  box-shadow: 0 26px 80px rgba(0,0,0,0.16);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  transform: translateY(36px);
+  opacity: 0;
+  transition: transform 0.38s ease, opacity 0.38s ease;
 }
-
-/* Ensure datamap SVG scales to container */
-#map-wrapper svg { width: 100% !important; height: 100% !important; display: block; }
 
 /* Medium screens: make flip board wrap and shrink */
 @media (max-width: 1024px) {
@@ -1440,24 +1470,14 @@ button {
   filter: drop-shadow(0 0 6px rgba(0,0,0,0.25));
 }
 
-.journey-marker {
-  stroke: #111;
-  stroke-width: 0.6;
-  opacity: 0.95;
-  filter: drop-shadow(0 0 6px rgba(0,0,0,0.25));
-}
-
 .journey-label {
-  font-family: var(--font-ticket);
-  font-size: 0.5rem;
-  font-weight: 500;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
+  font-size: 0.52rem;
+  letter-spacing: 0.4px;
   paint-order: stroke;
   stroke: rgba(0,0,0,0.25);
-  stroke-width: 1.5px;
-  filter: none;
-  opacity: 0.75;
+  stroke-width: 1.2px;
+  opacity: 0.78;
+  pointer-events: none;
 }
 
 @media (max-width: 768px) {
@@ -1926,7 +1946,7 @@ button {
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 2500;
   box-shadow: none;
   padding: 12px 0;
   gap: 56px;
@@ -2011,4 +2031,334 @@ button {
     width: 20px;
     height: 20px;
   }
+}
+
+/* --- OVERLAYS (Search / Profile) --- */
+body.overlay-open { overflow: hidden; }
+
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 200px 16px 90px;
+  z-index: 1500;
+  pointer-events: none; /* let map below still receive interactions */
+}
+
+.overlay-backdrop.active {
+  display: flex;
+}
+
+.overlay-backdrop.active .overlay-panel {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.overlay-panel {
+  position: relative;
+  width: min(380px, 88vw);
+  max-height: 92vh;
+  min-height: 72vh;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 14px;
+  box-shadow: 0 28px 90px rgba(0,0,0,0.24);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  transform: translateY(28px);
+  opacity: 0;
+  transition: transform 0.35s ease, opacity 0.35s ease;
+}
+
+.overlay-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #333;
+  font-size: 20px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease;
+  z-index: 2;
+}
+
+.overlay-close:hover {
+  color: #e67e22;
+  transform: translateY(-1px);
+}
+
+
+.search-panel {
+  padding: 0 0 18px;
+  height: auto;
+  margin-top: 12px;
+}
+
+.search-panel .ticket-header {
+  padding: 22px 28px 14px;
+  border-bottom: 1px dashed rgba(0,0,0,0.08);
+  position: relative;
+  text-align: left;
+}
+
+.search-panel .ticket-header::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  left: 28px;
+  width: 46px;
+  height: 3px;
+  background: #e67e22;
+  border-radius: 3px;
+}
+
+.search-panel .airline {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: #e67e22;
+  margin-bottom: 4px;
+}
+
+.search-panel h1 {
+  font-size: 17px;
+  letter-spacing: 1.5px;
+  font-weight: 600;
+  margin: 0;
+  text-align: left;
+  margin-top: 2px;
+}
+
+.search-form {
+  padding: 22px 28px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.search-form .field label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #777;
+  margin-bottom: 6px;
+}
+
+.search-form .field input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  padding: 10px 4px;
+  font-size: 15px;
+  background: transparent;
+  color: #141414;
+  outline: none;
+}
+
+.search-form .field input:focus { border-color: #e67e22; }
+
+.search-btn {
+  padding: 12px;
+  border: 1px solid rgba(0,0,0,0.15);
+  background: transparent;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.search-btn:hover { border-color: #e67e22; color: #e67e22; }
+
+.results {
+  padding: 0 28px 20px;
+  display: grid;
+  gap: 12px;
+  overflow-y: auto;
+  max-height: 70vh;
+}
+
+.result-card {
+  border: 1px dashed rgba(0,0,0,0.06);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.result-main { display: flex; flex-direction: column; gap: 4px; }
+.display-name { font-weight: 700; letter-spacing: 0.5px; }
+.handle { font-size: 12px; color: #777; letter-spacing: 1px; }
+.stats { font-size: 12px; color: #555; letter-spacing: 0.5px; }
+.badge { padding: 6px 10px; border: 1px solid rgba(0,0,0,0.1); border-radius: 999px; font-size: 11px; letter-spacing: 1px; color: #e67e22; }
+.empty-state, .error-state { padding: 12px 14px; border: 1px dashed rgba(0,0,0,0.08); border-radius: 8px; color: #777; font-size: 13px; }
+.loader { font-size: 12px; color: #e67e22; letter-spacing: 1px; }
+
+/* Profile auth overlay (boarding pass) */
+.profile-panel { padding: 18px 18px 22px; }
+
+.profile-panel .auth-box {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  background: white;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 8px;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.03);
+}
+
+
+.profile-panel .ticket-header {
+  padding: 24px 40px 20px;
+  border-bottom: 1px dashed rgba(0,0,0,0.08);
+  text-align: left;
+  position: relative;
+}
+
+.profile-panel .ticket-header::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 40px;
+  width: 40px;
+  height: 2px;
+  background: #e67e22;
+}
+
+.profile-panel .ticket-header .airline {
+  font-size: 8px;
+  letter-spacing: 3px;
+  color: #e67e22;
+  margin-bottom: 8px;
+}
+
+.profile-panel .ticket-header h1 {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #999;
+  margin: 0;
+  text-align: left;
+  margin-top: 2px;
+}
+
+.profile-panel .auth-form {
+  display: none;
+  padding: 32px 40px 28px;
+}
+
+.profile-panel .auth-form.active { display: block; }
+
+.profile-panel .route-display {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.profile-panel .route-code {
+  font-size: 40px;
+  font-weight: 300;
+  letter-spacing: 8px;
+  color: #141414;
+}
+
+.profile-panel .route-arrow { color: #e67e22; font-size: 22px; }
+
+.profile-panel .form-section { margin-bottom: 20px; }
+
+.profile-panel .form-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #999;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.profile-panel .auth-form input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  padding: 10px 2px;
+  font-size: 15px;
+  background: transparent;
+  color: #141414;
+  outline: none;
+}
+
+.profile-panel .auth-form input:focus { border-bottom-color: #e67e22; }
+
+.profile-panel .auth-btn {
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px;
+  background: transparent;
+  color: #141414;
+  border: 1px solid rgba(0,0,0,0.15);
+  letter-spacing: 3px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+}
+
+.profile-panel .auth-btn:hover { border-color: #e67e22; color: #e67e22; }
+
+.profile-panel .divider {
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #999;
+  margin: 24px 0 18px;
+}
+
+.profile-panel .social-btn {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 12px;
+  border: 1px solid rgba(0,0,0,0.06);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.profile-panel .social-btn:hover { border-color: #e67e22; color: #e67e22; }
+
+.profile-panel .auth-error {
+  margin-top: 10px;
+  color: #e74c3c;
+  font-size: 12px;
+  display: none;
+}
+
+.profile-panel .ticket-footer {
+  border-top: 1px dashed rgba(0,0,0,0.08);
+  padding: 16px 24px 18px;
+  text-align: center;
+}
+
+.profile-panel .auth-toggle a { color: #e67e22; letter-spacing: 1px; }
+
+.profile-panel .boarding-pass {
+  margin-top: 10px;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: #999;
 }

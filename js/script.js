@@ -33,6 +33,7 @@ window.addEventListener('load', async () => {
     // 오늘 이미 방문함 - 인트로 스킵
     if (introWindow) introWindow.style.display = 'none';
     if (mainContent) mainContent.classList.add('active');
+    updateFlipBoard('WELCOME ABOARD');
   }
 
   document.addEventListener('touchstart', unlockAudio, { passive: true, once: true });

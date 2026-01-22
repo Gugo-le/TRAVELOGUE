@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Travelers - TRAVELOGUE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDK (compat version) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #fafafa;
+            color: #141414;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px 120px;
+            position: relative;
+            overflow-x: hidden;
+        }
+        .search-box {
+            width: 100%;
+            max-width: 640px;
+            background: white;
+            border: 1px solid rgba(0,0,0,0.06);
+            border-radius: 10px;
+            box-shadow: 0 6px 30px rgba(0,0,0,0.04);
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+        .ticket-header {
+            padding: 24px 32px 18px;
+            border-bottom: 1px dashed rgba(0,0,0,0.08);
+            position: relative;
+            text-align: left;
+        }
+        .ticket-header::before {
+            content: '';
+            position: absolute;
+            top: 18px;
+            left: 32px;
+            width: 48px;
+            height: 3px;
+            background: #e67e22;
+            border-radius: 3px;
+        }
+        .ticket-header .airline {
+            font-size: 9px;
+            letter-spacing: 3px;
+            color: #e67e22;
+            margin-bottom: 6px;
+        }
+        .ticket-header h1 {
+            font-size: 18px;
+            letter-spacing: 2px;
+            font-weight: 600;
+        }
+        .search-form {
+            padding: 24px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .field label {
+            display: block;
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: #777;
+            margin-bottom: 6px;
+        }
+        .field input {
+            width: 100%;
+            border: none;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            padding: 10px 4px;
+            font-size: 15px;
+            background: transparent;
+            color: #141414;
+            outline: none;
+        }
+        .field input:focus {
+            border-color: #e67e22;
+        }
+        .search-btn {
+            padding: 12px;
+            border: 1px solid rgba(0,0,0,0.15);
+            background: transparent;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .search-btn:hover { border-color: #e67e22; color: #e67e22; }
+        .results {
+            padding: 0 32px 28px;
+            display: grid;
+            gap: 12px;
+        }
+        .result-card {
+            border: 1px dashed rgba(0,0,0,0.06);
+            border-radius: 8px;
+            padding: 14px 16px;
+            background: #fff;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 6px;
+        }
+        .result-main {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .display-name { font-weight: 700; letter-spacing: 0.5px; }
+        .handle { font-size: 12px; color: #777; letter-spacing: 1px; }
+        .stats { font-size: 12px; color: #555; letter-spacing: 0.5px; }
+        .badge {
+            padding: 6px 10px;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 999px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: #e67e22;
+        }
+        .empty-state, .error-state {
+            padding: 12px 14px;
+            border: 1px dashed rgba(0,0,0,0.08);
+            border-radius: 8px;
+            color: #777;
+            font-size: 13px;
+        }
+        .loader {
+            font-size: 12px;
+            color: #e67e22;
+            letter-spacing: 1px;
+        }
+
+        /* Bottom navigation (shared style) */
+        .bottom-nav {
+            position: fixed;
+            bottom: calc(20px + env(safe-area-inset-bottom));
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            height: auto;
+            background: transparent;
+            backdrop-filter: none;
+            border: none;
+            border-radius: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: none;
+            padding: 12px 0;
+            gap: 56px;
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            padding: 0;
+            color: rgba(0,0,0,0.5);
+            transition: color 0.3s ease, transform 0.2s ease;
+            flex: 0;
+            height: auto;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            font-family: 'Courier New', monospace;
+            text-decoration: none;
+            position: relative;
+        }
+        .nav-item:hover {
+            color: #141414;
+            background: transparent;
+        }
+        .nav-item.active {
+            color: #e67e22;
+        }
+        .nav-item:active { transform: translateY(-2px); }
+        .nav-icon {
+            width: 24px;
+            height: 24px;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-width: 2;
+        }
+        .nav-label {
+            display: none;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        @media (max-width: 768px) {
+            .bottom-nav {
+                height: auto;
+                bottom: calc(28px + env(safe-area-inset-bottom));
+                gap: 44px;
+            }
+            .nav-icon { width: 20px; height: 20px; }
+        }
+        @media (max-width: 480px) {
+            .bottom-nav {
+                bottom: calc(32px + env(safe-area-inset-bottom));
+                gap: 36px;
+            }
+            .nav-icon { width: 20px; height: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="search-box">
+        <div class="ticket-header">
+            <div class="airline">TRAVELOGUE SEARCH</div>
+            <h1>Find Travelers</h1>
+        </div>
+        <form id="search-form" class="search-form">
+            <div class="field">
+                <label id="search-label">HANDLE / NAME</label>
+                <input id="search-input" type="text" placeholder="enter handle or name" autocomplete="off" />
+            </div>
+            <button class="search-btn" type="submit">Search</button>
+            <div id="search-status" class="loader" style="display:none;">Searching...</div>
+        </form>
+        <div id="results" class="results"></div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <nav id="bottom-nav" class="bottom-nav">
+        <a href="index.html" class="nav-item" data-page="home" title="Home">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            <span class="nav-label">Home</span>
+        </a>
+        <a href="search.html" class="nav-item active" data-page="search" title="Search">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            <span class="nav-label">Search</span>
+        </a>
+        <a href="chat.html" class="nav-item" data-page="chat" title="Chat">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span class="nav-label">Chat</span>
+        </a>
+        <a href="profile.html" class="nav-item" data-page="profile" title="Profile">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span class="nav-label">Profile</span>
+        </a>
+    </nav>
+
+    <script src="./js/firebaseConfig.js"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/profile.js"></script>
+    <script src="./js/search.js"></script>
+</body>
+</html>

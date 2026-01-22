@@ -148,23 +148,43 @@
     <div id="map-wrapper"></div>
 </div>
 
+<!-- Search Overlay -->
+<div id="search-overlay" class="overlay-backdrop" aria-hidden="true">
+    <div class="overlay-panel search-panel">
+        <button class="overlay-close" data-overlay-close aria-label="Close search">×</button>
+        <div class="ticket-header">
+            <div class="airline">TRAVELOGUE SEARCH</div>
+            <h1>Find Travelers</h1>
+        </div>
+        <form id="search-form" class="search-form">
+            <div class="field">
+                <label id="search-label">HANDLE / NAME</label>
+                <input id="search-input" type="text" placeholder="enter handle or name" autocomplete="off" />
+            </div>
+            <button class="search-btn" type="submit">Search</button>
+            <div id="search-status" class="loader" style="display:none;">Searching...</div>
+        </form>
+        <div id="results" class="results"></div>
+    </div>
+</div>
+
 <!-- Bottom Navigation Bar -->
 <nav id="bottom-nav" class="bottom-nav">
-    <a href="index.html" class="nav-item active" data-page="home" title="Home">
+    <a href="#" class="nav-item active" data-page="home" title="Home">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
             <polyline points="9 22 9 12 15 12 15 22"></polyline>
         </svg>
         <span class="nav-label">Home</span>
     </a>
-    <a href="search.html" class="nav-item" data-page="search" title="Search">
+    <a href="#" class="nav-item" data-page="search" title="Search">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.35-4.35"></path>
         </svg>
         <span class="nav-label">Search</span>
     </a>
-    <a href="chat.html" class="nav-item" data-page="chat" title="Chat">
+    <a href="#" class="nav-item" data-page="chat" title="Chat">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
         </svg>
@@ -182,28 +202,42 @@
 <script src="./js/firebaseConfig.js"></script>
 <script src="./js/auth.js"></script>
 <script src="./js/profile.js"></script>
+<script src="./js/search.js"></script>
 <script src="./js/data.js"></script>
+<script src="./js/stats.js"></script>
+<script src="./js/trips.js"></script>
 <script src="./js/state.js"></script>
 <script src="./js/utils.js"></script>
 <script src="./js/audio.js"></script>
 <script src="./js/ui.js"></script>
 <script src="./js/map.js"></script>
 <script src="./js/navigation.js"></script>
+<script src="./js/home.js"></script>
 <script src="./js/script.js"></script>
 <script>
   // Firebase 초기화
   initializeFirebase();
   
   // 인증 상태 감시
-  watchAuthState(user => {
-    if (user) {
-      console.log('User authenticated:', user.uid);
-      // TODO: 로그인 후 UI 업데이트
-    } else {
-      console.log('User not authenticated');
-      // TODO: 로그인 페이지로 리다이렉트
-    }
-  });
+    watchAuthState(user => {
+        if (user) {
+            console.log('User authenticated:', user.uid);
+            // 홈 요약 통계 실시간 구독 시작
+            if (typeof subscribeHomeStats === 'function') subscribeHomeStats(user.uid);
+        } else {
+            console.log('User not authenticated');
+            // 구독 해제 및 기본값 리셋
+            if (typeof unsubscribeHomeStats === 'function') unsubscribeHomeStats();
+            const tripsEl = document.getElementById('journey-summary-trips');
+            const distEl = document.getElementById('journey-summary-dist');
+            const avgEl = document.getElementById('journey-summary-avg');
+            const topEl = document.getElementById('journey-summary-top');
+            if (tripsEl) tripsEl.textContent = '0';
+            if (distEl) distEl.textContent = '0 KM';
+            if (avgEl) avgEl.textContent = '0 KM';
+            if (topEl) topEl.textContent = '---';
+        }
+    });
 </script>
 </body>
 </html>

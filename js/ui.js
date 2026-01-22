@@ -1007,7 +1007,7 @@ function changePassportPage(delta) {
   renderPassport();
 }
 
-function handleTicketClick(e) {
+async function handleTicketClick(e) {
   if (isAnimating) return;
   if (e.target && e.target.closest && e.target.closest('input, select')) return;
   isAnimating = true;
@@ -1054,6 +1054,7 @@ function handleTicketClick(e) {
       type: 'ARR'
     });
     localStorage.setItem('visited_stamps', JSON.stringify(visitedStamps));
+
   }
 
   setTimeout(() => {
