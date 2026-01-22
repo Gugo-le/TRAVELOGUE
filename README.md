@@ -196,6 +196,127 @@ function computeJourneyStats(trips) {
 
 ---
 
+## 📐 Key Algorithms
+
+### Haversine Distance Formula
+두 공항 간의 실제 거리를 계산하는 핵심 알고리즘입니다. 지구를 완전한 구로 가정하고 대권 항로(Great Circle Route) 거리를 계산합니다.
+
+```javascript
+function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // 지구 반지름 (km)
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c; // km 단위 거리
+}
+```
+
+**수식**:
+$$d = 2R \cdot \arcsin\left(\sqrt{\sin^2\left(\frac{\Delta\phi}{2}\right) + \cos(\phi_1) \cdot \cos(\phi_2) \cdot \sin^2\left(\frac{\Delta\lambda}{2}\right)}\right)$$
+
+- $R$ = 지구 반지름 (6371 km)
+- $\phi$ = 위도 (latitude)
+- $\lambda$ = 경도 (longitude)
+
+### Cubic Hermite Spline Interpolation
+비행 경로를 부드럽게 보간하여 자연스러운 곡선을 만듭니다. 각 구간마다 4개의 제어점(p0, p1, p2, p3)을 사용합니다.
+
+```javascript
+function smoothPathCoords(coords, samplesPerSegment = 24, tension = 0.9) {
+  const points = [];
+  const scale = (1 - tension) / 2;
+  
+  for (let i = 0; i < coords.length - 1; i++) {
+    const p0 = coords[i - 1] || coords[0];
+    const p1 = coords[i];
+    const p2 = coords[i + 1];
+    const p3 = coords[i + 2] || coords[coords.length - 1];
+    
+    // Tangent vectors (접선 벡터)
+    const m1x = (p2[0] - p0[0]) * scale;
+    const m1y = (p2[1] - p0[1]) * scale;
+    const m2x = (p3[0] - p1[0]) * scale;
+    const m2y = (p3[1] - p1[1]) * scale;
+    
+    for (let t = 0; t < samplesPerSegment; t++) {
+      const s = t / samplesPerSegment;
+      const s2 = s * s;
+      const s3 = s2 * s;
+      
+      // Hermite basis functions
+      const h1 =  2*s3 - 3*s2 + 1;
+      const h2 = -2*s3 + 3*s2;
+      const h3 =   s3 - 2*s2 + s;
+      const h4 =   s3 -   s2;
+      
+      const x = h1*p1[0] + h2*p2[0] + h3*m1x + h4*m2x;
+      const y = h1*p1[1] + h2*p2[1] + h3*m1y + h4*m2y;
+      points.push([x, y]);
+    }
+  }
+  return points;
+}
+```
+
+**수식** (Hermite basis):
+- $h_1(t) = 2t^3 - 3t^2 + 1$
+- $h_2(t) = -2t^3 + 3t^2$
+- $h_3(t) = t^3 - 2t^2 + t$
+- $h_4(t) = t^3 - t^2$
+
+결과: $P(t) = h_1 p_1 + h_2 p_2 + h_3 m_1 + h_4 m_2$
+
+### Longitude Unwrapping (날짜변경선 처리)
+경도가 -180°에서 180°로 점프하는 날짜변경선을 넘을 때 경로가 끊기지 않도록 처리합니다.
+
+```javascript
+function unwrapPathLongitudes(coords) {
+  const result = [coords[0].slice()];
+  let prevLon = coords[0][0];
+  
+  for (let i = 1; i < coords.length; i++) {
+    let lon = coords[i][0];
+    
+    // 180도 이상 차이나면 360도 보정
+    while (lon - prevLon > 180) lon -= 360;
+    while (lon - prevLon < -180) lon += 360;
+    
+    result.push([lon, coords[i][1]]);
+    prevLon = lon;
+  }
+  return result;
+}
+```
+
+**로직**:
+- 이전 경도와 현재 경도 차이가 180° 이상이면 360° 빼기
+- -180° 이하이면 360° 더하기
+- 예: `[170°, -170°]` → `[170°, 190°]` (연속적인 경로 유지)
+
+### D3.js Orthographic Projection
+3D 지구본을 2D 평면에 투영하는 알고리즘입니다. 지구를 바라보는 시점에서 보이는 반구만 렌더링합니다.
+
+```javascript
+const projection = d3.geo.orthographic()
+  .scale(width / 2.2)
+  .translate([width / 2, height / 2])
+  .clipAngle(90); // 반구만 표시
+
+const path = d3.geo.path().projection(projection);
+```
+
+**특징**:
+- **Orthographic**: 무한 거리에서 바라보는 원근 투영
+- **clipAngle(90)**: 뒷면(보이지 않는 면) 제거
+- 회전 변환: `projection.rotate([λ, -φ, 0])`
+
+---
+
 ## Trips Schema & Stats
 
 Trips are stored in Firestore under `users/{uid}/trips` with documents like:
