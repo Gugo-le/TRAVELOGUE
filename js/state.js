@@ -89,6 +89,18 @@ function hydrateJourneyRoutes(routes) {
   const fallbackColor = getStoredAccentColor();
   const normalized = routes.map(route => {
     if (!route || typeof route !== 'object') return route;
+    
+    // pathCoords가 JSON 문자열이면 파싱
+    if (typeof route.pathCoords === 'string') {
+      try {
+        route.pathCoords = JSON.parse(route.pathCoords);
+        updated = true;
+      } catch (e) {
+        console.warn('Failed to parse pathCoords string:', e);
+        route.pathCoords = null;
+      }
+    }
+    
     if (!route.color && fallbackColor) {
       route.color = fallbackColor;
       updated = true;
