@@ -18,6 +18,23 @@ window.addEventListener('resize', () => {
 });
 
 window.addEventListener('load', async () => {
+  // 인트로 표시 여부 체크 (오늘 처음 방문인지)
+  const today = new Date().toDateString();
+  const lastVisit = localStorage.getItem('travelogue-last-visit');
+  const introWindow = document.getElementById('intro-window');
+  const mainContent = document.getElementById('main-content');
+  
+  if (lastVisit !== today) {
+    // 오늘 처음 방문 - 인트로 표시
+    localStorage.setItem('travelogue-last-visit', today);
+    if (introWindow) introWindow.style.display = 'flex';
+    if (mainContent) mainContent.classList.remove('active');
+  } else {
+    // 오늘 이미 방문함 - 인트로 스킵
+    if (introWindow) introWindow.style.display = 'none';
+    if (mainContent) mainContent.classList.add('active');
+  }
+
   document.addEventListener('touchstart', unlockAudio, { passive: true, once: true });
   document.addEventListener('click', unlockAudio, { passive: true, once: true });
   await loadStaticData();
