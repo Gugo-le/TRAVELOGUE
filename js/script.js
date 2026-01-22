@@ -150,18 +150,6 @@ window.addEventListener('load', async () => {
   }
 
 
-  document.addEventListener('click', (event) => {
-    const target = event.target;
-    if (!target) return;
-    const isBoardingPass = target.closest('#boarding-pass-ui');
-    const isTicketInput = target.closest('#boarding-pass-ui input, #boarding-pass-ui select');
-    if (isTicketInput || target.closest('.airport-suggest') || target.closest('.date-picker')) return;
-    if (target.closest('.date-picker-backdrop')) return;
-    if (target.closest('button') || (isBoardingPass && !isTicketInput) || target.closest('.click-prompt')) {
-      playAudio('airplane-bp');
-    }
-  });
-
   const fromCodeInput = document.getElementById('ticket-from-code');
   if (fromCodeInput) {
     fromCodeInput.addEventListener('change', () => {

@@ -33,21 +33,142 @@
 <audio id="soundscape-audio" loop></audio>
 
 <div id="intro-window">
-    <div class="window-frame"><div class="window-glass"><div class="clouds"></div></div></div>
-    <div class="intro-text-zone">
-        <p class="terminal">TERMINAL 01 · GATE 24A</p>
-        <p class="main-slogan">Focus 된 시선 위에서 흐르고, <br> 분위기로 기억되는 여행 지도</p>
-        <div class="custom-form">
-            <div class="input-group">
-                <label>Passenger</label>
-                <input type="text" id="input-name" placeholder="FAMILY NAME/LAST NAME" oninput="syncCustom()">
-            </div>
-            <div class="input-group">
-                <label>From</label>
-                <input type="text" id="input-from" placeholder="DEPARTING AIRPORT" oninput="syncCustom()">
+    <div id="intro-hero" class="intro-hero">
+        <div class="window-frame"><div class="window-glass"><div class="clouds"></div></div></div>
+        <div class="intro-text-zone">
+            <p class="terminal">TERMINAL 01 · GATE 24A</p>
+            <p class="main-slogan">Focus 된 시선 위에서 흐르고,<br>분위기로 기억되는 여행 지도</p>
+            
+            <div id="intro-auth-state" class="intro-auth-state">
+                <div class="click-prompt" onclick="showSignUpForm()">NEW TRAVELER</div>
             </div>
         </div>
-        <div class="click-prompt" onclick="startJourney()">CHECK-IN NOW</div>
+    </div>
+
+    <div id="signup-section" class="signup-section">
+        <div class="auth-box">
+            <div class="ticket-header">
+                <div class="airline">TRAVELOGUE JOURNEY</div>
+                <h1>Boarding Pass</h1>
+            </div>
+
+            <!-- Login Form -->
+            <div id="login-form" class="auth-form active">
+                <div class="route-display">
+                    <div class="route-code">SIGN</div>
+                    <div class="route-arrow">✈</div>
+                    <div class="route-code">IN</div>
+                </div>
+
+                <div class="form-section">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="login-email" placeholder="">
+                </div>
+
+                <div class="form-section">
+                    <label class="form-label">Password</label>
+                    <input type="password" id="login-password" placeholder="">
+                </div>
+
+                <button onclick="handleIntroEmailSignIn()">Begin Journey</button>
+
+                <div class="divider">or continue with</div>
+
+                <button type="button" class="social-btn" onclick="handleIntroGoogleSignIn()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 256 262" preserveAspectRatio="xMidYMid">
+                        <path d="M255.68 133.5c0-10.6-.92-18.3-2.9-26.3H130.55v47.6h71.9c-1.45 11.8-9.3 29.7-26.8 41.7l-.2 1.3 38.9 30.2 2.7.3c24.8-22.9 39.3-56.6 39.3-95.3" fill="#4285F4"></path>
+                        <path d="M130.55 261.1c35.7 0 65.7-11.7 87.6-31.8l-41.7-32.4c-11.2 7.8-26.1 13.3-45.9 13.3-35 0-64.8-22.9-75.4-54.6l-1.3.1-40.8 31.6-.5 1.2c21.9 43.6 66.8 72.6 118 72.6" fill="#34A853"></path>
+                        <path d="M55.15 155.6c-2.8-8.1-4.4-16.7-4.4-25.6 0-8.9 1.6-17.5 4.2-25.6l-.1-1.7-41.3-32-.6 1.1C4.2 90.5 0 107.2 0 124.9c0 17.7 4.2 34.4 12.9 52.7" fill="#FBBC05"></path>
+                        <path d="M130.55 50.5c24.8 0 41.5 10.7 51 19.6l37.2-36.3C196.15 12.1 166.25 0 130.55 0 79.35 0 34.45 29 12.85 72.2l42.1 32.3c10.6-31.7 40.4-54 75.6-54" fill="#EB4335"></path>
+                    </svg>
+                    Google
+                </button>
+
+                <div id="login-error" class="error"></div>
+            </div>
+
+            <!-- Signup Form -->
+            <div id="signup-form" class="auth-form">
+                <div class="route-display">
+                    <div class="route-code">JOIN</div>
+                    <div class="route-arrow">✈</div>
+                    <div class="route-code">US</div>
+                </div>
+
+                <div class="form-section">
+                    <label class="form-label">Name</label>
+                    <input type="text" id="intro-name" placeholder="">
+                </div>
+
+                <div class="form-section">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="intro-email" placeholder="">
+                </div>
+
+                <div class="form-section">
+                    <label class="form-label">Password</label>
+                    <input type="password" id="intro-password" placeholder="">
+                </div>
+
+                <button onclick="handleIntroSignUpSimple()">Start Adventure</button>
+
+                <div class="divider">or continue with</div>
+
+                <button type="button" class="social-btn" onclick="handleIntroGoogleSignIn()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 256 262" preserveAspectRatio="xMidYMid">
+                        <path d="M255.68 133.5c0-10.6-.92-18.3-2.9-26.3H130.55v47.6h71.9c-1.45 11.8-9.3 29.7-26.8 41.7l-.2 1.3 38.9 30.2 2.7.3c24.8-22.9 39.3-56.6 39.3-95.3" fill="#4285F4"></path>
+                        <path d="M130.55 261.1c35.7 0 65.7-11.7 87.6-31.8l-41.7-32.4c-11.2 7.8-26.1 13.3-45.9 13.3-35 0-64.8-22.9-75.4-54.6l-1.3.1-40.8 31.6-.5 1.2c21.9 43.6 66.8 72.6 118 72.6" fill="#34A853"></path>
+                        <path d="M55.15 155.6c-2.8-8.1-4.4-16.7-4.4-25.6 0-8.9 1.6-17.5 4.2-25.6l-.1-1.7-41.3-32-.6 1.1C4.2 90.5 0 107.2 0 124.9c0 17.7 4.2 34.4 12.9 52.7" fill="#FBBC05"></path>
+                        <path d="M130.55 50.5c24.8 0 41.5 10.7 51 19.6l37.2-36.3C196.15 12.1 166.25 0 130.55 0 79.35 0 34.45 29 12.85 72.2l42.1 32.3c10.6-31.7 40.4-54 75.6-54" fill="#EB4335"></path>
+                    </svg>
+                    Google
+                </button>
+
+                <div id="intro-auth-error" class="error"></div>
+            </div>
+
+            <div class="ticket-footer">
+                <p class="auth-toggle" id="auth-toggle-text">
+                    <a href="#" onclick="toggleIntroAuthForm(event)">New Ticket?</a>
+                </p>
+                <div class="boarding-pass">TRV-2026</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="checkin-section" class="checkin-section">
+        <div class="auth-box">
+            <div class="ticket-header">
+                <div class="airline">TRAVELOGUE JOURNEY</div>
+                <h1>Boarding Pass</h1>
+            </div>
+
+            <div class="checkin-form">
+                <div class="route-display">
+                    <div class="route-code">CHECK</div>
+                    <div class="route-arrow">✈</div>
+                    <div class="route-code">IN</div>
+                </div>
+
+                <div class="checkin-inputs">
+                    <div class="form-section">
+                        <label class="form-label">Passenger Name</label>
+                        <input type="text" id="input-name" placeholder="" oninput="syncCustom()">
+                    </div>
+                    <div class="form-section">
+                        <label class="form-label">Departing From</label>
+                        <input type="text" id="input-from" placeholder="" oninput="syncCustom()">
+                    </div>
+                </div>
+
+                <button onclick="startJourney()">Begin Journey</button>
+            </div>
+
+            <div class="ticket-footer">
+                <p class="auth-toggle"></p>
+                <div class="boarding-pass">TRV-2026</div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -215,27 +336,147 @@
 <script src="./js/home.js"></script>
 <script src="./js/script.js"></script>
 <script>
-  // Firebase 초기화
-  initializeFirebase();
-  
-  // 인증 상태 감시
+    let isUserAuthenticated = false;
+
+    function toggleIntroAuthForm(e) {
+        e.preventDefault();
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        const toggleText = document.getElementById('auth-toggle-text');
+        
+        if (loginForm.classList.contains('active')) {
+            loginForm.classList.remove('active');
+            signupForm.classList.add('active');
+            toggleText.innerHTML = '<a href="#" onclick="toggleIntroAuthForm(event)">Have a Ticket?</a>';
+        } else {
+            signupForm.classList.remove('active');
+            loginForm.classList.add('active');
+            toggleText.innerHTML = '<a href="#" onclick="toggleIntroAuthForm(event)">New Ticket?</a>';
+        }
+    }
+
+    function showSignUpForm() {
+        const introWindow = document.getElementById('intro-window');
+        introWindow.classList.add('show-signup');
+        // Play boarding pass sound only on New Traveler click
+        playAudio('airplane-bp');
+    }
+
+    function hideSignUpForm() {
+        const introWindow = document.getElementById('intro-window');
+        introWindow.classList.remove('show-signup');
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        const toggleText = document.getElementById('auth-toggle-text');
+        
+        loginForm.classList.add('active');
+        signupForm.classList.remove('active');
+        toggleText.innerHTML = '<a href="#" onclick="toggleIntroAuthForm(event)">New Ticket?</a>';
+        
+        document.getElementById('intro-email').value = '';
+        document.getElementById('intro-name').value = '';
+        document.getElementById('intro-handle').value = '';
+        document.getElementById('login-email').value = '';
+        document.getElementById('login-password').value = '';
+        document.getElementById('intro-auth-error').textContent = '';
+        document.getElementById('login-error').textContent = '';
+    }
+
+    function showCheckInForm() {
+        const introWindow = document.getElementById('intro-window');
+        introWindow.classList.remove('show-signup');
+        introWindow.classList.add('show-checkin');
+        isUserAuthenticated = true;
+    }
+
+    function showAuthError(message, isLogin = false) {
+        const errorEl = document.getElementById(isLogin ? 'login-error' : 'intro-auth-error');
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+    }
+
+    async function handleIntroEmailSignIn() {
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value.trim();
+
+        if (!email || !password) {
+            showAuthError('Please fill in all fields', true);
+            return;
+        }
+
+        try {
+            const errorEl = document.getElementById('login-error');
+            if (errorEl) errorEl.style.display = 'none';
+            await signInWithEmail(email, password);
+            showCheckInForm();
+        } catch (error) {
+            console.error('Login error:', error);
+            showAuthError(error.message || 'Login failed. Try again.', true);
+        }
+    }
+
+    async function handleIntroSignUpSimple() {
+        const email = document.getElementById('intro-email').value.trim();
+        const name = document.getElementById('intro-name').value.trim();
+        const password = document.getElementById('intro-password').value.trim();
+
+        if (!email || !name || !password) {
+            showAuthError('Please fill in all fields', false);
+            return;
+        }
+
+        if (password.length < 6) {
+            showAuthError('Password must be at least 6 characters', false);
+            return;
+        }
+
+        // Generate username from name
+        const handle = name.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 1000);
+
+        try {
+            const errorEl = document.getElementById('intro-auth-error');
+            if (errorEl) errorEl.style.display = 'none';
+            await signUpWithEmail(email, password, name, handle);
+            showCheckInForm();
+        } catch (error) {
+            console.error('Signup error:', error);
+            showAuthError(error.message || 'Signup failed. Try again.', false);
+        }
+    }
+
+    async function handleIntroGoogleSignIn() {
+        try {
+            showAuthError('');
+            await signInWithGoogle();
+            showCheckInForm();
+        } catch (error) {
+            console.error('Google signup error:', error);
+            showAuthError(error.message || 'Google signup failed. Try again.');
+        }
+    }
+
+    initializeFirebase();
+
     watchAuthState(user => {
         if (user) {
             console.log('User authenticated:', user.uid);
-            // 홈 요약 통계 실시간 구독 시작
+            if (isUserAuthenticated === false) {
+                showCheckInForm();
+            }
             if (typeof subscribeHomeStats === 'function') subscribeHomeStats(user.uid);
-        } else {
-            console.log('User not authenticated');
-            // 구독 해제 및 기본값 리셋
-            if (typeof unsubscribeHomeStats === 'function') unsubscribeHomeStats();
-            const tripsEl = document.getElementById('journey-summary-trips');
-            const distEl = document.getElementById('journey-summary-dist');
-            const avgEl = document.getElementById('journey-summary-avg');
-            const topEl = document.getElementById('journey-summary-top');
-            if (tripsEl) tripsEl.textContent = '0';
-            if (distEl) distEl.textContent = '0 KM';
-            if (avgEl) avgEl.textContent = '0 KM';
-            if (topEl) topEl.textContent = '---';
+            if (typeof loadJourneyRoutesFromFirestore === 'function') {
+                loadJourneyRoutesFromFirestore(user.uid).then(routes => {
+                    if (routes && routes.length > 0) {
+                        if (typeof hydrateJourneyRoutes === 'function') {
+                            journeyRoutes = hydrateJourneyRoutes(routes);
+                        } else {
+                            journeyRoutes = routes;
+                        }
+                    }
+                }).catch(e => console.warn('Error loading journey routes:', e));
+            }
         }
     });
 </script>

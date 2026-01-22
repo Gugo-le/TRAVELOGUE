@@ -185,7 +185,7 @@ function recordJourneyRoute(route, options = {}) {
   const color = options.color || storedAccent || getAccentColor();
   const distanceKm = Number.isFinite(options.distanceKm) ? options.distanceKm : (route.distanceKm || computeDistanceFromCoords(route.pathCoords));
   const durationMs = Number.isFinite(options.durationMs) ? options.durationMs : getRouteDurationMs(distanceKm);
-  journeyRoutes.push({
+  const routeData = {
     key,
     origin: {
       code: route.origin.code,
@@ -204,10 +204,32 @@ function recordJourneyRoute(route, options = {}) {
     distanceKm,
     durationMs,
     createdAt: Date.now()
-  });
+  };
+  journeyRoutes.push(routeData);
   localStorage.setItem('travelogue_routes', JSON.stringify(journeyRoutes));
+  
+  // Firestore에도 저장
+  const user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+  if (user && user.uid && typeof firebase !== 'undefined') {
+    firebase.firestore().collection('users').doc(user.uid).collection('journeyRoutes').add(routeData)
+      .catch(e => console.warn('Failed to save journey route to Firestore:', e));
+  }
+  
   updateJourneyResetButton();
   updateJourneySummary();
+}
+
+// Firestore에서 저장된 폴리라인 로드
+async function loadJourneyRoutesFromFirestore(uid) {
+  if (!uid) return [];
+  try {
+    const snap = await firebase.firestore().collection('users').doc(uid).collection('journeyRoutes').get();
+    const routes = snap.docs.map(doc => doc.data());
+    return routes || [];
+  } catch (e) {
+    console.warn('Failed to load journey routes from Firestore:', e);
+    return [];
+  }
 }
 
 function renderJourneyNetwork() {
@@ -1868,6 +1890,8 @@ function initPCMap() {
 
         zoomToCountry(datamap, d, () => {
           document.getElementById('boarding-pass-ui').classList.add('active');
+          const bottomNav = document.getElementById('bottom-nav');
+          if (bottomNav) bottomNav.style.display = 'none';
           document.getElementById('subtitle-container').classList.add('hidden'); 
           document.getElementById("back-btn").style.display = "block";
           document.getElementById("hero").style.opacity = "0";
@@ -1922,6 +1946,8 @@ function resetMap(options = {}) {
     const globeSubtitle = document.getElementById('globe-subtitle');
     if (globeSubtitle) globeSubtitle.classList.remove('show');
     document.getElementById('boarding-pass-ui').classList.remove('active');
+    const bottomNav = document.getElementById('bottom-nav');
+    if (bottomNav) bottomNav.style.display = '';
     const flightStatus = document.getElementById('flight-status');
     if (flightStatus) flightStatus.classList.remove('show');
     hideEventHud();
@@ -1942,6 +1968,8 @@ function resetMap(options = {}) {
   } else {
     updateFlipBoard("SELECT DEST");
     document.getElementById('boarding-pass-ui').classList.remove('active');
+    const bottomNav = document.getElementById('bottom-nav');
+    if (bottomNav) bottomNav.style.display = '';
     const flightStatus = document.getElementById('flight-status');
     if (flightStatus) flightStatus.classList.remove('show');
     hideEventHud();
@@ -2217,6 +2245,8 @@ function initGlobe() {
             globeSubtitle.innerText = geo.properties.name.toUpperCase();
           }
           document.getElementById('boarding-pass-ui').classList.add('active');
+          const bottomNav = document.getElementById('bottom-nav');
+          if (bottomNav) bottomNav.style.display = 'none';
           document.getElementById("back-btn").style.display = "block";
           document.getElementById("hero").style.opacity = "0";
           const passportBtn = document.getElementById('passport-btn');

@@ -16,6 +16,11 @@ service cloud.firestore {
       allow read, create, update, delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // users/{userId}/journeyRoutes 서브컬렉션 - 자신의 폴리라인만 접근
+    match /users/{userId}/journeyRoutes/{routeId} {
+      allow read, create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
     // friendLinks 컬렉션 - 친구 관계 관리
     match /friendLinks/{document=**} {
       allow read: if request.auth != null;

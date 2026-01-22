@@ -526,14 +526,6 @@ function startJourney() {
   if (isAnimating) return;
   isAnimating = true;
   unlockAudio();
-  
-  // Play boarding sound effect
-  const bpSound = playAudio('airplane-bp');
-  if (bpSound) bpSound.volume = 0.6; // 음량 조절
-  setTimeout(() => {
-    const bpSound2 = playAudio('airplane-bp', { restart: false });
-    if (bpSound2) bpSound2.volume = 0.6;
-  }, 80);
 
   // Play soundscape for destination country
   setTimeout(() => {
@@ -941,10 +933,25 @@ function renderPassport() {
   const entries = getPassportEntries();
   const summary = document.getElementById('passport-summary');
   if (summary) {
-    const name = (userConfig.name || 'TRAVELER').toUpperCase();
+    // Firebase 프로필에서 handle 가져오기 (없으면 로컬 name 폴백)
+    let displayName = 'TRAVELER';
+    const user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+    if (user && typeof getUserProfile === 'function') {
+      getUserProfile(user.uid).then(profile => {
+        if (profile && profile.handle) {
+          displayName = `@${profile.handle}`;
+          const nameSummary = document.querySelector('.summary-name');
+          if (nameSummary) nameSummary.textContent = displayName;
+        }
+      }).catch(() => {
+        // 실패 시 로컬값 유지
+      });
+    } else if (userConfig.name) {
+      displayName = userConfig.name.toUpperCase();
+    }
     const issuedLabel = userConfig.issuedAt ? formatPassportDate(userConfig.issuedAt) : '—';
     summary.innerHTML = `
-      <span class="summary-name">${name}</span>
+      <span class="summary-name">${displayName}</span>
       <span class="summary-issue">ISSUED ${issuedLabel}</span>
       <span class="summary-count">${entries.length} STAMPS</span>
     `;

@@ -28,112 +28,6 @@
             height: auto;
         }
 
-        #auth-section {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px 20px 100px;
-            background: #fafafa;
-        }
-
-        .auth-box {
-            width: 100%;
-            max-width: 420px;
-            background: white;
-            border: 1px solid rgba(0,0,0,0.06);
-            border-radius: 12px;
-            box-shadow: 0 4px 30px rgba(0,0,0,0.03);
-        }
-
-        .ticket-header {
-            padding: 24px 40px 20px;
-            border-bottom: 1px dashed rgba(0,0,0,0.08);
-            text-align: left;
-            position: relative;
-        }
-
-        .ticket-header::before {
-            content: '';
-            position: absolute;
-            top: 20px;
-            left: 40px;
-            width: 40px;
-            height: 2px;
-            background: #e67e22;
-        }
-
-        .ticket-header .airline {
-            font-size: 8px;
-            letter-spacing: 3px;
-            color: #e67e22;
-            margin-bottom: 8px;
-        }
-
-        .ticket-header h1 {
-            font-size: 10px;
-            font-weight: 400;
-            letter-spacing: 4px;
-            text-transform: uppercase;
-            color: #999;
-        }
-
-        .auth-form {
-            display: none;
-            padding: 32px 40px 28px;
-        }
-
-        .auth-form.active {
-            display: block;
-        }
-
-        .route-display {
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            gap: 24px;
-            margin-bottom: 32px;
-        }
-
-        .route-code {
-            font-size: 40px;
-            font-weight: 300;
-            letter-spacing: 8px;
-            color: #141414;
-        }
-
-        .route-arrow {
-            color: #e67e22;
-            font-size: 22px;
-            font-weight: 300;
-        }
-
-        .form-section {
-            margin-bottom: 20px;
-        }
-
-        .form-label {
-            font-size: 7px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #bbb;
-            margin-bottom: 8px;
-            display: block;
-        }
-
-        .auth-form input {
-            width: 100%;
-            padding: 12px 0;
-            margin-bottom: 0;
-            background: transparent;
-            border: none;
-            border-bottom: 1px solid rgba(0,0,0,0.06);
-            color: #141414;
-            font-size: 15px;
-            font-family: 'Courier New', monospace;
-            transition: all 0.3s ease;
-        }
-
         .auth-form input:focus {
             outline: none;
             border-bottom-color: #e67e22;
@@ -300,13 +194,9 @@
         #profile-section {
             min-height: 100vh;
             padding: 80px 20px 100px;
-            display: none;
+            display: block;
             max-width: 500px;
             margin: 0 auto;
-        }
-
-        #profile-section.active {
-            display: block;
         }
 
         .profile-header {
@@ -485,117 +375,6 @@
 </head>
 <body>
 
-<!-- Auth Section -->
-<div id="auth-section">
-    <div class="auth-box">
-        <div class="ticket-header">
-            <div class="airline">TRAVELOGUE JOURNEY</div>
-            <h1>Boarding Pass</h1>
-        </div>
-
-        <!-- Login Form -->
-        <div id="login-form" class="auth-form active">
-            <div class="route-display">
-                <div class="route-code">SIGN</div>
-                <div class="route-arrow">✈</div>
-                <div class="route-code">IN</div>
-            </div>
-
-            <div class="form-section">
-                <label class="form-label">Email</label>
-                <input type="email" id="login-email" placeholder="">
-            </div>
-
-            <div class="form-section">
-                <label class="form-label">Password</label>
-                <input type="password" id="login-password" placeholder="">
-            </div>
-
-            <button onclick="handleEmailSignIn()">Begin Journey</button>
-
-            <div class="divider">or continue with</div>
-
-            <button type="button" class="social-btn" onclick="handleGoogleSignIn()">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 256 262" preserveAspectRatio="xMidYMid">
-                    <path d="M255.68 133.5c0-10.6-.92-18.3-2.9-26.3H130.55v47.6h71.9c-1.45 11.8-9.3 29.7-26.8 41.7l-.2 1.3 38.9 30.2 2.7.3c24.8-22.9 39.3-56.6 39.3-95.3" fill="#4285F4"></path>
-                    <path d="M130.55 261.1c35.7 0 65.7-11.7 87.6-31.8l-41.7-32.4c-11.2 7.8-26.1 13.3-45.9 13.3-35 0-64.8-22.9-75.4-54.6l-1.3.1-40.8 31.6-.5 1.2c21.9 43.6 66.8 72.6 118 72.6" fill="#34A853"></path>
-                    <path d="M55.15 155.6c-2.8-8.1-4.4-16.7-4.4-25.6 0-8.9 1.6-17.5 4.2-25.6l-.1-1.7-41.3-32-.6 1.1C4.2 90.5 0 107.2 0 124.9c0 17.7 4.2 34.4 12.9 52.7" fill="#FBBC05"></path>
-                    <path d="M130.55 50.5c24.8 0 41.5 10.7 51 19.6l37.2-36.3C196.15 12.1 166.25 0 130.55 0 79.35 0 34.45 29 12.85 72.2l42.1 32.3c10.6-31.7 40.4-54 75.6-54" fill="#EB4335"></path>
-                </svg>
-                Google
-            </button>
-
-            <button type="button" class="social-btn" onclick="handleAppleSignIn()">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                </svg>
-                Apple
-            </button>
-
-            <div id="auth-error" class="error"></div>
-        </div>
-
-        <!-- Signup Form -->
-        <div id="signup-form" class="auth-form">
-            <div class="route-display">
-                <div class="route-code">JOIN</div>
-                <div class="route-arrow">✈</div>
-                <div class="route-code">US</div>
-            </div>
-
-            <div class="form-section">
-                <label class="form-label">Name</label>
-                <input type="text" id="signup-name" placeholder="">
-            </div>
-
-            <div class="form-section">
-                <label class="form-label">Email</label>
-                <input type="email" id="signup-email" placeholder="">
-            </div>
-
-            <div class="form-section">
-                <label class="form-label">Password</label>
-                <input type="password" id="signup-password" placeholder="">
-            </div>
-
-            <div class="form-section">
-                <label class="form-label">Username</label>
-                <input type="text" id="signup-handle" placeholder="">
-            </div>
-
-            <button onclick="handleEmailSignUp()">Start Adventure</button>
-
-            <div class="divider">or continue with</div>
-
-            <button type="button" class="social-btn" onclick="handleGoogleSignIn()">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 256 262" preserveAspectRatio="xMidYMid">
-                    <path d="M255.68 133.5c0-10.6-.92-18.3-2.9-26.3H130.55v47.6h71.9c-1.45 11.8-9.3 29.7-26.8 41.7l-.2 1.3 38.9 30.2 2.7.3c24.8-22.9 39.3-56.6 39.3-95.3" fill="#4285F4"></path>
-                    <path d="M130.55 261.1c35.7 0 65.7-11.7 87.6-31.8l-41.7-32.4c-11.2 7.8-26.1 13.3-45.9 13.3-35 0-64.8-22.9-75.4-54.6l-1.3.1-40.8 31.6-.5 1.2c21.9 43.6 66.8 72.6 118 72.6" fill="#34A853"></path>
-                    <path d="M55.15 155.6c-2.8-8.1-4.4-16.7-4.4-25.6 0-8.9 1.6-17.5 4.2-25.6l-.1-1.7-41.3-32-.6 1.1C4.2 90.5 0 107.2 0 124.9c0 17.7 4.2 34.4 12.9 52.7" fill="#FBBC05"></path>
-                    <path d="M130.55 50.5c24.8 0 41.5 10.7 51 19.6l37.2-36.3C196.15 12.1 166.25 0 130.55 0 79.35 0 34.45 29 12.85 72.2l42.1 32.3c10.6-31.7 40.4-54 75.6-54" fill="#EB4335"></path>
-                </svg>
-                Google
-            </button>
-
-            <button type="button" class="social-btn" onclick="handleAppleSignIn()">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                </svg>
-                Apple
-            </button>
-
-            <div id="signup-error" class="error"></div>
-        </div>
-
-        <div class="ticket-footer">
-            <p class="auth-toggle" id="auth-toggle-text">
-                <a href="#" onclick="toggleAuthForm(event)">New Ticket?</a>
-            </p>
-            <div class="boarding-pass">TRV-2026</div>
-        </div>
-    </div>
-</div>
-
 <!-- Profile Section -->
 <div id="profile-section">
     <div class="profile-header">
@@ -679,21 +458,13 @@
             // 실시간 trips 통계 구독 시작
             subscribeUserTripsAndStats(user.uid);
         } else {
-            showAuth();
-            // 구독 해제
-            if (typeof unsubscribeUserTrips === 'function') unsubscribeUserTrips();
+            // Redirect to intro page if not authenticated
+            window.location.href = 'index.html';
         }
     });
 
-    // Show auth section
-    function showAuth() {
-        document.getElementById('auth-section').style.display = 'flex';
-        document.getElementById('profile-section').classList.remove('active');
-    }
-
     // Show profile section
     async function showProfile(user) {
-        document.getElementById('auth-section').style.display = 'none';
         document.getElementById('profile-section').classList.add('active');
         
         const profile = await getCurrentUserProfile();
@@ -711,98 +482,6 @@
             } catch (e) {
                 console.warn('Live stats compute failed:', e);
             }
-        }
-    }
-
-    // Toggle between login and signup
-    function toggleAuthForm(e) {
-        e.preventDefault();
-        const loginForm = document.getElementById('login-form');
-        const signupForm = document.getElementById('signup-form');
-        const toggleText = document.getElementById('auth-toggle-text');
-        
-        loginForm.classList.toggle('active');
-        signupForm.classList.toggle('active');
-        
-        // Update footer text
-        if (loginForm.classList.contains('active')) {
-            toggleText.innerHTML = '<a href="#" onclick="toggleAuthForm(event)">New Ticket?</a>';
-        } else {
-            toggleText.innerHTML = '<a href="#" onclick="toggleAuthForm(event)">Have Ticket?</a>';
-        }
-    }
-
-    // Show error
-    function showError(formType, message) {
-        const errorEl = formType === 'login' ? 
-            document.getElementById('auth-error') : 
-            document.getElementById('signup-error');
-        errorEl.textContent = message;
-        errorEl.style.display = 'block';
-    }
-
-    // Email sign in
-    async function handleEmailSignIn() {
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
-        
-        if (!email || !password) {
-            showError('login', '이메일과 비밀번호를 입력하세요.');
-            return;
-        }
-        
-        try {
-            await signInWithEmail(email, password);
-            document.getElementById('login-email').value = '';
-            document.getElementById('login-password').value = '';
-        } catch (error) {
-            showError('login', error.message);
-        }
-    }
-
-    // Email sign up
-    async function handleEmailSignUp() {
-        const name = document.getElementById('signup-name').value;
-        const email = document.getElementById('signup-email').value;
-        const password = document.getElementById('signup-password').value;
-        const handle = document.getElementById('signup-handle').value;
-        
-        if (!name || !email || !password || !handle) {
-            showError('signup', '모든 필드를 입력하세요.');
-            return;
-        }
-        
-        if (password.length < 6) {
-            showError('signup', '비밀번호는 6자 이상이어야 합니다.');
-            return;
-        }
-        
-        try {
-            await signUpWithEmail(email, password, name, handle);
-            document.getElementById('signup-name').value = '';
-            document.getElementById('signup-email').value = '';
-            document.getElementById('signup-password').value = '';
-            document.getElementById('signup-handle').value = '';
-        } catch (error) {
-            showError('signup', error.message);
-        }
-    }
-
-    // Google sign in
-    async function handleGoogleSignIn() {
-        try {
-            await signInWithGoogle();
-        } catch (error) {
-            showError('login', error.message);
-        }
-    }
-
-    // Apple sign in
-    async function handleAppleSignIn() {
-        try {
-            await signInWithApple();
-        } catch (error) {
-            showError('login', error.message);
         }
     }
 
