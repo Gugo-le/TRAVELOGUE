@@ -929,7 +929,7 @@ function formatPassportDate(date) {
 
 function renderPassport() {
   const page = document.getElementById('passport-page');
-  const stampsPerPage = isMobileView ? 10 : 18;
+  const stampsPerPage = isMobileView ? 10 : 30;  // PC: 6x5 = 30개
   const entries = getPassportEntries();
   const summary = document.getElementById('passport-summary');
   if (summary) {
@@ -1005,7 +1005,7 @@ function renderPassport() {
 }
 
 function changePassportPage(delta) {
-  const stampsPerPage = isMobileView ? 10 : 18;
+  const stampsPerPage = isMobileView ? 10 : 30;
   const totalPages = Math.max(1, Math.ceil(
     Object.keys(visitedCountries).reduce((sum, code) => sum + (visitedCountries[code] || []).length, 0) / stampsPerPage
   ));

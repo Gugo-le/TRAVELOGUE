@@ -203,7 +203,7 @@ let journeyNetworkTimer = null;
 let journeyNetworkVisible = false;
 let journeyTotalsTimer = null;
 const JOURNEY_NETWORK_DELAY_MS = 15000;
-const JOURNEY_GLOBE_ROTATION = [-127, -36];
+const JOURNEY_GLOBE_ROTATION = [-127, -36];  // 한국 위치 (서울 기준)
 const noFlyZones = [
   {
     code: 'PRK',

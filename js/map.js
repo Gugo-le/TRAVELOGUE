@@ -389,14 +389,17 @@ function shrinkGlobeForJourneyNetwork() {
   if (!globeMode || !globeProjection || !globeMap || !globePath) return;
   const svg = globeMap.svg;
   const startScale = globeProjection.scale();
-  const targetScale = globeBaseScale ? globeBaseScale * 0.5 : startScale * 0.5;  // 착륙 애니메이션과 동일한 scale
+  const targetScale = globeBaseScale ? globeBaseScale * 0.5 : startScale * 0.5;
+  
+  // 현재 위치(도착 공항)에서 한국까지 부드럽게 회전
   const startRotation = globeProjection.rotate();
   const targetRotation = [
-    JOURNEY_GLOBE_ROTATION[0],
-    JOURNEY_GLOBE_ROTATION[1],
+    JOURNEY_GLOBE_ROTATION[0],  // 한국 경도
+    JOURNEY_GLOBE_ROTATION[1],  // 한국 위도
     Number.isFinite(startRotation[2]) ? startRotation[2] : 0
   ];
-  d3.transition().duration(1200).ease("cubic-in-out").tween("shrink", function() {
+  
+  d3.transition().duration(1500).ease("cubic-in-out").tween("shrink", function() {
     const s = d3.interpolate(startScale, targetScale);
     const r = d3.interpolate(startRotation, targetRotation);
     return function(t) {
@@ -518,7 +521,7 @@ function updateJourneyResetButton() {
 }
 function showJourneyNetworkNow() {
   journeyNetworkVisible = true;
-  // shrinkGlobeForJourneyNetwork();  // 제거: 지구본 축소 애니메이션 없음
+  shrinkGlobeForJourneyNetwork();  // 한국 중심으로 축소 애니메이션
   renderJourneyNetwork();
   updateJourneyTotalsFlipboard();
   updateJourneySummary();
@@ -1805,68 +1808,67 @@ function beginFlightOnGlobe(route) {
   });
   const arrivalDelay = Math.max(1200, flightDuration);
   setTimeout(() => {
-    focusAirport(route.destination, {
-      scale: baseScale * 0.5,  // polyline scale과 동일
-      duration: 1400,  // 부드러운 감속 애니메이션
-      onEnd: () => {
-        updateFlipBoard("ARRIVED");
-        pauseAudio('airplane-loop');
-        recordJourneyRoute(route, {
-          color: getAccentColor(),
-          distanceKm,
-          durationMs: flightDuration
-        });
-        if (lastRouteInfo) lastRouteInfo.arrived = true;
-        routeProgress = 1;
-        flightMode = false;
-        isAnimating = false;
-        forceGlobeMode = false;
-        if (flightCountdownTimer) {
-          clearInterval(flightCountdownTimer);
-          flightCountdownTimer = null;
-        }
-        if (globeProjection && globeMap && globePath) {
-          startAutoRotate(globeProjection, globeMap.svg, globePath);
-        }
-        const passportBtn = document.getElementById('passport-btn');
-        if (passportBtn) passportBtn.style.display = 'block';
-        const backBtn = document.getElementById('back-btn');
-        if (backBtn) backBtn.style.display = 'block';
-        playAudio('landing-sound');
-        
-          // Hide subtitle container immediately for cleaner transition
-          const subtitleContainer = document.getElementById('subtitle-container');
-          if (subtitleContainer) {
-            subtitleContainer.classList.add('hidden');
-            subtitleContainer.style.display = 'none';
-            subtitleContainer.style.opacity = '0';
-          }
-        
-          // After landing, persist trip to user profile (if logged in)
-          persistTripAfterLanding(route, distanceKm);
-          // Ensure globe is active, then show journey network (flight logs) immediately
-          forceGlobeMode = true;
-          globeMode = true;
-          // checkDeviceAndInitMap 제거 - 이미 globe가 활성화되어 있음
-          
-          // Wait for globe SVG to fully initialize, then render polylines
-          const checkGlobeReady = () => {
-            if (globeMap && globeMap.svg && globePath && globeProjection) {
-              showJourneyNetworkNow();
-              // Start auto-rotate after journey network is shown
-              setTimeout(() => {
-                if (globeProjection && globeMap && globePath) {
-                  startAutoRotate(globeProjection, globeMap.svg, globePath);
-                }
-              }, 200);
-            } else {
-              setTimeout(checkGlobeReady, 50);
-            }
-          };
-          setTimeout(checkGlobeReady, 300);
-        landingTransitionPending = false;
-      }
+    // focusAirport 제거 - 바로 ARRIVED 표시하고 한국으로 이동
+    updateFlipBoard("ARRIVED");
+    pauseAudio('airplane-loop');
+    recordJourneyRoute(route, {
+      color: getAccentColor(),
+      distanceKm,
+      durationMs: flightDuration
     });
+    if (lastRouteInfo) lastRouteInfo.arrived = true;
+    routeProgress = 1;
+    flightMode = false;
+    isAnimating = false;
+    forceGlobeMode = false;
+    if (flightCountdownTimer) {
+      clearInterval(flightCountdownTimer);
+      flightCountdownTimer = null;
+    }
+    
+    // 지구본 경로 다시 그리기
+    if (globeProjection && globeMap && globePath) {
+      refreshGlobePaths();
+      startAutoRotate(globeProjection, globeMap.svg, globePath);
+    }
+    
+    const passportBtn = document.getElementById('passport-btn');
+    if (passportBtn) passportBtn.style.display = 'block';
+    const backBtn = document.getElementById('back-btn');
+    if (backBtn) backBtn.style.display = 'block';
+    playAudio('landing-sound');
+    
+    // Hide subtitle container immediately for cleaner transition
+    const subtitleContainer = document.getElementById('subtitle-container');
+    if (subtitleContainer) {
+      subtitleContainer.classList.add('hidden');
+      subtitleContainer.style.display = 'none';
+      subtitleContainer.style.opacity = '0';
+    }
+    
+    // After landing, persist trip to user profile (if logged in)
+    persistTripAfterLanding(route, distanceKm);
+    // Ensure globe is active, then show journey network (flight logs) immediately
+    forceGlobeMode = true;
+    globeMode = true;
+    // checkDeviceAndInitMap 제거 - 이미 globe가 활성화되어 있음
+    
+    // Wait for globe SVG to fully initialize, then render polylines
+    const checkGlobeReady = () => {
+      if (globeMap && globeMap.svg && globePath && globeProjection) {
+        showJourneyNetworkNow();
+        // Start auto-rotate after journey network is shown
+        setTimeout(() => {
+          if (globeProjection && globeMap && globePath) {
+            startAutoRotate(globeProjection, globeMap.svg, globePath);
+          }
+        }, 200);
+      } else {
+        setTimeout(checkGlobeReady, 50);
+      }
+    };
+    setTimeout(checkGlobeReady, 300);
+    landingTransitionPending = false;
   }, arrivalDelay);
 }
 
