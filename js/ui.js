@@ -1053,15 +1053,24 @@ async function handleTicketClick(e) {
   updateVisitHistory(selectedCountry);
   if (route && route.origin && route.destination) {
     const destinationCountry = route.destination.country || resolveAirportCountry(route.destination);
-    visitedStamps.push({
+    const stampData = {
       code: destinationCountry || route.destination.code,
       airport: route.destination.code,
       origin: route.origin.code,
       date: visitDate,
       type: 'ARR'
-    });
+    };
+    
+    visitedStamps.push(stampData);
     localStorage.setItem('visited_stamps', JSON.stringify(visitedStamps));
 
+    // Save to Firestore if user is authenticated
+    const user = getCurrentUser && getCurrentUser();
+    if (user && user.uid && typeof addStampForCurrentUser === 'function') {
+      addStampForCurrentUser(stampData).catch(e => {
+        console.warn('Failed to save stamp to Firestore:', e);
+      });
+    }
   }
 
   setTimeout(() => {

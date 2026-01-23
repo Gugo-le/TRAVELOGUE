@@ -157,6 +157,58 @@ async function signOut() {
   }
 }
 
+// 계정 탈퇴
+async function deleteAccount() {
+  try {
+    const user = getCurrentUser();
+    if (!user) throw new Error('No user logged in');
+    
+    const uid = user.uid;
+    const db = firebase.firestore();
+    
+    // 1. trips 서브컬렉션 삭제
+    const tripsRef = db.collection('users').doc(uid).collection('trips');
+    const tripsSnapshot = await tripsRef.get();
+    const tripsBatch = db.batch();
+    tripsSnapshot.docs.forEach(doc => tripsBatch.delete(doc.ref));
+    await tripsBatch.commit();
+    
+    // 2. stamps 서브컬렉션 삭제
+    const stampsRef = db.collection('users').doc(uid).collection('stamps');
+    const stampsSnapshot = await stampsRef.get();
+    const stampsBatch = db.batch();
+    stampsSnapshot.docs.forEach(doc => stampsBatch.delete(doc.ref));
+    await stampsBatch.commit();
+    
+    // 3. routes 서브컬렉션 삭제
+    const routesRef = db.collection('users').doc(uid).collection('routes');
+    const routesSnapshot = await routesRef.get();
+    const routesBatch = db.batch();
+    routesSnapshot.docs.forEach(doc => routesBatch.delete(doc.ref));
+    await routesBatch.commit();
+    
+    // 4. 사용자 프로필 문서 삭제
+    await db.collection('users').doc(uid).delete();
+    
+    // 5. Firebase Auth 계정 삭제
+    await user.delete();
+    
+    // 6. 로컬 상태 초기화
+    currentUser = null;
+    localStorage.clear();
+    
+    console.log('Account deleted successfully');
+    return true;
+  } catch (error) {
+    console.error('Delete account error:', error.message);
+    // 재인증이 필요한 경우
+    if (error.code === 'auth/requires-recent-login') {
+      throw new Error('Please sign in again before deleting your account');
+    }
+    throw error;
+  }
+}
+
 // handle 자동 생성
 function generateHandle(displayName) {
   if (!displayName) return '@user' + Math.random().toString(36).substr(2, 9);

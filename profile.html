@@ -251,6 +251,98 @@
             border-color: #141414;
         }
 
+        .delete-account-btn {
+            padding: 8px 16px;
+            background: transparent;
+            color: #e74c3c;
+            border: 1px solid rgba(231, 76, 60, 0.2);
+            cursor: pointer;
+            font-size: 10px;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+
+        .delete-account-btn:hover {
+            border-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.05);
+        }
+
+        .delete-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .delete-modal.active {
+            display: flex;
+        }
+
+        .delete-modal-content {
+            background: white;
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            border: 1px solid rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .delete-modal-content h2 {
+            font-size: 16px;
+            font-weight: 400;
+            margin-bottom: 16px;
+            letter-spacing: 2px;
+        }
+
+        .delete-modal-content p {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        .delete-modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .delete-modal-buttons button {
+            padding: 10px 20px;
+            font-size: 10px;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            border: 1px solid rgba(0,0,0,0.2);
+            background: transparent;
+            transition: all 0.2s;
+        }
+
+        .delete-modal-buttons .confirm-delete {
+            color: #e74c3c;
+            border-color: rgba(231, 76, 60, 0.3);
+        }
+
+        .delete-modal-buttons .confirm-delete:hover {
+            background: #e74c3c;
+            color: white;
+            border-color: #e74c3c;
+        }
+
+        .delete-modal-buttons .cancel-delete:hover {
+            border-color: #141414;
+        }
+
         .stats {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -281,6 +373,98 @@
             font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 1px;
+        }
+
+        .delete-account-btn {
+            padding: 8px 16px;
+            background: transparent;
+            color: #e74c3c;
+            border: 1px solid rgba(231, 76, 60, 0.2);
+            cursor: pointer;
+            font-size: 10px;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+
+        .delete-account-btn:hover {
+            border-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.05);
+        }
+
+        .delete-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .delete-modal.active {
+            display: flex;
+        }
+
+        .delete-modal-content {
+            background: white;
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            border: 1px solid rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .delete-modal-content h2 {
+            font-size: 16px;
+            font-weight: 400;
+            margin-bottom: 16px;
+            letter-spacing: 2px;
+        }
+
+        .delete-modal-content p {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        .delete-modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .delete-modal-buttons button {
+            padding: 10px 20px;
+            font-size: 10px;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            border: 1px solid rgba(0,0,0,0.2);
+            background: transparent;
+            transition: all 0.2s;
+        }
+
+        .delete-modal-buttons .confirm-delete {
+            color: #e74c3c;
+            border-color: rgba(231, 76, 60, 0.3);
+        }
+
+        .delete-modal-buttons .confirm-delete:hover {
+            background: #e74c3c;
+            color: white;
+            border-color: #e74c3c;
+        }
+
+        .delete-modal-buttons .cancel-delete:hover {
+            border-color: #141414;
         }
 
         /* Bottom Nav */
@@ -383,7 +567,10 @@
         </div>
         <h1 id="profile-name">사용자 이름</h1>
         <p class="handle" id="profile-handle">@handle</p>
-        <button class="logout-btn" onclick="handleSignOut()">Sign Out</button>
+        <div>
+            <button class="logout-btn" onclick="handleSignOut()">Sign Out</button>
+            <button class="delete-account-btn" onclick="showDeleteModal()">Delete Account</button>
+        </div>
     </div>
 
     <div class="stats">
@@ -401,6 +588,18 @@
             <div class="stat-icon">📏</div>
             <div class="stat-value" id="stat-distance">0</div>
             <div class="stat-label">Kilometers</div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Account Modal -->
+<div id="delete-modal" class="delete-modal">
+    <div class="delete-modal-content">
+        <h2>DELETE ACCOUNT</h2>
+        <p>Are you sure you want to delete your account?<br>This action cannot be undone.<br><br>All your trips, stamps, and data will be permanently deleted.</p>
+        <div class="delete-modal-buttons">
+            <button class="cancel-delete" onclick="hideDeleteModal()">Cancel</button>
+            <button class="confirm-delete" onclick="handleDeleteAccount()">Delete</button>
         </div>
     </div>
 </div>
@@ -442,6 +641,7 @@
 <script src="./js/data.js"></script>
 <script src="./js/stats.js"></script>
 <script src="./js/trips.js"></script>
+<script src="./js/stamps.js"></script>
 <script src="./js/profile.js"></script>
 
 <script>
@@ -457,6 +657,10 @@
             showProfile(user);
             // 실시간 trips 통계 구독 시작
             subscribeUserTripsAndStats(user.uid);
+            // Load stamps from Firestore
+            if (typeof loadStampsFromFirestore === 'function') {
+                loadStampsFromFirestore(user.uid).catch(e => console.warn('Error loading stamps:', e));
+            }
         } else {
             // Redirect to intro page if not authenticated
             window.location.href = 'index.html';
@@ -489,8 +693,41 @@
     async function handleSignOut() {
         try {
             await signOut();
+            window.location.href = 'index.html';
         } catch (error) {
             console.error('Sign out error:', error);
+            alert('Failed to sign out. Please try again.');
+        }
+    }
+
+    // Show delete modal
+    function showDeleteModal() {
+        const modal = document.getElementById('delete-modal');
+        if (modal) modal.classList.add('active');
+    }
+
+    // Hide delete modal
+    function hideDeleteModal() {
+        const modal = document.getElementById('delete-modal');
+        if (modal) modal.classList.remove('active');
+    }
+
+    // Delete account
+    async function handleDeleteAccount() {
+        try {
+            await deleteAccount();
+            alert('Account deleted successfully');
+            window.location.href = 'index.html';
+        } catch (error) {
+            console.error('Delete account failed:', error);
+            hideDeleteModal();
+            if (error.message.includes('sign in again')) {
+                alert('Please sign in again before deleting your account.');
+                await signOut();
+                window.location.href = 'index.html';
+            } else {
+                alert('Failed to delete account: ' + error.message);
+            }
         }
     }
 </script>
