@@ -2170,6 +2170,7 @@ function initGlobe() {
     geographyConfig: {
       borderWidth: 0.5,
       borderColor: '#ffffff',
+      highlightOnHover: false,
       highlightFillColor: '#ffcccc',
       highlightBorderColor: '#000000',
       popupOnHover: false
@@ -2255,12 +2256,14 @@ function initGlobe() {
 
       if (!isTouch) {
         subs.on("mouseenter", function(geo) {
+          console.log('GLOBE MOUSEENTER:', geo.properties.name, 'shouldAllowCountryHover:', shouldAllowCountryHover());
           if (shouldAllowCountryHover()) {
             updateFlipBoard(geo.properties.name);
             d3.select(this).style("fill", "#ffcccc");
           }
         })
         .on("mouseleave", function(geo) {
+          console.log('GLOBE MOUSELEAVE:', geo.properties.name, 'shouldAllowCountryHover:', shouldAllowCountryHover());
           if (shouldAllowCountryHover()) {
             updateFlipBoard("");
             d3.select(this).style("fill", "#e6e6e6");
@@ -2270,7 +2273,7 @@ function initGlobe() {
 
       let lastTouchSelect = 0;
       const handleCountrySelect = (geo, source = 'click') => {
-        if (isAnimating || flightMode) return;
+        if (isAnimating || selectedCountry || flightMode) return;
         if (source === 'touch') lastTouchSelect = Date.now();
         if (d3.event && typeof d3.event.stopPropagation === 'function') {
           d3.event.stopPropagation();
