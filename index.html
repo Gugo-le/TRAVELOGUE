@@ -272,15 +272,13 @@
 <!-- Search Overlay -->
 <div id="search-overlay" class="overlay-backdrop" aria-hidden="true">
     <div class="overlay-panel search-panel">
-        <button class="overlay-close" data-overlay-close aria-label="Close search">×</button>
         <div class="ticket-header">
-            <div class="airline">TRAVELOGUE SEARCH</div>
             <h1>Find Travelers</h1>
         </div>
         <form id="search-form" class="search-form">
             <div class="field">
-                <label id="search-label">HANDLE / NAME</label>
-                <input id="search-input" type="text" placeholder="enter handle or name" autocomplete="off" />
+                <label id="search-label">NAME</label>
+                <input id="search-input" type="text" autocomplete="off" />
             </div>
             <button class="search-btn" type="submit">Search</button>
             <div id="search-status" class="loader" style="display:none;">Searching...</div>
@@ -474,21 +472,9 @@
                 loadStampsFromFirestore(user.uid).catch(e => console.warn('Error loading stamps:', e));
             }
             
-            // Load all user data from Firestore
+            // Load all user data from Firestore (including journeyRoutes, visitedCountries, etc.)
             if (typeof loadAllUserDataFromFirestore === 'function') {
                 loadAllUserDataFromFirestore(user.uid).catch(e => console.warn('Error loading user data:', e));
-            }
-            
-            if (typeof loadJourneyRoutesFromFirestore === 'function') {
-                loadJourneyRoutesFromFirestore(user.uid).then(routes => {
-                    if (routes && routes.length > 0) {
-                        if (typeof hydrateJourneyRoutes === 'function') {
-                            journeyRoutes = hydrateJourneyRoutes(routes);
-                        } else {
-                            journeyRoutes = routes;
-                        }
-                    }
-                }).catch(e => console.warn('Error loading journey routes:', e));
             }
         }
     });

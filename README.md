@@ -27,19 +27,147 @@ But the warmth held within those images fades faster than we expect. TRAVELOGUE 
 - **HTML5 Canvas** - 2D 평면 지도 렌더링 및 애니메이션
 
 ### Backend & Database
-- **Firebase Authentication** - 이메일 기반 사용자 인증
-- **Firebase Firestore** - 여행 기록 및 사용자 프로필 저장
-- **Firebase Storage** - 프로필 이미지 업로드/관리
+- **Firebase Authentication** - 이메일/구글/애플 로그인 지원
+- **Firebase Firestore** - 실시간 데이터베이스
+  - 여행 기록, 여권 스탬프, 여정 경로 저장
+  - 사용자별 통계 자동 계산 및 저장
+  - 실시간 동기화 및 오프라인 지원
+- **Firebase Storage** - 프로필 이미지 업로드/관리 (예정)
 
 ### Data & Assets
-- **OpenFlights Database** - 전 세계 공항 데이터 (위도/경도, IATA 코드)
+- **OpenFlights Database** - 전 세계 10,000+ 공항 데이터 (위도/경도, IATA 코드, 국가)
 - **Custom Audio System** - 국가별 soundscape 및 비행 효과음
-- **Haversine Formula** - 공항 간 실제 거리 계산
+- **Haversine Formula** - 공항 간 실제 대권 항로 거리 계산
 
 ### UI/UX
-- **CSS3 Animations** - 보딩패스, Flip Board, 여권 등 인터랙션
+- **CSS3 Animations** - 보딩패스 찢기, Flip Board, 여권 페이지 넘김 등
 - **Responsive Design** - 모바일/데스크톱 대응 (@media queries)
-- **PWA Ready** - Web App Manifest, Service Worker 지원 가능
+- **Touch Gestures** - 스와이프, 핀치 줌, 지구본 회전
+- **PWA Ready** - Web App Manifest 지원
+
+---
+
+## 🗄️ Firebase Structure
+
+### Firestore Database Schema
+
+```
+users/
+  {uid}/
+    ├─ uid: string
+    ├─ email: string
+    ├─ displayName: string
+    ├─ handle: string
+    ├─ profileImage: string | null
+    ├─ bio: string
+    ├─ createdAt: timestamp
+    ├─ lastUpdated: timestamp
+    ├─ visitedCountries: {
+    │    "KOR": ["2024-01-15", "2024-03-20"],
+    │    "JPN": ["2024-02-10"],
+    │    ...
+    │  }
+    ├─ journeyRoutes: [
+    │    {
+    │      origin: { code, lat, lon, country },
+    │      destination: { code, lat, lon, country },
+    │      pathCoords: [[lon, lat], ...],
+    │      color: "#e67e22",
+    │      distanceKm: 1234,
+    │      durationMs: 7200000,
+    │      createdAt: timestamp
+    │    },
+    │    ...
+    │  ]
+    ├─ userConfig: {
+    │    name: string,
+    │    from: string,
+    │    issuedAt: string
+    │  }
+    ├─ stats: {
+    │    totalTrips: number,
+    │    totalCountries: number,
+    │    totalDistance: number,
+    │    visitedCountries: ["KOR", "JPN", ...]
+    │  }
+    ├─ theme: {
+    │    primary: "#e67e22",
+    │    secondary: "#ffffff",
+    │    gradient: string | null
+    │  }
+    │
+    ├─ trips/  (subcollection)
+    │   ├─ {tripId}/
+    │   │   ├─ origin: "ICN"
+    │   │   ├─ destination: "NRT"
+    │   │   ├─ date: timestamp
+    │   │   ├─ distanceOverride?: number
+    │   │   ├─ country?: "JPN"
+    │   │   └─ createdAt: timestamp
+    │   └─ ...
+    │
+    ├─ stamps/  (subcollection)
+    │   ├─ {stampId}/
+    │   │   ├─ code: "JPN"
+    │   │   ├─ airport: "NRT"
+    │   │   ├─ origin: "ICN"
+    │   │   ├─ date: "2024-01-15"
+    │   │   ├─ type: "ARR" | "DEP"
+    │   │   └─ createdAt: timestamp
+    │   └─ ...
+    │
+    └─ routes/  (subcollection - deprecated, journeyRoutes 필드 사용)
+```
+
+### Security Rules
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 사용자 프로필 - 본인만 수정, 타인은 읽기 가능
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 여행 기록 - 본인만 접근
+    match /users/{userId}/trips/{tripId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 여권 스탬프 - 본인만 접근
+    match /users/{userId}/stamps/{stampId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+
+### Data Flow
+
+1. **회원가입/로그인**
+   - Firebase Auth로 인증
+   - Firestore에 사용자 프로필 생성 (`users/{uid}`)
+   - 초기 stats, theme 설정
+
+2. **여행 추가**
+   - 보딩패스에서 origin/destination 선택
+   - `addTripForCurrentUser()` → Firestore `users/{uid}/trips` 추가
+   - 자동으로 `recalcAndPersistStats()` 실행 → stats 업데이트
+   - 도장 추가 → `users/{uid}/stamps` 추가
+   - 방문 국가 추가 → `visitedCountries` 업데이트
+
+3. **여정 네트워크**
+   - 비행 완료 시 `journeyRoutes` 배열에 경로 추가
+   - Firestore에 저장 → 다른 기기에서도 동기화
+   - 로그인 시 `loadAllUserDataFromFirestore()` → 모든 경로 복원
+
+4. **실시간 통계**
+   - `subscribeHomeStats(uid)` → trips 컬렉션 실시간 구독
+   - trips 추가/삭제 시 자동으로 UI 업데이트
+   - Haversine 공식으로 총 거리 계산
 
 ---
 
@@ -319,32 +447,200 @@ const path = d3.geo.path().projection(projection);
 
 ## Trips Schema & Stats
 
-Trips are stored in Firestore under `users/{uid}/trips` with documents like:
+### Firestore Data Models
 
-```
+**trips 컬렉션** (`users/{uid}/trips/{tripId}`):
+```json
 {
-	origin: "ICN",             // IATA code (uppercase)
-	destination: "NRT",        // IATA code (uppercase)
-	date: <timestamp|string>,   // travel date
-	distanceOverride?: 1234,    // optional km override
-	country?: "JPN",           // optional primary country tag
-	createdAt: <timestamp>      // server timestamp
+  "origin": "ICN",
+  "destination": "NRT",
+  "date": "2024-01-15",
+  "distanceOverride": 1234,
+  "country": "JPN",
+  "createdAt": "2024-01-15T10:30:00Z"
 }
 ```
 
-Stats are computed via `js/stats.js` using the airports dataset loaded in `js/data.js`:
-- Total Trips: number of trip documents
-- Total Countries: unique countries visited (origin/destination inferred)
-- Total Distance: Haversine distance (km) summed; overrides honored
+**stamps 컬렉션** (`users/{uid}/stamps/{stampId}`):
+```json
+{
+  "code": "JPN",
+  "airport": "NRT",
+  "origin": "ICN",
+  "date": "2024-01-15",
+  "type": "ARR",
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
 
-The profile page subscribes to `users/{uid}/trips` changes and updates both the UI and `users/{uid}.stats` automatically.
+**journeyRoutes 필드** (users 문서 내):
+```json
+{
+  "journeyRoutes": [
+    {
+      "origin": { "code": "ICN", "lat": 37.46, "lon": 126.44, "country": "KOR" },
+      "destination": { "code": "NRT", "lat": 35.76, "lon": 140.38, "country": "JPN" },
+      "pathCoords": [[126.44, 37.46], [140.38, 35.76]],
+      "color": "#e67e22",
+      "distanceKm": 1234,
+      "durationMs": 7200000,
+      "createdAt": 1705315800000
+    }
+  ]
+}
+```
 
+### Statistics Calculation
 
-- [ ] 엘범 기능
-- [ ] 파이어베이스 연동(친구추가, 기록 저장)
-- [ ] flutter로 재개발 -> 앱 배포
-- [ ] 여권 꾸미기 기능
-- [ ] 국가마다 상징적인 소리 업데이트
-- [ ] 프로필: 방문한 나라들의 대표 색 합성
-- [ ] 채팅: 여행을 도와주는 도구
-- [ ] 
+통계는 `js/stats.js`의 `computeStats()` 함수로 자동 계산됩니다:
+
+```javascript
+function computeStats(trips, airportIndex) {
+  return {
+    totalTrips: trips.length,
+    totalCountries: uniqueCountriesFromTrips(trips).length,
+    totalDistance: trips.reduce((sum, trip) => 
+      sum + haversineKm(trip.origin, trip.destination), 0
+    ),
+    visitedCountries: uniqueCountriesFromTrips(trips)
+  };
+}
+```
+
+- **totalTrips**: 총 여행 횟수
+- **totalCountries**: 방문한 고유 국가 수
+- **totalDistance**: Haversine 공식으로 계산한 총 비행 거리 (km)
+- **visitedCountries**: 방문한 국가 코드 배열
+
+통계는 프로필 페이지와 홈 화면의 JOURNEY STATS에 실시간 표시됩니다.
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- 웹 서버 (Live Server, http-server 등)
+- Firebase 프로젝트 설정
+
+### Installation
+
+1. 저장소 클론
+```bash
+git clone https://github.com/your-username/travel_logue.git
+cd travel_logue
+```
+
+2. Firebase 설정
+   - [Firebase Console](https://console.firebase.google.com/)에서 프로젝트 생성
+   - Authentication, Firestore, Storage 활성화
+   - `js/firebaseConfig.js`에 Firebase 설정 추가:
+
+```javascript
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+```
+
+3. Firestore Security Rules 배포
+```bash
+firebase deploy --only firestore:rules
+```
+
+4. 로컬 서버 실행
+```bash
+# Live Server (VS Code 확장) 사용 또는
+npx http-server -p 8080
+```
+
+5. 브라우저에서 `http://localhost:8080` 접속
+
+### First Run
+1. 인트로 화면에서 "New Traveler" 클릭
+2. 이메일, 이름, 비밀번호 입력하여 회원가입
+3. 지도에서 공항 선택 → 보딩패스 작성
+4. "Check in" 버튼 클릭 → 비행 애니메이션 시작
+5. 착륙 후 여권 버튼 클릭하여 스탬프 확인
+
+---
+
+## 📁 Project Structure
+
+```
+travel_logue/
+├── index.html              # 메인 페이지 (지도, 보딩패스)
+├── profile.html            # 프로필 페이지 (통계, 로그아웃)
+├── search.html             # 사용자 검색 (예정)
+├── chat.html               # 채팅 (예정)
+├── style.css               # 메인 스타일시트
+├── firestore.rules         # Firestore 보안 규칙
+│
+├── js/
+│   ├── firebaseConfig.js   # Firebase 초기화
+│   ├── auth.js             # 인증 (회원가입, 로그인, 계정삭제)
+│   ├── data.js             # 공항 데이터 로드
+│   ├── state.js            # 전역 상태 관리
+│   ├── map.js              # 지도/지구본 렌더링, 비행 애니메이션
+│   ├── ui.js               # UI 인터랙션 (보딩패스, 여권, 날짜 선택)
+│   ├── audio.js            # 오디오 시스템
+│   ├── trips.js            # Firestore trips CRUD
+│   ├── stamps.js           # Firestore stamps CRUD
+│   ├── userdata.js         # 사용자 데이터 (경로, 방문국가) 저장/로드
+│   ├── stats.js            # 통계 계산 (Haversine, 국가 추출)
+│   ├── profile.js          # 프로필 페이지 로직
+│   ├── home.js             # 홈 통계 실시간 구독
+│   ├── search.js           # 사용자 검색 (예정)
+│   ├── navigation.js       # 하단 네비게이션
+│   ├── utils.js            # 유틸리티 함수
+│   └── script.js           # 앱 초기화 및 이벤트 연결
+│
+└── assets/
+    ├── data/
+    │   ├── airports.json           # 10,000+ 공항 데이터
+    │   ├── country-sounds.json     # 국가별 soundscape 매핑
+    │   ├── theme-colors.json       # 국가별 테마 색상
+    │   └── openflights/
+    │       ├── airports-extended.dat
+    │       └── routes.dat          # 항공사 노선 데이터
+    ├── audio/
+    │   └── soundscapes/            # 국가별 배경음악
+    ├── images/                     # 아이콘, 로고
+    └── favicon/                    # 파비콘, manifest
+```
+
+---
+
+## 🎯 Roadmap
+
+### Completed ✅
+- [x] 3D 지구본 / 2D 평면 지도 전환
+- [x] 실시간 비행 애니메이션 및 효과음
+- [x] Firebase 인증 (이메일, 구글, 애플)
+- [x] Firestore 여행 기록 저장
+- [x] 여권 스탬프 시스템
+- [x] 여정 네트워크 (폴리라인)
+- [x] 실시간 통계 (총 여행, 국가, 거리)
+- [x] 계정별 데이터 완전 분리
+- [x] 계정 탈퇴 기능
+- [x] 보딩패스 찢기 애니메이션 개선
+
+### In Progress 🚧
+- [ ] 프로필 이미지 업로드 (Firebase Storage)
+- [ ] 사용자 검색 및 친구 추가
+- [ ] 여행 앨범 기능
+- [ ] 여권 꾸미기 (스티커, 배경)
+
+### Future 🔮
+- [ ] 채팅: 여행 추천 AI 챗봇
+- [ ] 국가별 상징 소리 확장
+- [ ] 방문 국가 색상 합성 프로필 배경
+- [ ] Flutter 앱 재개발 및 앱스토어 배포
+- [ ] PWA Service Worker (오프라인 지원)
+- [ ] 여행 사진 갤러리
+- [ ] 소셜 피드 (친구들의 최근 여행)
+
+---

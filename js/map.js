@@ -248,7 +248,7 @@ async function loadJourneyRoutesFromFirestore(uid) {
 function renderJourneyNetwork() {
   console.log('[RENDER_JOURNEY] journeyNetworkVisible:', journeyNetworkVisible);
   if (!journeyNetworkVisible) return;
-  journeyRoutes = hydrateJourneyRoutes(loadJSON('travelogue_routes', []));
+  // journeyRoutes는 이미 loadAllUserDataFromFirestore에서 로드됨
   console.log('[RENDER_JOURNEY] journeyRoutes loaded:', journeyRoutes?.length);
   if (!journeyRoutes || !journeyRoutes.length) {
     console.log('[RENDER_JOURNEY] No routes, clearing');
@@ -447,29 +447,8 @@ function updateJourneySummary() {
     return;
   }
   const totals = getJourneyTotals();
-  if (tripsEl) tripsEl.textContent = String(journeyRoutes.length);
-  if (topEl) {
-    const counts = new Map();
-    journeyRoutes.forEach(route => {
-      const country = resolveAirportCountry(route.destination) || resolveAirportCountry(route.origin);
-      if (!country) return;
-      counts.set(country, (counts.get(country) || 0) + 1);
-    });
-    let topCountry = '';
-    let topCount = 0;
-    counts.forEach((count, code) => {
-      if (count > topCount) {
-        topCount = count;
-        topCountry = code;
-      }
-    });
-    topEl.textContent = topCountry || '---';
-  }
-  if (distEl) distEl.textContent = `${formatDistanceKm(totals.totalKm)} KM`;
-  if (avgEl) {
-    const avgKm = journeyRoutes.length ? totals.totalKm / journeyRoutes.length : 0;
-    avgEl.textContent = `${formatDistanceKm(avgKm)} KM`;
-  }
+  // journeyRoutes.length 대신 실제 통계는 home.js에서 업데이트
+  // 여기서는 폴리라인이 있을 때만 패널 표시
   panel.classList.add('is-visible');
   panel.setAttribute('aria-hidden', 'false');
   if (subtitle) subtitle.classList.toggle('subtitle-hidden', isJourneyMode);

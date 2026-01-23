@@ -57,7 +57,9 @@ async function subscribeHomeStats(uid) {
     const ref = firebase.firestore().collection('users').doc(uid).collection('trips');
     homeStatsUnsubscribe = ref.onSnapshot((snap) => {
       const trips = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      console.log('[HOME_STATS] Loaded trips:', trips.length, trips);
       const stats = (typeof computeStats === 'function') ? computeStats(trips, airportIndex) : { totalTrips: trips.length || 0, totalCountries: 0, totalDistance: 0 };
+      console.log('[HOME_STATS] Computed stats:', stats);
       renderHomeSummary(stats, trips);
     });
     return true;
