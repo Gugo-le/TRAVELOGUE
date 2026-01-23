@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profile - TRAVELOGUE</title>
+    <title>My Profile - TRAVELOGUE</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
     
@@ -13,812 +13,190 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
+    <link rel="stylesheet" href="style.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        html, body {
+            height: 100% !important;
+            min-height: 100% !important;
+            overflow: auto !important;
+            background: #F3EBDD !important;
         }
-
         body {
-            font-family: 'Courier New', monospace;
-            background: #fafafa;
-            color: #141414;
-            overflow: auto;
-            height: auto;
-        }
-
-        .auth-form input:focus {
-            outline: none;
-            border-bottom-color: #e67e22;
-        }
-
-        .auth-form input::placeholder {
-            color: #ddd;
-            font-size: 14px;
-        }
-
-        .auth-form button {
-            width: 100%;
-            padding: 14px;
-            margin: 24px 0 0 0;
-            background: transparent;
-            color: #141414;
-            border: 1px solid rgba(0,0,0,0.15);
-            font-size: 9px;
-            font-weight: 400;
-            cursor: pointer;
-            font-family: 'Courier New', monospace;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            transition: all 0.3s ease;
-        }
-
-        .auth-form button:hover {
-            border-color: #e67e22;
-            color: #e67e22;
-            transform: translateY(-1px);
-        }
-
-        .divider {
-            display: flex;
-            align-items: center;
-            margin: 24px 0 20px;
-            color: #ddd;
-            font-size: 8px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: rgba(0,0,0,0.05);
-        }
-
-        .divider::before {
-            margin-right: 16px;
-        }
-
-        .divider::after {
-            margin-left: 16px;
-        }
-
-        .social-btn {
-            width: 100%;
-            padding: 12px;
-            margin: 6px 0;
-            border: 1px solid rgba(0,0,0,0.06);
-            font-size: 9px;
-            font-weight: 400;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            background: white;
-            color: #141414;
-            font-family: 'Courier New', monospace;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: all 0.3s ease;
-        }
-
-        .social-btn:hover {
-            background: #fafafa;
-            border-color: #e67e22;
-            transform: translateY(-1px);
-        }
-
-        .ticket-footer {
-            padding: 18px 40px 20px;
-            border-top: 1px dashed rgba(0,0,0,0.08);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .auth-toggle {
-            font-size: 9px;
-            color: #999;
-            letter-spacing: 1px;
-        }
-
-        .auth-toggle a {
-            color: #e67e22;
-            text-decoration: none;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: color 0.3s;
-        }
-
-        .auth-toggle a:hover {
-            color: #d67019;
-        }
-
-        .boarding-pass {
-            font-size: 7px;
-            letter-spacing: 3px;
-            color: #ccc;
-            text-transform: uppercase;
-        }
-
-        .error {
-            color: #e67e22;
-            font-size: 10px;
-            margin-top: 20px;
-            text-align: center;
-            display: none;
-            letter-spacing: 1px;
-        }
-    
-
-        .ticket-footer {
-            padding: 20px 32px 24px;
-            border-top: 1px dashed rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .auth-toggle {
-            font-size: 10px;
-            color: #666;
-            letter-spacing: 1px;
-        }
-
-        .auth-toggle a {
-            color: #e67e22;
-            text-decoration: none;
-            text-transform: uppercase;
-        }
-
-        .boarding-pass {
-            font-size: 8px;
-            letter-spacing: 2px;
-            color: #999;
-            text-transform: uppercase;
-        }
-
-        .error {
-            color: #e67e22;
-            font-size: 10px;
-            margin-top: 16px;
-            text-align: center;
-            display: none;
-            letter-spacing: 1px;
-        }
-
-        #profile-section {
-            min-height: 100vh;
-            padding: 80px 20px 100px;
-            display: block;
-            max-width: 500px;
-            margin: 0 auto;
-        }
-
-        .profile-header {
-            text-align: center;
-            margin-bottom: 48px;
-        }
-
-        .profile-avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: white;
-            margin: 0 auto 16px;
-            overflow: hidden;
-            border: 1px solid rgba(0,0,0,0.1);
-            position: relative;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .profile-avatar:hover {
-            transform: scale(1.05);
-            border-color: #e67e22;
-        }
-
-        .profile-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .avatar-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .profile-avatar:hover .avatar-overlay {
-            opacity: 1;
-        }
-
-        .profile-header h1 {
-            font-size: 18px;
-            font-weight: 400;
-            margin-bottom: 4px;
-            letter-spacing: 2px;
-        }
-
-        .profile-header .handle {
-            color: #666;
-            font-size: 12px;
-            margin-bottom: 20px;
-            letter-spacing: 1px;
-        }
-
-        .logout-btn {
-            padding: 8px 16px;
-            background: transparent;
-            color: #141414;
-            border: 1px solid rgba(0,0,0,0.2);
-            cursor: pointer;
-            font-size: 10px;
-            font-family: 'Courier New', monospace;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: all 0.2s;
-        }
-
-        .logout-btn:hover {
-            border-color: #141414;
-        }
-
-        .delete-account-btn {
-            padding: 8px 16px;
-            background: transparent;
-            color: #e74c3c;
-            border: 1px solid rgba(231, 76, 60, 0.2);
-            cursor: pointer;
-            font-size: 10px;
-            font-family: 'Courier New', monospace;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: all 0.2s;
-            margin-left: 8px;
-        }
-
-        .delete-account-btn:hover {
-            border-color: #e74c3c;
-            background: rgba(231, 76, 60, 0.05);
-        }
-
-        .delete-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .delete-modal.active {
-            display: flex;
-        }
-
-        .delete-modal-content {
-            background: white;
-            padding: 32px;
-            max-width: 400px;
-            width: 90%;
-            border: 1px solid rgba(0,0,0,0.1);
-            text-align: center;
-        }
-
-        .delete-modal-content h2 {
-            font-size: 16px;
-            font-weight: 400;
-            margin-bottom: 16px;
-            letter-spacing: 2px;
-        }
-
-        .delete-modal-content p {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 24px;
-            line-height: 1.6;
-        }
-
-        .delete-modal-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-        }
-
-        .delete-modal-buttons button {
-            padding: 10px 20px;
-            font-size: 10px;
-            font-family: 'Courier New', monospace;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            cursor: pointer;
-            border: 1px solid rgba(0,0,0,0.2);
-            background: transparent;
-            transition: all 0.2s;
-        }
-
-        .delete-modal-buttons .confirm-delete {
-            color: #e74c3c;
-            border-color: rgba(231, 76, 60, 0.3);
-        }
-
-        .delete-modal-buttons .confirm-delete:hover {
-            background: #e74c3c;
-            color: white;
-            border-color: #e74c3c;
-        }
-
-        .delete-modal-buttons .cancel-delete:hover {
-            border-color: #141414;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-bottom: 40px;
-        }
-
-        .stat-card {
-            background: transparent;
-            padding: 20px 12px;
-            border: 1px solid rgba(0,0,0,0.1);
-            text-align: center;
-        }
-
-        .stat-icon {
-            font-size: 20px;
-            margin-bottom: 8px;
-        }
-
-        .stat-value {
-            font-size: 18px;
-            font-weight: 400;
-            margin-bottom: 4px;
-        }
-
-        .stat-label {
-            color: #666;
-            font-size: 9px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .delete-account-btn {
-            padding: 8px 16px;
-            background: transparent;
-            color: #e74c3c;
-            border: 1px solid rgba(231, 76, 60, 0.2);
-            cursor: pointer;
-            font-size: 10px;
-            font-family: 'Courier New', monospace;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: all 0.2s;
-            margin-left: 8px;
-        }
-
-        .delete-account-btn:hover {
-            border-color: #e74c3c;
-            background: rgba(231, 76, 60, 0.05);
-        }
-
-        .delete-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .delete-modal.active {
-            display: flex;
-        }
-
-        .delete-modal-content {
-            background: white;
-            padding: 32px;
-            max-width: 400px;
-            width: 90%;
-            border: 1px solid rgba(0,0,0,0.1);
-            text-align: center;
-        }
-
-        .delete-modal-content h2 {
-            font-size: 16px;
-            font-weight: 400;
-            margin-bottom: 16px;
-            letter-spacing: 2px;
-        }
-
-        .delete-modal-content p {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 24px;
-            line-height: 1.6;
-        }
-
-        .delete-modal-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-        }
-
-        .delete-modal-buttons button {
-            padding: 10px 20px;
-            font-size: 10px;
-            font-family: 'Courier New', monospace;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            cursor: pointer;
-            border: 1px solid rgba(0,0,0,0.2);
-            background: transparent;
-            transition: all 0.2s;
-        }
-
-        .delete-modal-buttons .confirm-delete {
-            color: #e74c3c;
-            border-color: rgba(231, 76, 60, 0.3);
-        }
-
-        .delete-modal-buttons .confirm-delete:hover {
-            background: #e74c3c;
-            color: white;
-            border-color: #e74c3c;
-        }
-
-        .delete-modal-buttons .cancel-delete:hover {
-            border-color: #141414;
-        }
-
-        /* Bottom Nav */
-        .bottom-nav {
-            position: fixed;
-            bottom: calc(20px + env(safe-area-inset-bottom));
-            left: 50%;
-            transform: translateX(-50%);
-            width: auto;
-            height: auto;
-            background: transparent;
-            backdrop-filter: none;
-            border: none;
-            border-radius: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            box-shadow: none;
-            padding: 12px 0;
-            gap: 56px;
-        }
-
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 0;
-            padding: 0;
-            color: rgba(0,0,0,0.5);
-            transition: color 0.3s ease;
-            flex: 0;
-            height: auto;
-            cursor: pointer;
-            border: none;
-            background: transparent;
-            font-family: 'Courier New', monospace;
-            text-decoration: none;
-        }
-
-        .nav-item:hover {
-            color: #141414;
-            background: transparent;
-        }
-
-        .nav-item.active {
-            color: #e67e22;
-        }
-
-        .nav-icon {
-            width: 24px;
-            height: 24px;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            stroke-width: 2;
-        }
-
-        .nav-label {
-            display: none;
-            font-weight: 400;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-
-        @media (max-width: 768px) {
-            .bottom-nav {
-                height: auto;
-                bottom: calc(28px + env(safe-area-inset-bottom));
-                gap: 44px;
-            }
-            
-            .nav-icon {
-                width: 20px;
-                height: 20px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .bottom-nav {
-                bottom: calc(32px + env(safe-area-inset-bottom));
-                gap: 36px;
-            }
-            
-            .nav-icon {
-                width: 20px;
-                height: 20px;
-            }
+            background: #F3EBDD !important;
         }
     </style>
 </head>
 <body>
+    <main id="profile-section">
+        <!-- Passport Header -->
+        <div class="profile-passport">
+            <div class="passport-header">
+                <div class="passport-title">REPUBLIC OF KOREA</div>
+                <div class="passport-subtitle">TRAVEL PASSPORT</div>
+            </div>
 
-<!-- Profile Section -->
-<div id="profile-section">
-    <div class="profile-header">
-        <div class="profile-avatar" onclick="document.getElementById('profile-image-input').click()">
-            <img id="profile-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23fafafa' width='100' height='100'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%23141414'/%3E%3Cpath d='M20,70 Q20,55 50,55 Q80,55 80,70 L80,100 L20,100 Z' fill='%23141414'/%3E%3C/svg%3E" alt="프로필">
-            <div class="avatar-overlay">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                    <circle cx="12" cy="13" r="4"></circle>
-                </svg>
+            <div class="passport-body">
+                <!-- Profile Image -->
+                <div class="passport-image-section">
+                    <div id="profile-image-container" class="passport-image" onclick="document.getElementById('quick-profile-image-input').click()">
+                        <img id="profile-image" src="" alt="Profile">
+                        <div class="passport-image-overlay">📷</div>
+                        <input type="file" id="quick-profile-image-input" accept="image/*" style="display: none;">
+                    </div>
+                </div>
+
+                <!-- Personal Info -->
+                <div class="passport-info">
+                    <div class="passport-row">
+                        <span class="passport-label">NAME</span>
+                        <span id="passport-name" class="passport-value">·····················</span>
+                    </div>
+                    <div class="passport-row">
+                        <span class="passport-label">HANDLE</span>
+                        <span id="passport-handle" class="passport-value">@····················</span>
+                    </div>
+                    <div class="passport-row">
+                        <span class="passport-label">PASSPORT NO.</span>
+                        <span id="passport-number" class="passport-value">···················</span>
+                    </div>
+                    <div class="passport-row">
+                        <span class="passport-label">ISSUED</span>
+                        <span id="passport-issued" class="passport-value">············</span>
+                    </div>
+                </div>
             </div>
         </div>
-        <input type="file" id="profile-image-input" accept="image/*" style="display: none;" onchange="handleProfileImageUpload(event)">
-        <h1 id="profile-name">사용자 이름</h1>
-        <p class="handle" id="profile-handle">@handle</p>
-        <div>
-            <button class="logout-btn" onclick="handleSignOut()">Sign Out</button>
-            <button class="delete-account-btn" onclick="showDeleteModal()">Delete Account</button>
+
+        <!-- Travel Statistics -->
+        <div class="travel-stats">
+            <div class="stats-header">TRAVEL STATISTICS</div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-label">COUNTRIES</div>
+                    <div class="stat-value" id="stat-countries">·········· 0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">FLIGHTS</div>
+                    <div class="stat-value" id="stat-flights">·········· 0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">DISTANCE</div>
+                    <div class="stat-value" id="stat-distance">····· 0 KM</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Travel Companions -->
+        <div class="airport-section">
+            <div class="airport-header">
+                <span>TRAVEL COMPANIONS</span>
+            </div>
+            <div id="companions-list" class="companions-grid"></div>
+            <div id="no-companions-msg" class="no-friends-msg" style="display: none;">
+                <p>No travel companions yet.</p>
+                <p class="small">Add friends to see them here.</p>
+            </div>
+        </div>
+
+        <!-- Visa Stamps Display -->
+        <div class="stamps-section">
+            <div class="airport-header">
+                <span>VISA STAMPS</span>
+            </div>
+            <div id="visa-stamps-grid" class="stamps-grid">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Recent Destinations Display -->
+        <div class="airport-section">
+            <div class="airport-header">
+                <span>RECENT DESTINATIONS</span>
+            </div>
+            <div id="recent-destinations" class="destination-grid">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Edit Profile Button -->
+        <div class="profile-actions">
+            <button id="edit-profile-btn" class="profile-action-btn">EDIT PROFILE</button>
+            <button id="logout-btn" class="profile-action-btn secondary">LOGOUT</button>
+            <button id="delete-account-btn" class="profile-action-btn danger">DELETE ACCOUNT</button>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="index.html?page=map" class="nav-item">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            <span class="nav-label">Home</span>
+        </a>
+        <a href="search.html" class="nav-item">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            <span class="nav-label">Search</span>
+        </a>
+        <a href="friends.html" class="nav-item">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span class="nav-label">Friends</span>
+        </a>
+        <a href="profile.html" class="nav-item active">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span class="nav-label">Profile</span>
+        </a>
+    </nav>
+
+    <!-- Modal for Edit Profile -->
+    <div id="edit-profile-modal" class="modal" style="display: none;">
+        <div class="modal-content profile-modal-content">
+            <div class="modal-header">
+                <h2>Edit Profile</h2>
+                <button class="modal-close" onclick="closeEditModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="edit-form">
+                    <div class="form-group">
+                        <label for="edit-name">Display Name</label>
+                        <input type="text" id="edit-name" maxlength="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-handle">Handle (without @)</label>
+                        <input type="text" id="edit-handle" maxlength="30" pattern="[a-zA-Z0-9_]+" title="Only alphanumeric characters and underscores allowed">
+                    </div>
+                    <div class="form-group">
+                        <label for="profile-image-input">Profile Picture</label>
+                        <input type="file" id="profile-image-input" accept="image/*">
+                        <div id="upload-progress" style="display: none; margin-top: 10px;">
+                            <div class="progress-bar" id="progress-bar"></div>
+                            <span id="upload-status">Uploading...</span>
+                        </div>
+                    </div>
+                    <button id="save-profile-btn" class="profile-action-btn" onclick="saveProfile()">SAVE CHANGES</button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="stats">
-        <div class="stat-card">
-            <div class="stat-icon">✈</div>
-            <div class="stat-value" id="stat-trips">0</div>
-            <div class="stat-label">Trips</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">🌍</div>
-            <div class="stat-value" id="stat-countries">0</div>
-            <div class="stat-label">Countries</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">📏</div>
-            <div class="stat-value" id="stat-distance">0</div>
-            <div class="stat-label">Kilometers</div>
-        </div>
-    </div>
-</div>
-
-<!-- Delete Account Modal -->
-<div id="delete-modal" class="delete-modal">
-    <div class="delete-modal-content">
-        <h2>DELETE ACCOUNT</h2>
-        <p>Are you sure you want to delete your account?<br>This action cannot be undone.<br><br>All your trips, stamps, and data will be permanently deleted.</p>
-        <div class="delete-modal-buttons">
-            <button class="cancel-delete" onclick="hideDeleteModal()">Cancel</button>
-            <button class="confirm-delete" onclick="handleDeleteAccount()">Delete</button>
-        </div>
-    </div>
-</div>
-
-<!-- Bottom Navigation Bar -->
-<nav id="bottom-nav" class="bottom-nav">
-    <a href="index.html" class="nav-item" data-page="home" title="Home">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-        </svg>
-        <span class="nav-label">Home</span>
-    </a>
-    <a href="index.html#search" class="nav-item" data-page="search" title="Search">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"></circle>
-            <path d="m21 21-4.35-4.35"></path>
-        </svg>
-        <span class="nav-label">Search</span>
-    </a>
-    <a href="index.html#chat" class="nav-item" data-page="chat" title="Chat">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        </svg>
-        <span class="nav-label">Chat</span>
-    </a>
-    <a href="profile.html" class="nav-item active" data-page="profile" title="Profile">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-        </svg>
-        <span class="nav-label">Profile</span>
-    </a>
-</nav>
-
-<!-- Scripts -->
-<script src="./js/firebaseConfig.js"></script>
-<script src="./js/auth.js"></script>
-<script src="./js/data.js"></script>
-<script src="./js/stats.js"></script>
-<script src="./js/trips.js"></script>
-<script src="./js/stamps.js"></script>
-<script src="./js/userdata.js"></script>
-<script src="./js/profile.js"></script>
-
-<script>
-    // Initialize Firebase
-    console.log('Profile page loaded');
-    const firebaseInitSuccess = initializeFirebase();
-    console.log('Firebase init:', firebaseInitSuccess);
-
-    // Auth state listener
-    firebase.auth().onAuthStateChanged(user => {
-        console.log('Auth state changed:', user);
-        if (user) {
-            showProfile(user);
-            // 실시간 trips 통계 구독 시작
-            subscribeUserTripsAndStats(user.uid);
-            // Load stamps from Firestore
-            if (typeof loadStampsFromFirestore === 'function') {
-                loadStampsFromFirestore(user.uid).catch(e => console.warn('Error loading stamps:', e));
-            }
-            // Load all user data from Firestore
-            if (typeof loadAllUserDataFromFirestore === 'function') {
-                loadAllUserDataFromFirestore(user.uid).catch(e => console.warn('Error loading user data:', e));
-            }
-        } else {
-            // Redirect to intro page if not authenticated
-            window.location.href = 'index.html';
-        }
-    });
-
-    // Show profile section
-    async function showProfile(user) {
-        document.getElementById('profile-section').classList.add('active');
-        
-        const profile = await getCurrentUserProfile();
-        if (profile) {
-            document.getElementById('profile-name').textContent = profile.displayName;
-            document.getElementById('profile-handle').textContent = '@' + profile.handle;
-            document.getElementById('stat-trips').textContent = profile.stats?.totalTrips || 0;
-            document.getElementById('stat-countries').textContent = profile.stats?.totalCountries || 0;
-            document.getElementById('stat-distance').textContent = (profile.stats?.totalDistance || 0) + ' km';
-
-            // 프로필 이미지 로드
-            if (profile.profileImage) {
-                const profileImg = document.getElementById('profile-img');
-                profileImg.src = profile.profileImage;
-            }
-
-            // 라이브 계산 통계로 보강 (users/{uid}/trips 기반)
-            try {
-                const liveStats = await computeCurrentUserStatsAndRender();
-                // 필요 시 프로필 저장된 통계와 비교 후 업데이트 로직 추가 가능
-            } catch (e) {
-                console.warn('Live stats compute failed:', e);
-            }
-        }
-    }
-
-    // Sign out
-    async function handleSignOut() {
-        try {
-            await signOut();
-            window.location.href = 'index.html';
-        } catch (error) {
-            console.error('Sign out error:', error);
-            alert('Failed to sign out. Please try again.');
-        }
-    }
-
-    // Show delete modal
-    function showDeleteModal() {
-        const modal = document.getElementById('delete-modal');
-        if (modal) modal.classList.add('active');
-    }
-
-    // Hide delete modal
-    function hideDeleteModal() {
-        const modal = document.getElementById('delete-modal');
-        if (modal) modal.classList.remove('active');
-    }
-
-    // Delete account
-    async function handleDeleteAccount() {
-        try {
-            await deleteAccount();
-            // 삭제 성공 후 리다이렉트
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 500);
-        } catch (error) {
-            console.error('Delete account failed:', error);
-            hideDeleteModal();
-            if (error.message.includes('sign in again')) {
-                alert('Please sign in again before deleting your account.');
-                // 재로그인을 위해 index.html로 이동
-                setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 1000);
-            } else {
-                alert('Failed to delete account: ' + error.message);
-            }
-        }
-    }
-
-    // Profile image upload
-    async function handleProfileImageUpload(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        // 파일 크기 체크 (5MB 제한)
-        if (file.size > 5 * 1024 * 1024) {
-            alert('Image size must be less than 5MB');
-            return;
-        }
-
-        // 이미지 파일 체크
-        if (!file.type.startsWith('image/')) {
-            alert('Please select an image file');
-            return;
-        }
-
-        try {
-            // 업로드 중 표시
-            const profileImg = document.getElementById('profile-img');
-            const originalSrc = profileImg.src;
-            profileImg.style.opacity = '0.5';
-
-            // Firebase Storage에 업로드
-            const url = await uploadCurrentUserProfileImage(file);
-            
-            if (url) {
-                // 이미지 URL 업데이트
-                profileImg.src = url;
-                profileImg.style.opacity = '1';
-                console.log('Profile image updated:', url);
-            }
-        } catch (error) {
-            console.error('Failed to upload profile image:', error);
-            alert('Failed to upload image: ' + error.message);
-            const profileImg = document.getElementById('profile-img');
-            profileImg.style.opacity = '1';
-        }
-    }
-</script>
-
+    <!-- Scripts -->
+    <script src="js/firebaseConfig.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/profile.js"></script>
 </body>
 </html>

@@ -46,9 +46,10 @@ function initBottomNav() {
   navItems.forEach(item => {
     item.addEventListener('click', (e) => {
       const page = item.dataset.page;
+      const href = item.getAttribute('href');
       
-      // Allow profile link to navigate normally
-      if (page === 'profile') {
+      // Allow external page links to navigate normally
+      if (href && href !== '#' && (href === 'friends.html' || href === 'profile.html' || href === 'search.html')) {
         return;
       }
       
@@ -56,10 +57,17 @@ function initBottomNav() {
       setActiveNav(page);
       if (page === 'home') {
         hideOverlays();
+        if (typeof window.setIntroState === 'function') {
+          window.setIntroState(false);
+        }
+        if (typeof window.clearJourneyNetwork === 'function') {
+          window.clearJourneyNetwork();
+        }
+        if (typeof window.clearFriendJourney === 'function') {
+          window.clearFriendJourney();
+        }
       } else if (page === 'search') {
         showOverlay('search');
-      } else if (page === 'chat') {
-        hideOverlays();
       }
     });
   });
@@ -87,8 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const hash = window.location.hash.substring(1); // Remove the '#'
   if (hash === 'search') {
     showOverlay('search');
-  } else if (hash === 'chat') {
-    // Future: show chat overlay
+  } else {
     hideOverlays();
   }
 });
@@ -98,8 +105,6 @@ window.addEventListener('hashchange', () => {
   const hash = window.location.hash.substring(1);
   if (hash === 'search') {
     showOverlay('search');
-  } else if (hash === 'chat') {
-    hideOverlays();
   } else {
     hideOverlays();
   }

@@ -127,7 +127,7 @@ function hydrateJourneyRoutes(routes) {
   return normalized;
 }
 
-let userConfig = loadJSON('travelogue_config', { name: '', from: '', issuedAt: '' });
+let userConfig = { name: '', from: '', issuedAt: '' };
 let visitedCountries = loadJSON('visited_countries', {});
 let visitedStamps = loadJSON('visited_stamps', []);
 if (Array.isArray(visitedCountries)) {

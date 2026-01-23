@@ -453,6 +453,18 @@ function attachDatePicker(input) {
   }, true);
 }
 
+function persistUserConfig() {
+  try {
+    const user = (typeof getCurrentUser === 'function') ? getCurrentUser() : firebase.auth().currentUser;
+    if (!user) return;
+    if (typeof saveUserConfigToFirestore === 'function') {
+      saveUserConfigToFirestore(user.uid, userConfig).catch(() => {});
+    }
+  } catch (_) {
+    // noop
+  }
+}
+
 function setOriginAirport(code, options = {}) {
   const { syncInput = false } = options;
   const normalized = normalizeIata(code);
@@ -467,7 +479,7 @@ function setOriginAirport(code, options = {}) {
   }
   updateTicketAirportCodes();
   userConfig.from = airport.code;
-  localStorage.setItem('travelogue_config', JSON.stringify(userConfig));
+  persistUserConfig();
   focusAirportSelection(airport);
   updateAirportSelectionMarkers();
 }
@@ -512,7 +524,7 @@ function syncCustom() {
     selectedOriginAirport = null;
   }
   userConfig = { ...userConfig, name, from };
-  localStorage.setItem('travelogue_config', JSON.stringify(userConfig));
+  persistUserConfig();
   updateTicketAirportCodes();
 }
 
@@ -536,7 +548,7 @@ function startJourney() {
   document.getElementById('intro-window').style.transform = 'translateY(-100%)';
   if (!userConfig.issuedAt) {
     userConfig.issuedAt = getTodayString();
-    localStorage.setItem('travelogue_config', JSON.stringify(userConfig));
+    persistUserConfig();
   }
 
   setTimeout(() => {

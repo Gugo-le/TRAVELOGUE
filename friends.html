@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRAVELOGUE - Travel Companions</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.4/html5-qrcode.min.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+    
+    <link rel="stylesheet" href="./style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon/favicon.svg">
+</head>
+<body>
+
+<div id="main-content" class="friends-page active">
+    
+    <!-- Header -->
+    <div class="page-header">
+        <button class="back-btn" onclick="history.back()">←</button>
+        <h1 class="page-title">TRAVEL COMPANIONS</h1>
+        <div class="header-spacer"></div>
+    </div>
+
+    <!-- Friend Requests -->
+    <div id="friend-requests-container" class="friend-requests-container" style="display: none;">
+        <h2 class="section-title">NEW BOARDING REQUESTS</h2>
+        <div id="friend-requests-list" class="friend-requests-list"></div>
+    </div>
+
+    <!-- Handle Search -->
+    <div class="friend-search-section">
+        <h2 class="section-title">FIND BY HANDLE</h2>
+        <div class="friend-search-bar">
+            <input id="friend-handle-input" type="text" placeholder="@handle" autocomplete="off">
+            <button id="friend-handle-btn" class="button-primary" type="button">SEARCH</button>
+        </div>
+        <div id="friend-handle-result" class="friend-search-result"></div>
+    </div>
+
+    <!-- QR Section -->
+    <div class="qr-section">
+        <button class="qr-button" onclick="openQRModal()">
+            <span class="qr-icon">⬜</span>
+            <span class="qr-label">My Boarding QR</span>
+        </button>
+        <p class="qr-hint">Scan to add as travel companion</p>
+    </div>
+
+    <!-- Suggested Friends -->
+    <div class="suggested-friends-section">
+        <h2 class="section-title">SUGGESTED PASSENGERS</h2>
+        <div id="suggested-friends-list" class="friends-grid"></div>
+        <div id="no-suggested-msg" class="no-friends-msg" style="display: none;">
+            <p>No suggestions yet.</p>
+            <p class="small">Travel more to unlock recommendations.</p>
+        </div>
+    </div>
+
+    <!-- Friends List -->
+    <div id="friends-container" class="friends-container">
+        <h2 class="section-title">PASSENGER LIST</h2>
+        <div id="friends-list" class="friends-grid"></div>
+        <div id="no-friends-msg" class="no-friends-msg" style="display: none;">
+            <p>No travel companions yet.</p>
+            <p class="small">Scan a QR code or search to add friends!</p>
+        </div>
+    </div>
+
+</div>
+
+<!-- QR Modal -->
+<div id="qr-modal" class="modal" style="display: none;">
+    <div class="modal-content qr-modal-content">
+        <button class="modal-close" onclick="closeQRModal()">✕</button>
+        
+        <div class="qr-tabs">
+            <button class="qr-tab active" onclick="switchQRTab('show')">Show My QR</button>
+            <button class="qr-tab" onclick="switchQRTab('scan')">Scan QR</button>
+        </div>
+
+        <!-- Show QR Tab -->
+        <div id="show-qr-tab" class="qr-tab-content active">
+            <div class="qr-display-container">
+                <p class="qr-instruction">Share this QR code to let friends add you</p>
+                <div id="qr-code-display" class="qr-code-display"></div>
+                <button class="button-primary" onclick="downloadQRCode()">
+                    📥 Download QR
+                </button>
+            </div>
+        </div>
+
+        <!-- Scan QR Tab -->
+        <div id="scan-qr-tab" class="qr-tab-content" style="display: none;">
+            <div class="qr-scanner-container">
+                <p class="qr-instruction">Point camera at a QR code</p>
+                <div id="qr-reader" class="qr-reader"></div>
+                <p id="scan-result" class="scan-result" style="display: none;"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Friend Preview Modal -->
+<div id="friend-preview-modal" class="modal" style="display: none;">
+    <div class="modal-content friend-preview-content">
+        <button class="modal-close" onclick="closeFriendPreview()">✕</button>
+        
+        <div id="friend-preview-card" class="friend-preview-card">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Navigation -->
+<nav class="bottom-nav">
+    <a href="index.html?page=map" class="nav-item">
+        <span class="nav-icon">🌍</span>
+        <span class="nav-label">Explore</span>
+    </a>
+    <a href="search.html" class="nav-item">
+        <span class="nav-icon">🔍</span>
+        <span class="nav-label">Search</span>
+    </a>
+    <a href="friends.html" class="nav-item active">
+        <span class="nav-icon">👥</span>
+        <span class="nav-label">Friends</span>
+    </a>
+    <a href="profile.html" class="nav-item">
+        <span class="nav-icon">👤</span>
+        <span class="nav-label">Profile</span>
+    </a>
+</nav>
+
+<!-- Scripts -->
+<script src="js/firebaseConfig.js"></script>
+<script src="js/state.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/data.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/friends.js"></script>
+
+</body>
+</html>

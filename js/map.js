@@ -176,9 +176,90 @@ function clearJourneyNetwork() {
   updateJourneySummary();
 }
 
+window.clearJourneyNetwork = clearJourneyNetwork;
+
+// ========== FRIEND JOURNEY VISUALIZATION ==========
+
+let friendJourneyLayer = null;
+
+async function renderFriendJourney(friendId) {
+  if (!friendId) {
+    console.log('[FRIEND_JOURNEY] No friend ID provided');
+    return;
+  }
+
+  try {
+    const db = firebase.firestore();
+    const friendDoc = await db.collection('users').doc(friendId).get();
+    
+    if (!friendDoc.exists) {
+      console.log('[FRIEND_JOURNEY] Friend not found');
+      return;
+    }
+
+    const friendRoutes = friendDoc.data()?.journeyRoutes || [];
+    
+    if (!friendRoutes || friendRoutes.length === 0) {
+      console.log('[FRIEND_JOURNEY] No routes found for friend');
+      return;
+    }
+
+    console.log('[FRIEND_JOURNEY] Rendering', friendRoutes.length, 'routes for friend');
+    
+    const isGlobe = globeMode && globeMap && globePath;
+    const svg = isGlobe ? globeMap.svg : (map && flatPath ? map.svg : null);
+    const path = isGlobe ? globePath : flatPath;
+    const projection = isGlobe ? globeProjection : flatProjection;
+
+    if (!svg || !path) {
+      console.log('[FRIEND_JOURNEY] Missing svg or path');
+      return;
+    }
+
+    // Remove previous friend journey layer
+    if (friendJourneyLayer) friendJourneyLayer.remove();
+
+    const layerParent = isGlobe ? svg : (mapGroup || svg);
+    friendJourneyLayer = layerParent.append('g').attr('class', 'friend-journey-layer');
+
+    // Draw friend routes in blue
+    const drawableRoutes = friendRoutes.filter(route => {
+      return route && Array.isArray(route.pathCoords) && route.pathCoords.length >= 2;
+    });
+
+    friendJourneyLayer.selectAll('path')
+      .data(drawableRoutes)
+      .enter()
+      .append('path')
+      .attr('class', 'friend-journey-path')
+      .attr('stroke', '#4A90E2')
+      .attr('stroke-width', 2)
+      .attr('stroke-linecap', 'round')
+      .attr('opacity', 0.6)
+      .style('stroke', '#4A90E2')
+      .style('stroke-dasharray', '5,5')
+      .style('opacity', 0.6)
+      .attr('d', d => path({ type: 'LineString', coordinates: d.pathCoords }));
+
+    console.log('[FRIEND_JOURNEY] Rendered friend journey polylines');
+  } catch (error) {
+    console.error('[FRIEND_JOURNEY] Error rendering friend journey:', error);
+  }
+}
+
+function clearFriendJourney() {
+  if (friendJourneyLayer) {
+    friendJourneyLayer.remove();
+    friendJourneyLayer = null;
+  }
+}
+
+window.clearFriendJourney = clearFriendJourney;
+window.renderFriendJourney = renderFriendJourney;
+
 function recordJourneyRoute(route, options = {}) {
   if (!route || !route.origin || !route.destination) return;
-  const key = `${route.origin.code}-${route.destination.code}-${route.pathCoords?.length || 0}`;
+  const key = `${route.origin.code}-${route.destination.code}-${Date.now()}`;
   if (!journeyRoutes) journeyRoutes = [];
   if (journeyRoutes.some(entry => entry.key === key)) return;
   const storedAccent = getStoredAccentColor();
@@ -207,6 +288,7 @@ function recordJourneyRoute(route, options = {}) {
   };
   journeyRoutes.push(routeData);
   localStorage.setItem('travelogue_routes', JSON.stringify(journeyRoutes));
+  journeyNetworkVisible = true;
   
   // Firestore에도 저장 (전체 journeyRoutes 배열)
   const user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
@@ -215,9 +297,22 @@ function recordJourneyRoute(route, options = {}) {
       console.warn('Failed to save journey routes to Firestore:', e);
     });
   }
+  if (user && user.uid) {
+    const firestoreRoute = {
+      ...routeData,
+      pathCoords: Array.isArray(routeData.pathCoords) ? JSON.stringify(routeData.pathCoords) : routeData.pathCoords
+    };
+    firebase.firestore().collection('users').doc(user.uid).collection('journeyRoutes').add(firestoreRoute).catch(e => {
+      console.warn('Failed to save journey route to subcollection:', e);
+    });
+  }
   
   updateJourneyResetButton();
   updateJourneySummary();
+  if (!flightMode && !landingTransitionPending) {
+    renderJourneyNetwork();
+    updateJourneyTotalsFlipboard();
+  }
 }
 
 // Firestore에서 저장된 폴리라인 로드
@@ -380,6 +475,49 @@ function refreshJourneyNetwork() {
       return point ? `translate(${point[0]}, ${point[1]})` : 'translate(-9999,-9999)';
     });
 }
+
+async function syncJourneyRoutesFromTrips(uid) {
+  try {
+    if (!uid || typeof getUserTrips !== 'function') return;
+    if (typeof airportIndex === 'undefined' || !airportIndex || !Object.keys(airportIndex).length) {
+      if (typeof loadStaticData === 'function') await loadStaticData();
+    }
+    const trips = await getUserTrips(uid);
+    if (!Array.isArray(trips) || !trips.length) return;
+
+    const fallbackColor = getStoredAccentColor() || getAccentColor();
+    const routes = trips.map((trip, idx) => {
+      const originCode = (trip.origin || trip.from || '').toUpperCase();
+      const destCode = (trip.destination || trip.to || '').toUpperCase();
+      const origin = airportIndex[originCode];
+      const destination = airportIndex[destCode];
+      if (!origin || !destination) return null;
+      const pathCoords = [[origin.lon, origin.lat], [destination.lon, destination.lat]];
+      const distanceKm = typeof trip.distanceOverride === 'number' ? trip.distanceOverride : estimateDistanceKm(origin, destination);
+      return {
+        key: `${originCode}-${destCode}-${trip.createdAt?.seconds || Date.now()}-${idx}`,
+        origin: { code: originCode, lat: origin.lat, lon: origin.lon, country: origin.country },
+        destination: { code: destCode, lat: destination.lat, lon: destination.lon, country: destination.country },
+        pathCoords,
+        color: fallbackColor,
+        distanceKm,
+        durationMs: getRouteDurationMs(distanceKm),
+        createdAt: trip.createdAt || Date.now()
+      };
+    }).filter(Boolean);
+
+    if (!routes.length) return;
+    journeyRoutes = hydrateJourneyRoutes(routes);
+    localStorage.setItem('travelogue_routes', JSON.stringify(journeyRoutes));
+    journeyNetworkVisible = true;
+    renderJourneyNetwork();
+    updateJourneySummary();
+  } catch (e) {
+    console.warn('Failed to sync journey routes from trips:', e);
+  }
+}
+
+window.syncJourneyRoutesFromTrips = syncJourneyRoutesFromTrips;
 
 function shrinkGlobeForJourneyNetwork() {
   if (!globeMode || !globeProjection || !globeMap || !globePath) return;
@@ -1835,8 +1973,13 @@ function beginFlightOnGlobe(route) {
     // Ensure globe is active, then show journey network (flight logs) immediately
     forceGlobeMode = true;
     globeMode = true;
+    journeyNetworkVisible = true;
     // checkDeviceAndInitMap 제거 - 이미 globe가 활성화되어 있음
     
+    // Ensure globe is initialized, then render polylines
+    if (!globeMap || !globePath || !globeProjection) {
+      checkDeviceAndInitMap();
+    }
     // Wait for globe SVG to fully initialize, then render polylines
     const checkGlobeReady = () => {
       if (globeMap && globeMap.svg && globePath && globeProjection) {

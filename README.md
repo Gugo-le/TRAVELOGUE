@@ -32,7 +32,7 @@ But the warmth held within those images fades faster than we expect. TRAVELOGUE 
   - 여행 기록, 여권 스탬프, 여정 경로 저장
   - 사용자별 통계 자동 계산 및 저장
   - 실시간 동기화 및 오프라인 지원
-- **Firebase Storage** - 프로필 이미지 업로드/관리 (예정)
+- **Firebase Storage** - 프로필 이미지 업로드/관리 (CORS 설정 필요)
 
 ### Data & Assets
 - **OpenFlights Database** - 전 세계 10,000+ 공항 데이터 (위도/경도, IATA 코드, 국가)
@@ -71,7 +71,7 @@ users/
     │    {
     │      origin: { code, lat, lon, country },
     │      destination: { code, lat, lon, country },
-    │      pathCoords: [[lon, lat], ...],
+    │      pathCoords: "[[lon, lat], ...]",   // Firestore 저장용 JSON 문자열
     │      color: "#e67e22",
     │      distanceKm: 1234,
     │      durationMs: 7200000,
@@ -116,7 +116,41 @@ users/
     │   │   └─ createdAt: timestamp
     │   └─ ...
     │
-    └─ routes/  (subcollection - deprecated, journeyRoutes 필드 사용)
+    ├─ journeyRoutes/ (subcollection)
+    │   ├─ {routeId}/
+    │   │   ├─ origin: { code, lat, lon, country }
+    │   │   ├─ destination: { code, lat, lon, country }
+    │   │   ├─ pathCoords: "[[lon, lat], ...]"
+    │   │   ├─ distanceKm: number
+    │   │   ├─ durationMs: number
+    │   │   └─ createdAt: timestamp
+    │   └─ ...
+    │
+    └─ routes/  (deprecated, journeyRoutes 필드 사용)
+
+friends/
+  {uid}/
+    └─ friendList/
+       ├─ {friendId}/
+       │   ├─ userId: string
+       │   ├─ handle: string
+       │   ├─ displayName: string
+       │   ├─ profileImage: string | null
+       │   ├─ addedAt: timestamp
+       │   └─ status: "active"
+       └─ ...
+
+friendRequests/
+  {uid}/
+    └─ incoming/
+       ├─ {requestId}/
+       │   ├─ from: string
+       │   ├─ fromHandle: string
+       │   ├─ fromName: string
+       │   ├─ fromImage: string | null
+       │   ├─ timestamp: timestamp
+       │   └─ status: "pending" | "accepted" | "declined"
+       └─ ...
 ```
 
 ### Security Rules
@@ -574,8 +608,8 @@ npx http-server -p 8080
 travel_logue/
 ├── index.html              # 메인 페이지 (지도, 보딩패스)
 ├── profile.html            # 프로필 페이지 (통계, 로그아웃)
-├── search.html             # 사용자 검색 (예정)
-├── chat.html               # 채팅 (예정)
+├── search.html             # 여행자 검색
+├── friends.html            # 친구 추가/요청/탑승자 목록
 ├── style.css               # 메인 스타일시트
 ├── firestore.rules         # Firestore 보안 규칙
 │
@@ -593,7 +627,8 @@ travel_logue/
 │   ├── stats.js            # 통계 계산 (Haversine, 국가 추출)
 │   ├── profile.js          # 프로필 페이지 로직
 │   ├── home.js             # 홈 통계 실시간 구독
-│   ├── search.js           # 사용자 검색 (예정)
+│   ├── search.js           # 여행자 검색
+│   ├── friends.js          # 친구 추가/요청/탑승자 목록
 │   ├── navigation.js       # 하단 네비게이션
 │   ├── utils.js            # 유틸리티 함수
 │   └── script.js           # 앱 초기화 및 이벤트 연결
@@ -627,15 +662,15 @@ travel_logue/
 - [x] 계정별 데이터 완전 분리
 - [x] 계정 탈퇴 기능
 - [x] 보딩패스 찢기 애니메이션 개선
+- [x] 친구 추가/요청/탑승자 목록
+- [x] 여행자 검색
 
 ### In Progress 🚧
-- [ ] 프로필 이미지 업로드 (Firebase Storage)
-- [ ] 사용자 검색 및 친구 추가
+- [ ] 프로필 이미지 업로드 (Firebase Storage, CORS 설정 필요)
 - [ ] 여행 앨범 기능
 - [ ] 여권 꾸미기 (스티커, 배경)
 
 ### Future 🔮
-- [ ] 채팅: 여행 추천 AI 챗봇
 - [ ] 국가별 상징 소리 확장
 - [ ] 방문 국가 색상 합성 프로필 배경
 - [ ] Flutter 앱 재개발 및 앱스토어 배포

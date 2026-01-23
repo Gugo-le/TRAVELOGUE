@@ -10,6 +10,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/datamaps/0.5.9/datamaps.world.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
+    <!-- QR Code Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.4/html5-qrcode.min.js"></script>
+    
     <!-- Firebase SDK (compat version) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -25,6 +29,13 @@
     <meta name="theme-color" content="#ffffff">
 </head>
 <body>
+<script>
+  // Debug: 무한 새로고침 방지
+  if (performance.navigation.type === 1) {
+    console.log('Page reloaded - clearing cache');
+    localStorage.removeItem('travelogue-last-visit');
+  }
+</script>
 
 <audio id="stamp-sound" src="assets/audio/takeoff.m4a"></audio>
 <audio id="airplane-bp" src="assets/audio/airplane_bp.m4a"></audio>
@@ -233,7 +244,9 @@
                 <div class="ticket-stub-label">BOARDING PASS</div>
                 <div class="ticket-stub-seat" id="ticket-seat-stub">12A</div>
             </div>
-            <div class="barcode"></div>
+            <div class="qr-section-stub">
+                <div class="barcode" aria-label="Boarding pass barcode"></div>
+            </div>
             <div class="ticket-stub-hash">#TRAVELOGUE_026</div>
         </div>
     </div>
@@ -269,24 +282,6 @@
     <div id="map-wrapper"></div>
 </div>
 
-<!-- Search Overlay -->
-<div id="search-overlay" class="overlay-backdrop" aria-hidden="true">
-    <div class="overlay-panel search-panel">
-        <div class="ticket-header">
-            <h1>Find Travelers</h1>
-        </div>
-        <form id="search-form" class="search-form">
-            <div class="field">
-                <label id="search-label">NAME</label>
-                <input id="search-input" type="text" autocomplete="off" />
-            </div>
-            <button class="search-btn" type="submit">Search</button>
-            <div id="search-status" class="loader" style="display:none;">Searching...</div>
-        </form>
-        <div id="results" class="results"></div>
-    </div>
-</div>
-
 <!-- Bottom Navigation Bar -->
 <nav id="bottom-nav" class="bottom-nav">
     <a href="#" class="nav-item active" data-page="home" title="Home">
@@ -296,20 +291,23 @@
         </svg>
         <span class="nav-label">Home</span>
     </a>
-    <a href="#" class="nav-item" data-page="search" title="Search">
+    <a href="search.html" class="nav-item" data-page="search" title="Search">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.35-4.35"></path>
         </svg>
         <span class="nav-label">Search</span>
     </a>
-    <a href="#" class="nav-item" data-page="chat" title="Chat">
+    <a href="friends.html" class="nav-item" title="Friends">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
         </svg>
-        <span class="nav-label">Chat</span>
+        <span class="nav-label">Friends</span>
     </a>
-    <a href="profile.html" class="nav-item" data-page="profile" title="Profile">
+    <a href="profile.html" class="nav-item" title="Profile">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
             <circle cx="12" cy="7" r="4"></circle>
@@ -318,9 +316,40 @@
     </a>
 </nav>
 
+<!-- QR Modal -->
+<div id="qr-modal" class="modal" style="display: none;">
+    <div class="modal-content qr-modal-content">
+        <button class="modal-close" onclick="closeQRModal()">✕</button>
+        
+        <div class="qr-tabs">
+            <button class="qr-tab active" onclick="switchQRTab('show')">Show My QR</button>
+            <button class="qr-tab" onclick="switchQRTab('scan')">Scan QR</button>
+        </div>
+
+        <!-- Show QR Tab -->
+        <div id="show-qr-tab" class="qr-tab-content active">
+            <div class="qr-display-container">
+                <p class="qr-instruction">Share this QR code to let friends add you</p>
+                <div id="qr-code-display" class="qr-code-display"></div>
+                <button class="button-primary" onclick="downloadQRCode()">
+                    📥 Download QR
+                </button>
+            </div>
+        </div>
+
+        <!-- Scan QR Tab -->
+        <div id="scan-qr-tab" class="qr-tab-content" style="display: none;">
+            <div class="qr-scanner-container">
+                <p class="qr-instruction">Point camera at a QR code</p>
+                <div id="qr-reader" class="qr-reader"></div>
+                <p id="scan-result" class="scan-result" style="display: none;"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="./js/firebaseConfig.js"></script>
 <script src="./js/auth.js"></script>
-<script src="./js/profile.js"></script>
 <script src="./js/search.js"></script>
 <script src="./js/data.js"></script>
 <script src="./js/stats.js"></script>
@@ -459,9 +488,18 @@
 
     initializeFirebase();
 
+    let authStateInitialized = false;
     watchAuthState(user => {
+        if (authStateInitialized) return; // Prevent re-execution
+        
         if (user) {
             console.log('User authenticated:', user.uid);
+            authStateInitialized = true;
+
+            if (typeof window.setIntroState === 'function') {
+                window.setIntroState(window.__forceIntro === true ? true : false);
+            }
+            
             if (isUserAuthenticated === false) {
                 showCheckInForm();
             }
@@ -472,9 +510,16 @@
                 loadStampsFromFirestore(user.uid).catch(e => console.warn('Error loading stamps:', e));
             }
             
-            // Load all user data from Firestore (including journeyRoutes, visitedCountries, etc.)
+            // Load all user data from Firestore
             if (typeof loadAllUserDataFromFirestore === 'function') {
                 loadAllUserDataFromFirestore(user.uid).catch(e => console.warn('Error loading user data:', e));
+            }
+            if (typeof syncJourneyRoutesFromTrips === 'function') {
+                syncJourneyRoutesFromTrips(user.uid).catch(e => console.warn('Error syncing routes:', e));
+            }
+        } else {
+            if (typeof window.setIntroState === 'function') {
+                window.setIntroState(true);
             }
         }
     });

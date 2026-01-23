@@ -14,7 +14,7 @@ async function saveUserData(uid, data) {
     // 현재 데이터 병합 (기존 프로필 유지)
     await userRef.update({
       visitedCountries: data.visitedCountries || {},
-      journeyRoutes: data.journeyRoutes || [],
+      journeyRoutes: serializeJourneyRoutesForFirestore(data.journeyRoutes || []),
       userConfig: data.userConfig || {},
       settings: data.settings || {},
       lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
@@ -59,7 +59,7 @@ async function saveJourneyRoutesToFirestore(uid, routes) {
   try {
     const db = firebase.firestore();
     await db.collection('users').doc(uid).update({
-      journeyRoutes: routes || [],
+      journeyRoutes: serializeJourneyRoutesForFirestore(routes || []),
       lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     });
     console.log('Journey routes saved to Firestore');
@@ -67,6 +67,18 @@ async function saveJourneyRoutesToFirestore(uid, routes) {
     console.error('Error saving journey routes:', error);
     throw error;
   }
+}
+
+function serializeJourneyRoutesForFirestore(routes) {
+  if (!Array.isArray(routes)) return [];
+  return routes.map(route => {
+    if (!route || typeof route !== 'object') return route;
+    const clone = { ...route };
+    if (Array.isArray(clone.pathCoords)) {
+      clone.pathCoords = JSON.stringify(clone.pathCoords);
+    }
+    return clone;
+  });
 }
 
 // 방문 국가만 저장
@@ -124,7 +136,13 @@ async function loadAllUserDataFromFirestore(uid) {
     
     if (data.userConfig) {
       userConfig = data.userConfig;
-      localStorage.setItem('travelogue_config', JSON.stringify(userConfig));
+      const nameInput = document.getElementById('input-name');
+      const fromInput = document.getElementById('input-from');
+      if (nameInput) nameInput.value = userConfig.name || '';
+      if (fromInput) fromInput.value = userConfig.from || '';
+      if (typeof populateOriginAirports === 'function') {
+        populateOriginAirports(userConfig.from || '');
+      }
     }
     
     console.log('All user data loaded from Firestore');

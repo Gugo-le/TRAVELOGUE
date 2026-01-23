@@ -88,3 +88,9 @@ function formatTotalDuration(ms) {
   }
   return `${minutes}M ${String(seconds).padStart(2, '0')}S`;
 }
+
+function normalizeHandle(handle, fallback = '@traveler') {
+  const raw = String(handle || '').trim();
+  if (!raw) return fallback;
+  return raw.startsWith('@') ? raw : `@${raw}`;
+}
