@@ -2268,9 +2268,13 @@ function initGlobe() {
         });
       }
 
-      subs.on("click", function(geo) {
+      let lastTouchSelect = 0;
+      const handleCountrySelect = (geo, source = 'click') => {
         if (isAnimating || flightMode) return;
-        if (d3.event) d3.event.stopPropagation();
+        if (source === 'touch') lastTouchSelect = Date.now();
+        if (d3.event && typeof d3.event.stopPropagation === 'function') {
+          d3.event.stopPropagation();
+        }
 
         setDestinationCountry(geo.id);
         isAnimating = true;
@@ -2323,6 +2327,15 @@ function initGlobe() {
           
           isAnimating = false;
         });
+      };
+
+      subs.on("click", function(geo) {
+        if (Date.now() - lastTouchSelect < 400) return;
+        handleCountrySelect(geo, 'click');
+      });
+
+      subs.on("touchstart", function(geo) {
+        handleCountrySelect(geo, 'touch');
       });
 
       // tap empty ocean area to reset on mobile
