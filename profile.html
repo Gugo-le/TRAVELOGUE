@@ -212,12 +212,38 @@
             margin: 0 auto 16px;
             overflow: hidden;
             border: 1px solid rgba(0,0,0,0.1);
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .profile-avatar:hover {
+            transform: scale(1.05);
+            border-color: #e67e22;
         }
 
         .profile-avatar img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+        }
+
+        .avatar-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .profile-avatar:hover .avatar-overlay {
+            opacity: 1;
         }
 
         .profile-header h1 {
@@ -562,9 +588,16 @@
 <!-- Profile Section -->
 <div id="profile-section">
     <div class="profile-header">
-        <div class="profile-avatar">
+        <div class="profile-avatar" onclick="document.getElementById('profile-image-input').click()">
             <img id="profile-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23fafafa' width='100' height='100'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%23141414'/%3E%3Cpath d='M20,70 Q20,55 50,55 Q80,55 80,70 L80,100 L20,100 Z' fill='%23141414'/%3E%3C/svg%3E" alt="프로필">
+            <div class="avatar-overlay">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                    <circle cx="12" cy="13" r="4"></circle>
+                </svg>
+            </div>
         </div>
+        <input type="file" id="profile-image-input" accept="image/*" style="display: none;" onchange="handleProfileImageUpload(event)">
         <h1 id="profile-name">사용자 이름</h1>
         <p class="handle" id="profile-handle">@handle</p>
         <div>
@@ -684,6 +717,12 @@
             document.getElementById('stat-countries').textContent = profile.stats?.totalCountries || 0;
             document.getElementById('stat-distance').textContent = (profile.stats?.totalDistance || 0) + ' km';
 
+            // 프로필 이미지 로드
+            if (profile.profileImage) {
+                const profileImg = document.getElementById('profile-img');
+                profileImg.src = profile.profileImage;
+            }
+
             // 라이브 계산 통계로 보강 (users/{uid}/trips 기반)
             try {
                 const liveStats = await computeCurrentUserStatsAndRender();
@@ -737,6 +776,46 @@
             } else {
                 alert('Failed to delete account: ' + error.message);
             }
+        }
+    }
+
+    // Profile image upload
+    async function handleProfileImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // 파일 크기 체크 (5MB 제한)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Image size must be less than 5MB');
+            return;
+        }
+
+        // 이미지 파일 체크
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+
+        try {
+            // 업로드 중 표시
+            const profileImg = document.getElementById('profile-img');
+            const originalSrc = profileImg.src;
+            profileImg.style.opacity = '0.5';
+
+            // Firebase Storage에 업로드
+            const url = await uploadCurrentUserProfileImage(file);
+            
+            if (url) {
+                // 이미지 URL 업데이트
+                profileImg.src = url;
+                profileImg.style.opacity = '1';
+                console.log('Profile image updated:', url);
+            }
+        } catch (error) {
+            console.error('Failed to upload profile image:', error);
+            alert('Failed to upload image: ' + error.message);
+            const profileImg = document.getElementById('profile-img');
+            profileImg.style.opacity = '1';
         }
     }
 </script>

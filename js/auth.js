@@ -244,7 +244,9 @@ async function deleteAccount() {
 // handle 자동 생성
 function generateHandle(displayName) {
   if (!displayName) return '@user' + Math.random().toString(36).substr(2, 9);
-  return '@' + displayName.toLowerCase().replace(/\s+/g, '') + Math.random().toString(36).substr(2, 5);
+  // Remove leading @ symbols to prevent @@ duplication
+  const cleanName = displayName.replace(/^@+/, '');
+  return '@' + cleanName.toLowerCase().replace(/\s+/g, '') + Math.random().toString(36).substr(2, 5);
 }
 
 // 현재 로그인된 사용자 가져오기

@@ -27,8 +27,8 @@ function updateTicketAirportCodes() {
   const routeLine = document.getElementById('route-line');
   const fromInput = document.getElementById('input-from');
   const rawFrom = normalizeIata(fromInput ? fromInput.value : '');
-  const currentFrom = normalizeIata(getCodeValue(fromEl));
-  const fromCode = selectedOriginAirport ? selectedOriginAirport.code : (currentFrom || rawFrom || '');
+  // Always prioritize user input from rawFrom, fall back to selectedOriginAirport if exists
+  const fromCode = rawFrom || (selectedOriginAirport ? selectedOriginAirport.code : '');
   setCodeValue(fromEl, fromCode);
   const currentTo = normalizeIata(getCodeValue(toEl));
   if (selectedCountry && selectedDestinationAirport) {
@@ -504,13 +504,12 @@ function syncCustom() {
   const seatStub = document.getElementById('ticket-seat-stub');
   if (seatInput && seatStub) seatStub.textContent = (seatInput.value || '').toUpperCase();
   const fromCode = normalizeIata(from);
+  // Try to find airport in database, but always use user input value
   const matched = getAirportByCode(fromCode);
   if (matched) {
-    setOriginAirport(matched.code);
-  } else if (fromCode) {
+    selectedOriginAirport = matched;
+  } else {
     selectedOriginAirport = null;
-    const fromEl = document.getElementById('ticket-from-code');
-    setCodeValue(fromEl, fromCode);
   }
   userConfig = { ...userConfig, name, from };
   localStorage.setItem('travelogue_config', JSON.stringify(userConfig));
@@ -1135,8 +1134,8 @@ function showEventHud(destCode) {
   const fromEl = document.getElementById('ticket-from-code');
   const hudFrom = document.getElementById('hud-from');
   const hudTo = document.getElementById('hud-to');
-  const fromCode = selectedOriginAirport ? selectedOriginAirport.code : normalizeIata(getCodeValue(fromEl));
-  if (hudFrom) hudFrom.textContent = fromCode || '---';
+  const fromCode = normalizeIata(getCodeValue(fromEl)) || '---';
+  if (hudFrom) hudFrom.textContent = fromCode;
   if (hudTo) {
     const toInput = document.getElementById('ticket-dest-code');
     const manualTo = normalizeIata(getCodeValue(toInput));
