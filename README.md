@@ -21,7 +21,7 @@ But the warmth held within those images fades faster than we expect. TRAVELOGUE 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **Vanilla JavaScript** - 프레임워크 없이 순수 자바스크립트로 구현
+- **Vanilla JavaScript** 
 - **D3.js v3** - 지구본(Globe) 렌더링 및 비행 경로 애니메이션
 - **Topojson** - 세계 지도 데이터 처리
 - **HTML5 Canvas** - 2D 평면 지도 렌더링 및 애니메이션
@@ -151,32 +151,6 @@ friendRequests/
        │   ├─ timestamp: timestamp
        │   └─ status: "pending" | "accepted" | "declined"
        └─ ...
-```
-
-### Security Rules
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // 사용자 프로필 - 본인만 수정, 타인은 읽기 가능
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update, delete: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // 여행 기록 - 본인만 접근
-    match /users/{userId}/trips/{tripId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // 여권 스탬프 - 본인만 접근
-    match /users/{userId}/stamps/{stampId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-  }
-}
 ```
 
 ### Data Flow
@@ -593,59 +567,6 @@ npx http-server -p 8080
 
 5. 브라우저에서 `http://localhost:8080` 접속
 
-### First Run
-1. 인트로 화면에서 "New Traveler" 클릭
-2. 이메일, 이름, 비밀번호 입력하여 회원가입
-3. 지도에서 공항 선택 → 보딩패스 작성
-4. "Check in" 버튼 클릭 → 비행 애니메이션 시작
-5. 착륙 후 여권 버튼 클릭하여 스탬프 확인
-
----
-
-## 📁 Project Structure
-
-```
-travel_logue/
-├── index.html              # 메인 페이지 (지도, 보딩패스)
-├── profile.html            # 프로필 페이지 (통계, 로그아웃)
-├── search.html             # 여행자 검색
-├── friends.html            # 친구 추가/요청/탑승자 목록
-├── style.css               # 메인 스타일시트
-├── firestore.rules         # Firestore 보안 규칙
-│
-├── js/
-│   ├── firebaseConfig.js   # Firebase 초기화
-│   ├── auth.js             # 인증 (회원가입, 로그인, 계정삭제)
-│   ├── data.js             # 공항 데이터 로드
-│   ├── state.js            # 전역 상태 관리
-│   ├── map.js              # 지도/지구본 렌더링, 비행 애니메이션
-│   ├── ui.js               # UI 인터랙션 (보딩패스, 여권, 날짜 선택)
-│   ├── audio.js            # 오디오 시스템
-│   ├── trips.js            # Firestore trips CRUD
-│   ├── stamps.js           # Firestore stamps CRUD
-│   ├── userdata.js         # 사용자 데이터 (경로, 방문국가) 저장/로드
-│   ├── stats.js            # 통계 계산 (Haversine, 국가 추출)
-│   ├── profile.js          # 프로필 페이지 로직
-│   ├── home.js             # 홈 통계 실시간 구독
-│   ├── search.js           # 여행자 검색
-│   ├── friends.js          # 친구 추가/요청/탑승자 목록
-│   ├── navigation.js       # 하단 네비게이션
-│   ├── utils.js            # 유틸리티 함수
-│   └── script.js           # 앱 초기화 및 이벤트 연결
-│
-└── assets/
-    ├── data/
-    │   ├── airports.json           # 10,000+ 공항 데이터
-    │   ├── country-sounds.json     # 국가별 soundscape 매핑
-    │   ├── theme-colors.json       # 국가별 테마 색상
-    │   └── openflights/
-    │       ├── airports-extended.dat
-    │       └── routes.dat          # 항공사 노선 데이터
-    ├── audio/
-    │   └── soundscapes/            # 국가별 배경음악
-    ├── images/                     # 아이콘, 로고
-    └── favicon/                    # 파비콘, manifest
-```
 
 ---
 
