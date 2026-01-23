@@ -509,8 +509,7 @@ async function syncJourneyRoutesFromTrips(uid) {
     if (!routes.length) return;
     journeyRoutes = hydrateJourneyRoutes(routes);
     localStorage.setItem('travelogue_routes', JSON.stringify(journeyRoutes));
-    journeyNetworkVisible = true;
-    renderJourneyNetwork();
+    journeyNetworkVisible = false;
     updateJourneySummary();
   } catch (e) {
     console.warn('Failed to sync journey routes from trips:', e);

@@ -1710,29 +1710,6 @@ button {
   color: var(--accent);
 }
 
-#login-btn {
-  position: absolute;
-  top: 36px;
-  left: 36px;
-  border: none;
-  background: transparent;
-  color: var(--ticket-muted);
-  border-radius: 0;
-  padding: 4px 2px 6px;
-  font-size: 0.58rem;
-  cursor: pointer;
-  transition: color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-  font-family: var(--font-ticket);
-  letter-spacing: 2px;
-  z-index: 120;
-  border-bottom: 1px solid transparent;
-}
-
-#login-btn:hover {
-  transform: translateY(-1px);
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
 
 #map-mode-toggle {
   position: absolute;
@@ -3540,12 +3517,12 @@ body.overlay-open { overflow: hidden; }
   padding: 20px 20px 120px 20px;
   max-width: 600px;
   margin: 0 auto;
-  background: #F3EBDD;
+  background: #FFF6EE;
 }
 
 /* Passport Section */
 .profile-passport {
-  background: #F3EBDD;
+  background: #FFF6EE;
   border: none;
   border-radius: 12px;
   padding: 32px;
@@ -3677,7 +3654,7 @@ body.overlay-open { overflow: hidden; }
 
 /* Travel Statistics Section */
 .travel-stats {
-  background: #F3EBDD;
+  background: #FFF6EE;
   border: none;
   border-radius: 12px;
   padding: 24px;
@@ -3704,9 +3681,9 @@ body.overlay-open { overflow: hidden; }
 .stat-item {
   text-align: center;
   padding: 16px;
-  background: #F3EBDD;
+  background: #FFF6EE;
   border-radius: 8px;
-  border: 1px solid #F3EBDD;
+  border: 1px solid #FFF6EE;
 }
 
 .stat-label {
@@ -3729,7 +3706,7 @@ body.overlay-open { overflow: hidden; }
 /* Airport Destinations Section */
 .airport-section {
   margin-bottom: 32px;
-  background: #F3EBDD;
+  background: #FFF6EE;
   border-radius: 8px;
   padding: 24px;
 }
@@ -3778,7 +3755,7 @@ body.overlay-open { overflow: hidden; }
   border: 1px dashed #E6D7C3;
   border-radius: 10px;
   padding: 12px;
-  background: #F3EBDD;
+  background: #FFF6EE;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -3829,14 +3806,14 @@ body.overlay-open { overflow: hidden; }
   padding: 6px 8px;
   border: 1px solid #E6D7C3;
   border-radius: 6px;
-  background: #F3EBDD;
+  background: #FFF6EE;
   color: #8A8074;
   cursor: pointer;
 }
 
 .destination-card {
-  background: #F3EBDD;
-  border: 1px solid #F3EBDD;
+  background: #FFF6EE;
+  border: 1px solid #FFF6EE;
   border-radius: 8px;
   padding: 14px;
   text-align: center;
@@ -3882,7 +3859,7 @@ body.overlay-open { overflow: hidden; }
 
 /* Visa Stamps Section */
 .stamps-section {
-  background: #F3EBDD;
+  background: #FFF6EE;
   border-radius: 8px;
   padding: 24px;
   margin-top: 16px;
@@ -3897,8 +3874,8 @@ body.overlay-open { overflow: hidden; }
 }
 
 .stamp-card {
-  background: #E9E0D0;
-  border: 2px solid #B78B6B;
+  background: #F5E9DE;
+  border: 2px solid #CFA884;
   border-radius: 50%;
   width: 70px;
   height: 70px;
@@ -3921,7 +3898,7 @@ body.overlay-open { overflow: hidden; }
   content: '';
   position: absolute;
   inset: 0;
-  border: 2px dashed #C9A184;
+  border: 2px dashed #D9B996;
   border-radius: 50%;
   opacity: 0.7;
 }
@@ -3930,7 +3907,7 @@ body.overlay-open { overflow: hidden; }
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: #8B5E3C;
+  color: #8C5B3D;
   margin-bottom: 2px;
   z-index: 1;
   font-family: 'Courier New', monospace;
@@ -3938,7 +3915,7 @@ body.overlay-open { overflow: hidden; }
 
 .stamp-count {
   font-size: 10px;
-  color: #A07456;
+  color: #A97A5C;
   font-weight: 600;
   z-index: 1;
   font-family: 'Courier New', monospace;
@@ -3951,16 +3928,16 @@ body.overlay-open { overflow: hidden; }
   gap: 12px;
   padding: 20px 0 120px 0;
   margin-top: 20px;
-  background: #F3EBDD;
+  background: #FFF6EE;
   border-radius: 8px;
   padding: 20px;
 }
 
 .profile-action-btn {
   padding: 14px;
-  background: #F3EBDD;
+  background: #FFF6EE;
   color: #8A8074;
-  border: 1px solid #F3EBDD;
+  border: 1px solid #F1E4DA;
   border-radius: 8px;
   font-size: 12px;
   font-weight: 700;
@@ -3971,7 +3948,7 @@ body.overlay-open { overflow: hidden; }
 }
 
 .profile-action-btn:hover {
-  border-color: #EFE4D2;
+  border-color: #E7D6C9;
 }
 
 .profile-action-btn:active {
@@ -3979,23 +3956,23 @@ body.overlay-open { overflow: hidden; }
 }
 
 .profile-action-btn.secondary {
-  background: #F3EBDD;
+  background: #FFF6EE;
   color: #8A8074;
-  border: 1px solid #F3EBDD;
+  border: 1px solid #F1E4DA;
 }
 
 .profile-action-btn.secondary:hover {
-  border-color: #EFE4D2;
+  border-color: #E7D6C9;
 }
 
 .profile-action-btn.danger {
-  background: #F3EBDD;
-  color: #c53030;
-  border: 1px solid #F3EBDD;
+  background: #FFF6EE;
+  color: #C23B3B;
+  border: 1px solid #F1E4DA;
 }
 
 .profile-action-btn.danger:hover {
-  border-color: #EFE4D2;
+  border-color: #E7D6C9;
 }
 
 /* Edit Profile Modal */
