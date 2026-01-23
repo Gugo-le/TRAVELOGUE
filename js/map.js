@@ -208,16 +208,12 @@ function recordJourneyRoute(route, options = {}) {
   journeyRoutes.push(routeData);
   localStorage.setItem('travelogue_routes', JSON.stringify(journeyRoutes));
   
-  // Firestore에도 저장 (nested arrays 제거)
+  // Firestore에도 저장 (전체 journeyRoutes 배열)
   const user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
-  if (user && user.uid && typeof firebase !== 'undefined') {
-    // pathCoords를 문자열로 변환해서 Firestore에 저장
-    const firestoreData = {
-      ...routeData,
-      pathCoords: JSON.stringify(routeData.pathCoords)  // Array of arrays → JSON string
-    };
-    firebase.firestore().collection('users').doc(user.uid).collection('journeyRoutes').add(firestoreData)
-      .catch(e => console.warn('Failed to save journey route to Firestore:', e));
+  if (user && user.uid && typeof saveJourneyRoutesToFirestore === 'function') {
+    saveJourneyRoutesToFirestore(user.uid, journeyRoutes).catch(e => {
+      console.warn('Failed to save journey routes to Firestore:', e);
+    });
   }
   
   updateJourneyResetButton();
@@ -510,6 +506,15 @@ function startJourneyTotalsCycle() {
 function resetJourneyNetwork() {
   journeyRoutes = [];
   localStorage.removeItem('travelogue_routes');
+  
+  // Firestore에도 리셋
+  const user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+  if (user && user.uid && typeof saveJourneyRoutesToFirestore === 'function') {
+    saveJourneyRoutesToFirestore(user.uid, []).catch(e => {
+      console.warn('Failed to reset journey routes in Firestore:', e);
+    });
+  }
+  
   clearJourneyNetwork();
   updateFlipBoard("JOURNEY RESET");
 }

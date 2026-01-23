@@ -328,6 +328,7 @@
 <script src="./js/stats.js"></script>
 <script src="./js/trips.js"></script>
 <script src="./js/stamps.js"></script>
+<script src="./js/userdata.js"></script>
 <script src="./js/state.js"></script>
 <script src="./js/utils.js"></script>
 <script src="./js/audio.js"></script>
@@ -471,6 +472,11 @@
             // Load stamps from Firestore
             if (typeof loadStampsFromFirestore === 'function') {
                 loadStampsFromFirestore(user.uid).catch(e => console.warn('Error loading stamps:', e));
+            }
+            
+            // Load all user data from Firestore
+            if (typeof loadAllUserDataFromFirestore === 'function') {
+                loadAllUserDataFromFirestore(user.uid).catch(e => console.warn('Error loading user data:', e));
             }
             
             if (typeof loadJourneyRoutesFromFirestore === 'function') {

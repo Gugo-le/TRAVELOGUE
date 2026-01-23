@@ -166,45 +166,77 @@ async function deleteAccount() {
     const uid = user.uid;
     const db = firebase.firestore();
     
-    // 1. trips 서브컬렉션 삭제
-    const tripsRef = db.collection('users').doc(uid).collection('trips');
-    const tripsSnapshot = await tripsRef.get();
-    const tripsBatch = db.batch();
-    tripsSnapshot.docs.forEach(doc => tripsBatch.delete(doc.ref));
-    await tripsBatch.commit();
+    console.log('Starting account deletion for uid:', uid);
     
-    // 2. stamps 서브컬렉션 삭제
-    const stampsRef = db.collection('users').doc(uid).collection('stamps');
-    const stampsSnapshot = await stampsRef.get();
-    const stampsBatch = db.batch();
-    stampsSnapshot.docs.forEach(doc => stampsBatch.delete(doc.ref));
-    await stampsBatch.commit();
+    // 모든 서브컬렉션 삭제하는 헬퍼 함수
+    async function deleteCollection(collectionPath) {
+      try {
+        const ref = db.collection('users').doc(uid).collection(collectionPath);
+        const snapshot = await ref.get();
+        
+        if (snapshot.empty) {
+          console.log(`Collection ${collectionPath} is empty`);
+          return;
+        }
+        
+        // 최대 500개씩 삭제 (Firestore 배치 제한)
+        const batchSize = 100;
+        let processed = 0;
+        
+        for (let i = 0; i < snapshot.docs.length; i += batchSize) {
+          const batch = db.batch();
+          const docs = snapshot.docs.slice(i, i + batchSize);
+          
+          docs.forEach(doc => {
+            batch.delete(doc.ref);
+          });
+          
+          await batch.commit();
+          processed += docs.length;
+        }
+        
+        console.log(`Deleted ${processed} documents from ${collectionPath}`);
+      } catch (error) {
+        console.warn(`Error deleting collection ${collectionPath}:`, error);
+      }
+    }
     
-    // 3. routes 서브컬렉션 삭제
-    const routesRef = db.collection('users').doc(uid).collection('routes');
-    const routesSnapshot = await routesRef.get();
-    const routesBatch = db.batch();
-    routesSnapshot.docs.forEach(doc => routesBatch.delete(doc.ref));
-    await routesBatch.commit();
+    // 1. 모든 서브컬렉션 삭제
+    console.log('Deleting subcollections...');
+    await deleteCollection('trips');
+    await deleteCollection('stamps');
+    await deleteCollection('routes');
     
-    // 4. 사용자 프로필 문서 삭제
-    await db.collection('users').doc(uid).delete();
+    // 2. 사용자 프로필 문서 삭제
+    console.log('Deleting user profile document...');
+    const userDocRef = db.collection('users').doc(uid);
+    await userDocRef.delete();
+    console.log('User profile document deleted');
     
-    // 5. Firebase Auth 계정 삭제
-    await user.delete();
-    
-    // 6. 로컬 상태 초기화
+    // 3. 로컬 상태 초기화
+    console.log('Clearing local storage...');
     currentUser = null;
     localStorage.clear();
     
-    console.log('Account deleted successfully');
+    // 4. Firebase Auth 계정 삭제 (마지막에 실행 - 이후 접근 불가)
+    console.log('Deleting Firebase Auth account...');
+    await user.delete();
+    console.log('Firebase Auth account deleted');
+    
+    // 5. 명시적 로그아웃
+    console.log('Signing out...');
+    await firebase.auth().signOut();
+    
+    console.log('Account completely deleted');
     return true;
   } catch (error) {
-    console.error('Delete account error:', error.message);
+    console.error('Delete account error:', error.code, error.message);
+    
     // 재인증이 필요한 경우
     if (error.code === 'auth/requires-recent-login') {
       throw new Error('Please sign in again before deleting your account');
     }
+    
     throw error;
   }
 }

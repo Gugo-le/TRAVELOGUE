@@ -642,6 +642,7 @@
 <script src="./js/stats.js"></script>
 <script src="./js/trips.js"></script>
 <script src="./js/stamps.js"></script>
+<script src="./js/userdata.js"></script>
 <script src="./js/profile.js"></script>
 
 <script>
@@ -660,6 +661,10 @@
             // Load stamps from Firestore
             if (typeof loadStampsFromFirestore === 'function') {
                 loadStampsFromFirestore(user.uid).catch(e => console.warn('Error loading stamps:', e));
+            }
+            // Load all user data from Firestore
+            if (typeof loadAllUserDataFromFirestore === 'function') {
+                loadAllUserDataFromFirestore(user.uid).catch(e => console.warn('Error loading user data:', e));
             }
         } else {
             // Redirect to intro page if not authenticated
@@ -716,15 +721,19 @@
     async function handleDeleteAccount() {
         try {
             await deleteAccount();
-            alert('Account deleted successfully');
-            window.location.href = 'index.html';
+            // 삭제 성공 후 리다이렉트
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 500);
         } catch (error) {
             console.error('Delete account failed:', error);
             hideDeleteModal();
             if (error.message.includes('sign in again')) {
                 alert('Please sign in again before deleting your account.');
-                await signOut();
-                window.location.href = 'index.html';
+                // 재로그인을 위해 index.html로 이동
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1000);
             } else {
                 alert('Failed to delete account: ' + error.message);
             }

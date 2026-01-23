@@ -1051,6 +1051,15 @@ async function handleTicketClick(e) {
   visitedCountries[selectedCountry].push(visitDate);
   localStorage.setItem('visited_countries', JSON.stringify(visitedCountries));
   updateVisitHistory(selectedCountry);
+  
+  // Save visited countries to Firestore
+  const user = getCurrentUser && getCurrentUser();
+  if (user && user.uid && typeof saveVisitedCountriesToFirestore === 'function') {
+    saveVisitedCountriesToFirestore(user.uid, visitedCountries).catch(e => {
+      console.warn('Failed to save visited countries to Firestore:', e);
+    });
+  }
+  
   if (route && route.origin && route.destination) {
     const destinationCountry = route.destination.country || resolveAirportCountry(route.destination);
     const stampData = {
