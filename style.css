@@ -1710,6 +1710,30 @@ button {
   color: var(--accent);
 }
 
+#login-btn {
+  position: absolute;
+  top: 36px;
+  left: 36px;
+  border: none;
+  background: transparent;
+  color: var(--ticket-muted);
+  border-radius: 0;
+  padding: 4px 2px 6px;
+  font-size: 0.58rem;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  font-family: var(--font-ticket);
+  letter-spacing: 2px;
+  z-index: 120;
+  border-bottom: 1px solid transparent;
+}
+
+#login-btn:hover {
+  transform: translateY(-1px);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
 #map-mode-toggle {
   position: absolute;
   top: 36px;

@@ -47,6 +47,21 @@ function initBottomNav() {
     item.addEventListener('click', (e) => {
       const page = item.dataset.page;
       const href = item.getAttribute('href');
+
+      if (href === 'profile.html') {
+        const user = (typeof getCurrentUser === 'function')
+          ? getCurrentUser()
+          : (firebase && firebase.auth ? firebase.auth().currentUser : null);
+        if (!user) {
+          e.preventDefault();
+          if (typeof window.setIntroState === 'function') {
+            window.setIntroState(true);
+          } else {
+            window.location.href = 'index.html?intro=1';
+          }
+          return;
+        }
+      }
       
       // Allow external page links to navigate normally
       if (href && href !== '#' && (href === 'friends.html' || href === 'profile.html' || href === 'search.html')) {
