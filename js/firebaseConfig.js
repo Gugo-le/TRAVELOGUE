@@ -1,12 +1,12 @@
 // Firebase 초기화 설정
 // localStorage에서 config 읽기 (개발용) 또는 window.firebaseConfig 직접 설정
 const firebaseConfig = {
-  apiKey: localStorage.getItem('FIREBASE_API_KEY') || "AIzaSyDfc9pUWg2RMYq_IOa1uMk-m5hAZxteIWQ",
-  authDomain: localStorage.getItem('FIREBASE_AUTH_DOMAIN') || "travelogue-33b1b.firebaseapp.com",
-  projectId: localStorage.getItem('FIREBASE_PROJECT_ID') || "travelogue-33b1b",
-  storageBucket: localStorage.getItem('FIREBASE_STORAGE_BUCKET') || "travelogue-33b1b.firebasestorage.app",
-  messagingSenderId: localStorage.getItem('FIREBASE_MESSAGING_SENDER_ID') || "533436882389",
-  appId: localStorage.getItem('FIREBASE_APP_ID') || "1:533436882389:web:46459ad58235e6d46cb15c"
+  apiKey: localStorage.getItem('FIREBASE_API_KEY') || "your-api-key",
+  authDomain: localStorage.getItem('FIREBASE_AUTH_DOMAIN') || "your-auth-domain",
+  projectId: localStorage.getItem('FIREBASE_PROJECT_ID') || "your-project-id",
+  storageBucket: localStorage.getItem('FIREBASE_STORAGE_BUCKET') || "your-storage-bucket",
+  messagingSenderId: localStorage.getItem('FIREBASE_MESSAGING_SENDER_ID') || "your-messaging-sender-id",
+  appId: localStorage.getItem('FIREBASE_APP_ID') || "your-app-id"
 };
 
 // Firebase 라이브러리는 HTML의 <script>로 로드 (또는 npm install firebase 후 import)
